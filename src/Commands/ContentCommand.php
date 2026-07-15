@@ -1,0 +1,216 @@
+<?php
+
+namespace NickDeKruijk\LeapTemplate\Commands;
+
+use App\Models\Page;
+use App\Models\Tag;
+use Illuminate\Console\Command;
+use Illuminate\Console\ConfirmableTrait;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+
+use function Laravel\Prompts\text;
+
+/**
+ * Generate a listed content type for the frontend template: a model, a Leap resource,
+ * a migration, a factory and a seeder, then register it in config('leap.content').
+ *
+ * Three archetypes decide the shape. The name is free — the archetype is guessed from
+ * the name prefix (News*, Event*) or given with --archetype:
+ *
+ *   news     chronological, published_at required (future = staged/hidden)
+ *   event    + date and start/end time, published_at optional, upcoming/past
+ *   generic  hand-ordered (sort), no dates — Project, Product, Artist, Album …
+ */
+class ContentCommand extends Command
+{
+    use ConfirmableTrait;
+
+    protected $signature = 'leap:content {name : Singular StudlyCase name, e.g. News, Product}
+        {--archetype= : news|event|generic (default: guessed from the name)}
+        {--plural= : Override the plural (Str::plural is English — set berichten for Bericht)}
+        {--no-tags : Leave out the shared Tag relation and filter}
+        {--force : Overwrite existing files}';
+
+    protected $description = 'Generate a listed content type (model, resource, migration, factory, seeder) and register it';
+
+    /**
+     * Reserved model names that would collide with the template's own classes.
+     *
+     * @var array<int, string>
+     */
+    protected array $reserved = ['Page', 'Tag', 'User'];
+
+    /**
+     * Seconds added to the migration timestamp per file, so several types generated in
+     * the same second (the template's install loop) still get ordered filenames.
+     */
+    protected static int $migrationOffset = 0;
+
+    public function handle(): int
+    {
+        // A scaffolding command — never on production without --force.
+        if (! $this->confirmToProceed()) {
+            return 1;
+        }
+
+        // The generator builds on the template (Page + the content engine + registry).
+        if (! class_exists(Page::class)) {
+            $this->error('leap:content needs the frontend template. Run `php artisan leap:template` first, or use `php artisan leap:module` for an admin-only resource.');
+
+            return 1;
+        }
+
+        $name = Str::studly($this->argument('name'));
+
+        if (! preg_match('/^[A-Z][A-Za-z0-9]*$/', $name)) {
+            $this->error("Invalid name [{$name}] — use a StudlyCase singular like News or Product.");
+
+            return 1;
+        }
+
+        if (in_array($name, $this->reserved, true)) {
+            $this->error("[{$name}] is reserved by the template.");
+
+            return 1;
+        }
+
+        $archetype = $this->option('archetype') ?: $this->guessArchetype($name);
+        if (! in_array($archetype, ['news', 'event', 'generic'], true)) {
+            $this->error("Unknown archetype [{$archetype}] — use news, event or generic.");
+
+            return 1;
+        }
+
+        $plural = $this->option('plural')
+            ?: (($this->input->isInteractive() && ! $this->option('force'))
+                ? text('Plural of '.$name.'?', default: Str::plural($name))
+                : Str::plural($name));
+
+        $tags = ! $this->option('no-tags') && class_exists(Tag::class);
+
+        $tokens = [
+            '{{ Model }}' => $name,
+            '{{ model }}' => Str::camel($name),
+            '{{ Models }}' => Str::studly($plural),
+            '{{ models }}' => Str::camel($plural),
+            '{{ table }}' => Str::snake($plural),
+            '{{ key }}' => Str::kebab($plural),
+        ];
+
+        // Idempotent: a re-run (a second leap:template) must not fail on what the first
+        // run built. Skip when the model already exists, unless --force.
+        if (class_exists("App\\Models\\{$name}") && ! $this->option('force')) {
+            $this->components->info("Content type [{$name}] already exists — skipping (use --force to overwrite).");
+            $this->registerInConfig($tokens['{{ key }}'], $name);
+
+            return 0;
+        }
+
+        $files = [
+            'Model.stub' => "app/Models/{$name}.php",
+            'Resource.stub' => "app/Leap/{$name}.php",
+            'factory.stub' => "database/factories/{$name}Factory.php",
+            'seeder.stub' => "database/seeders/{$name}Seeder.php",
+            'migration.stub' => 'database/migrations/'.$this->migrationName($tokens['{{ table }}']),
+        ];
+
+        foreach ($files as $stub => $target) {
+            $this->render($archetype, $stub, base_path($target), $tokens, $tags);
+        }
+
+        $this->registerInConfig($tokens['{{ key }}'], $name);
+
+        $this->components->info("Generated content type [{$name}] ({$archetype}".($tags ? '' : ', no tags').').');
+
+        return 0;
+    }
+
+    protected function guessArchetype(string $name): string
+    {
+        return match (true) {
+            Str::startsWith($name, 'News') => 'news',
+            Str::startsWith($name, 'Event') => 'event',
+            default => 'generic',
+        };
+    }
+
+    /**
+     * A migration filename with a fresh, per-file timestamp.
+     */
+    protected function migrationName(string $table): string
+    {
+        return Carbon::now()->addSeconds(static::$migrationOffset++)->format('Y_m_d_His')."_create_{$table}_table.php";
+    }
+
+    /**
+     * Render a stub: resolve the {{#tags}} blocks, replace the tokens, tidy blank
+     * lines, and write it (creating directories as needed).
+     *
+     * @param  array<string, string>  $tokens
+     */
+    protected function render(string $archetype, string $stub, string $target, array $tokens, bool $tags): void
+    {
+        $content = file_get_contents(__DIR__."/../../stubs/content/{$archetype}/{$stub}");
+
+        // Keep the inner text of {{#tags}}…{{/tags}} blocks, or drop the whole block.
+        $content = preg_replace('/\{\{#tags\}\}(.*?)\{\{\/tags\}\}/s', $tags ? '$1' : '', $content);
+
+        $content = strtr($content, $tokens);
+
+        // Collapse the blank lines a dropped block may leave behind.
+        $content = preg_replace("/\n{3,}/", "\n\n", $content);
+
+        if (file_exists($target) && ! $this->option('force')) {
+            $this->components->twoColumnDetail($target, '<fg=yellow>exists, skipped</>');
+
+            return;
+        }
+
+        if (! is_dir($dir = dirname($target))) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents($target, $content);
+        $this->components->twoColumnDetail(str_replace(base_path().'/', '', $target), '<fg=green>created</>');
+    }
+
+    /**
+     * Append the type to config('leap.content'). No-op when already there. When the
+     * config isn't published, print the line to add by hand instead of failing.
+     */
+    protected function registerInConfig(string $key, string $model): void
+    {
+        $path = base_path('config/leap.php');
+        $line = "        '{$key}' => \\App\\Models\\{$model}::class,";
+
+        if (! file_exists($path)) {
+            $this->warn("config/leap.php not found — add this to leap.content by hand:\n{$line}");
+
+            return;
+        }
+
+        $contents = file_get_contents($path);
+
+        if (str_contains($contents, "'{$key}' => \\App\\Models\\{$model}::class")) {
+            return;
+        }
+
+        // Insert as the first entry of the 'content' => [ ... ] array (handles the
+        // empty 'content' => [], too).
+        $patched = preg_replace(
+            "/('content'\s*=>\s*\[)/",
+            "$1\n{$line}",
+            $contents,
+            1,
+            $count
+        );
+
+        if ($count && $patched !== $contents) {
+            file_put_contents($path, $patched);
+            $this->components->twoColumnDetail("config/leap.php → leap.content['{$key}']", '<fg=green>registered</>');
+        } else {
+            $this->warn("Could not find leap.content in config/leap.php — add this by hand:\n{$line}");
+        }
+    }
+}

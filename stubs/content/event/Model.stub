@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\HasSections;
+use App\Traits\HasSlug;
+{{#tags}}use App\Traits\HasTags;
+{{/tags}}use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
+use NickDeKruijk\Leap\Traits\HasDocumentMeta;
+use NickDeKruijk\Leap\Traits\HasMedia;
+use Spatie\Translatable\HasTranslations;
+
+/**
+ * {{ Model }}: a dated event with an optional start/end time. `ends_at` is derived on
+ * save so future()/past() stay simple indexed queries — a running or all-day event
+ * still counts as upcoming until it is really over. `published_at` is optional and
+ * acts as a scheduled-visibility gate: empty shows now, a future value goes live by
+ * itself.
+ */
+class {{ Model }} extends Model
+{
+    use HasDocumentMeta;
+    use HasFactory;
+    use HasMedia;
+    use HasSections;
+    use HasSlug;
+{{#tags}}    use HasTags;
+{{/tags}}    use HasTranslations;
+    use SoftDeletes;
+
+    protected $table = '{{ table }}';
+
+    public $translatable = ['title', 'html_title', 'slug', 'intro', 'description', 'meta'];
+
+    protected $casts = [
+        'active' => 'boolean',
+        'published_at' => 'datetime',
+        'date' => 'date',
+        'ends_at' => 'datetime',
+        'sections' => 'array',
+        'meta' => 'array',
+    ];
+
+    protected static function booted(): void
+    {
+        // Keep ends_at in step with date + times, so future()/past() need no time math.
+        static::saving(fn ({{ Model }} $event) => $event->ends_at = $event->calculateEndsAt());
+    }
+
+    /**
+     * When the event is over. Empty end time (or all day) → end of the date. An end at
+     * or before the start → it runs past midnight, so it ends the next day.
+     */
+    protected function calculateEndsAt(): Carbon
+    {
+        $date = $this->date instanceof Carbon ? $this->date->copy() : Carbon::parse($this->date);
+
+        if (empty($this->end_time)) {
+            return $date->endOfDay();
+        }
+
+        [$hour, $minute] = array_pad(explode(':', $this->end_time), 2, 0);
+        $ends = $date->copy()->setTime((int) $hour, (int) $minute);
+
+        if (! empty($this->start_time) && $this->end_time <= $this->start_time) {
+            $ends->addDay();
+        }
+
+        return $ends;
+    }
+
+    /**
+     * Visible unless it is scheduled for later — empty published_at shows now.
+     */
+    public function scopePublished(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $query) => $query->whereNull('published_at')->orWhere('published_at', '<=', now()));
+    }
+
+    /**
+     * The frontend set: active, published, soonest first.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('active', true)->published()->orderBy('date')->orderBy('start_time');
+    }
+
+    /**
+     * Not yet over (a running event still counts as upcoming).
+     */
+    public function scopeFuture(Builder $query): Builder
+    {
+        return $query->where('ends_at', '>=', now());
+    }
+
+    /**
+     * Already finished.
+     */
+    public function scopePast(Builder $query): Builder
+    {
+        return $query->where('ends_at', '<', now());
+    }
+}

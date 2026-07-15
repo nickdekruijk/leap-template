@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Leap;
+
+use App\Leap\Concerns\ContentSections;
+{{#tags}}use App\Models\Tag;
+{{/tags}}use NickDeKruijk\Leap\Classes\Attribute;
+use NickDeKruijk\Leap\Resource;
+
+class {{ Model }} extends Resource
+{
+    use ContentSections;
+
+    public $model = \App\Models\{{ Model }}::class;
+
+    public function attributes(): array
+    {
+        return [
+            Attribute::make('active')->switch()->default(true)->label(['nl' => 'Actief', 'en' => 'Active']),
+            Attribute::make('title')->index(1)->searchable()->required()->label(['nl' => 'Titel', 'en' => 'Title']),
+            Attribute::make('intro')->textarea()->searchable()
+                ->label(['nl' => 'Intro', 'en' => 'Intro'])
+                ->hint(['nl' => 'De korte tekst onder de titel op de kaart in het overzicht.', 'en' => 'The short text below the title on the card in the overview.']),
+            Attribute::make('images')->media()->label(['nl' => 'Afbeelding(en)', 'en' => 'Image(s)'])
+                ->hint(['nl' => 'De eerste afbeelding is de kaartafbeelding in het overzicht.', 'en' => 'The first image is the card image in the overview.']),
+{{#tags}}            Attribute::make('tags')->pivot(Tag::class, orderBy: 'sort', index: 'name')
+                ->label(['nl' => 'Tags', 'en' => 'Tags'])
+                ->hint(['nl' => 'Waarmee bezoekers het overzicht kunnen filteren.', 'en' => 'What visitors filter the overview by.']),
+{{/tags}}            Attribute::make('html_title')->searchable()
+                ->label(['nl' => 'HTML-titel', 'en' => 'HTML title'])
+                ->placeholder(['nl' => 'Leeg = titel', 'en' => 'Empty = title'])
+                ->hint(['nl' => 'Voor SEO: de titel in de browsertab en zoekresultaten.', 'en' => 'For SEO: the title in the browser tab and search results.']),
+            Attribute::make('description')->textarea()
+                ->label(['nl' => 'Omschrijving', 'en' => 'Description'])
+                ->hint(['nl' => 'Voor SEO: de meta-omschrijving voor Google en social media (±150 tekens).', 'en' => 'For SEO: the meta description for Google and social media (~150 characters).']),
+            Attribute::make('id')->indexOnly(),
+            Attribute::make('slug')->searchable()->unique()->slugFrom('title')->label('Slug'),
+            Attribute::make('sort')->sortable(),
+            Attribute::make('sections')->label(['nl' => 'Secties', 'en' => 'Sections'])->sections(...$this->contentSections()),
+        ];
+    }
+
+    public $icon = 'fas-layer-group';
+
+    public $priority = 0;
+
+    public $orderBy = 'sort';
+
+    public $active = 'active';
+
+    public $title = [
+        'nl' => '{{ Models }}',
+        'en' => '{{ Models }}',
+    ];
+}
