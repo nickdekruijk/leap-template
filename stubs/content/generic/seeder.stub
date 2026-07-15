@@ -48,7 +48,7 @@ class {{ Model }}Seeder extends Seeder
             'menuitem' => true,
             'title' => $translate('{{ Models }}'),
             'slug' => $translate('{{ key }}'),
-            'sort' => 100,
+            'sort' => 100 + (int) array_search('{{ key }}', array_keys(config('leap.content') ?: [])), // config order → menu/section order
             'sections' => [[
                 '_name' => '{{ key }}',
                 '_view' => 'sections.items',

@@ -5,6 +5,38 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.4] — 2026-07-15
+
+### Fixed
+
+- **Monolingual sites no longer crash on section fields.** The seeders always ship every
+  locale for translatable section fields; `HasSections` only collapsed them to the current
+  locale when `leap.locales` was set, so a monolingual install echoed an array and threw
+  `htmlspecialchars(): ... array given`. It now resolves them in monolingual mode too.
+- **`leap:template --fresh` actually seeds the content types.** Migrations, `vendor:publish`
+  and the seed now run as fresh subprocesses, so packages `composer require`d during the
+  same run (the settings migration/config) and the `leap.content` registry that
+  `leap:content` just wrote are visible — previously the settings table stayed unmigrated
+  (a 500 on the homepage) and every content type was skipped at seed time.
+- **Content is seeded under the chosen locale.** The seed subprocess no longer inherits the
+  installer's stale `APP_LOCALE`, so overview pages and items are stored under the locale
+  picked in `--locales`, not Laravel's default.
+- **`leap:content` registers into the real registry, in order.** Its patch matched the
+  `'content' => [`	in the doc-comment example instead of the array, leaving the registry
+  empty; it now anchors to the real array and **appends** (so `--models=News,Event` lists
+  news before events).
+- **Re-running no longer stacks duplicate migrations.** `leap:content` reuses an existing
+  `*_create_<table>_table.php` instead of writing a new timestamped one, which had made a
+  second `leap:template --fresh` fail to migrate with "table already exists".
+
+### Changed
+
+- **Menu/section/teaser order follows the command.** `leap:template --fresh` reorders
+  `leap.content` to the `--models` order (other registered types kept after), each content
+  type's overview page takes a `sort` from its registry position, and those sorts are
+  realigned on every re-seed — so a re-run with a different `--models` order moves the menu.
+- **"About us" and "Contact" sit last in the menu**, after the content-type overviews.
+
 ## [0.10.3] — 2026-07-15
 
 ### Added

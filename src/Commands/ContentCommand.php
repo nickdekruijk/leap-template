@@ -136,10 +136,19 @@ class ContentCommand extends Command
     }
 
     /**
-     * A migration filename with a fresh, per-file timestamp.
+     * The migration filename for a table. Reuses an existing
+     * `*_create_{table}_table.php` so re-running (e.g. `leap:template --fresh`) overwrites
+     * it in place — otherwise a second create-table migration under a fresh timestamp
+     * stacks up and `migrate` fails with "table already exists". Only new tables get a
+     * fresh, per-file timestamp.
      */
     protected function migrationName(string $table): string
     {
+        $existing = glob(base_path("database/migrations/*_create_{$table}_table.php"));
+        if ($existing) {
+            return basename($existing[0]);
+        }
+
         return Carbon::now()->addSeconds(static::$migrationOffset++)->format('Y_m_d_His')."_create_{$table}_table.php";
     }
 
@@ -196,11 +205,22 @@ class ContentCommand extends Command
             return;
         }
 
-        // Insert as the first entry of the 'content' => [ ... ] array (handles the
-        // empty 'content' => [], too).
-        $patched = preg_replace(
-            "/('content'\s*=>\s*\[)/",
-            "$1\n{$line}",
+        // Append as the LAST entry of the 'content' => [ ... ] array, so the registry
+        // (and thus the menu, section and teaser order downstream) follows the order the
+        // types were generated in — `--models=News,Event` lists news before events.
+        // Anchored to the start of a line with only indentation before the key, so the
+        // `'content' => [` in the doc-comment example (prefixed with "| ") is never
+        // matched instead. Handles the empty `'content' => []` too, and rebuilds the
+        // whole array so the closing bracket stays on its own line.
+        $patched = preg_replace_callback(
+            "/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms",
+            function (array $m) use ($line): string {
+                $indent = $m[1];
+                $existing = ltrim(rtrim($m[2]), "\n");
+                $body = $existing === '' ? $line : $existing."\n".$line;
+
+                return "{$indent}'content' => [\n{$body}\n{$indent}]";
+            },
             $contents,
             1,
             $count

@@ -4,7 +4,11 @@ namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
 use App\Models\Page;
 use App\Models\Tag;
+use Illuminate\Console\OutputStyle;
+use NickDeKruijk\LeapTemplate\Commands\TemplateCommand;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 
 class ContentCommandTest extends TestCase
 {
@@ -67,6 +71,52 @@ class ContentCommandTest extends TestCase
         $this->assertFileExists($this->temp.'/app/Leap/Product.php');
         $this->assertFileExists($this->temp.'/database/factories/ProductFactory.php');
         $this->assertFileExists($this->temp.'/database/seeders/ProductSeeder.php');
+    }
+
+    public function test_template_reorders_the_registry_to_the_requested_order(): void
+    {
+        // A registry that is out of order (events before news, plus an unrelated type).
+        file_put_contents($this->temp.'/config/leap.php', "<?php\n\nreturn [\n    'content' => [\n        'events' => \\App\\Models\\Event::class,\n        'news' => \\App\\Models\\News::class,\n        'products' => \\App\\Models\\Product::class,\n    ],\n];\n");
+
+        $command = new TemplateCommand;
+        $command->setLaravel($this->app);
+        $command->setOutput(new OutputStyle(new ArrayInput([]), new NullOutput));
+
+        $method = new \ReflectionMethod($command, 'reorderContentRegistry');
+        $method->invoke($command, ['news', 'events']);
+
+        $config = $this->read('config/leap.php');
+        // Requested types lead in order; the untouched one keeps its place after them.
+        $this->assertLessThan(strpos($config, "'events'"), strpos($config, "'news'"));
+        $this->assertLessThan(strpos($config, "'products'"), strpos($config, "'events'"));
+    }
+
+    public function test_the_registry_keeps_the_generation_order(): void
+    {
+        // Order matters: config('leap.content') drives the menu, section and teaser order
+        // on the frontend, so it must follow the order the types were generated in.
+        $this->artisan('leap:content', ['name' => 'News', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+        $this->artisan('leap:content', ['name' => 'Event', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+        $this->artisan('leap:content', ['name' => 'Project', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+
+        $config = $this->read('config/leap.php');
+        $this->assertLessThan(strpos($config, "'events'"), strpos($config, "'news'"));
+        $this->assertLessThan(strpos($config, "'projects'"), strpos($config, "'events'"));
+    }
+
+    public function test_rerunning_reuses_the_migration_instead_of_duplicating_it(): void
+    {
+        $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+        $first = glob($this->temp.'/database/migrations/*_create_products_table.php');
+        $this->assertCount(1, $first);
+
+        // A second run (as leap:template --fresh does) must overwrite that migration, not
+        // stack a second create-table under a fresh timestamp — which would then fail to
+        // migrate with "table already exists".
+        $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--force' => true, '--no-interaction' => true])->assertExitCode(0);
+        $second = glob($this->temp.'/database/migrations/*_create_products_table.php');
+        $this->assertCount(1, $second);
+        $this->assertSame($first[0], $second[0]);
     }
 
     public function test_news_prefix_selects_the_news_archetype(): void

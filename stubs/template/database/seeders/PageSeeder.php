@@ -104,7 +104,10 @@ class PageSeeder extends Seeder
         Page::updateOrCreate(['id' => 2], [
             'title' => ['nl' => 'Over ons', 'en' => 'About us'],
             'slug' => ['nl' => 'over-ons', 'en' => 'about-us'],
-            'sort' => 2,
+            // High sort so About/Contact trail the content-type overviews (sort 100,
+            // appended by each type's seeder) at the end of the menu, regardless of the
+            // order pages are seeded in.
+            'sort' => 200,
             'sections' => [
                 [
                     '_name' => 'default',
@@ -136,7 +139,7 @@ class PageSeeder extends Seeder
         Page::updateOrCreate(['id' => 4], [
             'title' => ['nl' => 'Contact', 'en' => 'Contact'],
             'slug' => ['nl' => 'contact', 'en' => 'contact'],
-            'sort' => 3,
+            'sort' => 210,
             'sections' => [
                 [
                     '_name' => 'default',
@@ -247,20 +250,26 @@ class PageSeeder extends Seeder
         $home = Page::find(1);
         $sections = $home->sections;
         $sort = 7;
+        $position = 0;
 
         foreach ($models as $key => $model) {
-            if (! PageController::overviewPage($key)) {
-                continue;
-            }
+            $overview = PageController::overviewPage($key);
+            if ($overview) {
+                // Realign the overview's menu position (sort) to the registry order, so a
+                // re-seed after a reordered leap.content moves the menu too — the page keeps
+                // whatever order it was first created with otherwise.
+                $overview->update(['sort' => 100 + $position]);
 
-            $sections[] = [
-                '_name' => $key,
-                '_view' => 'sections.items',
-                '_sort' => $sort++,
-                'active' => true,
-                'head' => PageController::overviewPage($key)->title,
-                'limit' => 6,
-            ];
+                $sections[] = [
+                    '_name' => $key,
+                    '_view' => 'sections.items',
+                    '_sort' => $sort++,
+                    'active' => true,
+                    'head' => $overview->title,
+                    'limit' => 6,
+                ];
+            }
+            $position++;
         }
 
         $home->update(['sections' => $sections]);

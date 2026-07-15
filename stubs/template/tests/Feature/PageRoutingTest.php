@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\PageController;
 use App\Models\Page;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,7 +49,13 @@ class PageRoutingTest extends TestCase
 
         $xml = simplexml_load_string($this->get('/sitemap.xml')->assertOk()->getContent());
 
-        $this->assertCount(Page::active()->count(), $xml->url);
+        // One plain entry per active page, plus one per active content item that hangs
+        // under an overview page (news/events by default). No hreflang alternates.
+        $expected = Page::active()->count() + collect(PageController::indexModels())
+            ->filter(fn (string $model, string $type): bool => (bool) PageController::overviewPage($type))
+            ->sum(fn (string $model): int => $model::active()->count());
+
+        $this->assertCount($expected, $xml->url);
         $this->assertStringNotContainsString('xhtml:link', $this->get('/sitemap.xml')->getContent());
     }
 }

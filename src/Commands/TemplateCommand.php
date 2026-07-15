@@ -2,10 +2,11 @@
 
 namespace NickDeKruijk\LeapTemplate\Commands;
 
-use Database\Seeders\PageSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
 use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputOption;
 
 use function Laravel\Prompts\confirm;
@@ -625,6 +626,76 @@ class TemplateCommand extends Command
             }
             $this->call('leap:content', $args);
         }
+
+        // leap:content leaves an already-registered type where it is, so on a re-run the
+        // registry can keep a stale order. Reorder it to the requested --models order
+        // (generated types first, in order; any other existing types kept after), so the
+        // menu, sections and teasers follow the command.
+        $this->reorderContentRegistry(array_map(
+            fn (array $model): string => Str::kebab($model[2] ?: Str::plural($model[0])),
+            $models
+        ));
+    }
+
+    /**
+     * Rewrite config('leap.content') so the given keys lead, in the given order, followed
+     * by any other registered types in their current order. No-op when already ordered so
+     * or when the config or its array can't be located.
+     *
+     * @param  array<int, string>  $keys
+     */
+    protected function reorderContentRegistry(array $keys): void
+    {
+        $path = base_path('config/leap.php');
+        if (! file_exists($path)) {
+            return;
+        }
+
+        $contents = file_get_contents($path);
+
+        // The real array only — anchored so the doc-comment example ("| 'content' => [")
+        // is never matched. Entries carry no brackets, so the first ] closes the array.
+        if (! preg_match("/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms", $contents, $m)) {
+            return;
+        }
+
+        preg_match_all("/^[ \t]*'([^']+)'\s*=>.*$/m", $m[2], $entries, PREG_SET_ORDER);
+        if (empty($entries)) {
+            return;
+        }
+
+        $byKey = [];
+        foreach ($entries as $entry) {
+            $byKey[$entry[1]] = trim($entry[0]);
+        }
+
+        $ordered = [];
+        foreach ($keys as $key) {
+            if (isset($byKey[$key])) {
+                $ordered[$key] = $byKey[$key];
+            }
+        }
+        foreach ($byKey as $key => $line) {
+            $ordered[$key] ??= $line;
+        }
+
+        if (array_keys($ordered) === array_keys($byKey)) {
+            return;
+        }
+
+        $indent = $m[1];
+        $body = implode("\n", array_map(fn (string $line): string => $indent.'    '.$line, $ordered));
+        $patched = preg_replace(
+            "/^[ \t]*'content'\s*=>\s*\[.*?\n?[ \t]*\]/ms",
+            $indent."'content' => [\n".$body."\n".$indent.']',
+            $contents,
+            1
+        );
+
+        if ($patched !== null && $patched !== $contents) {
+            file_put_contents($path, $patched);
+            $this->info('Reordered leap.content to match --models: '.implode(', ', array_keys($ordered)));
+        }
     }
 
     /**
@@ -789,11 +860,44 @@ class TemplateCommand extends Command
     protected function runMigrationsAndSeed(): void
     {
         if ($this->auto('Run database migrations now?', false)) {
-            $this->call('migrate');
+            // A subprocess, not $this->call(): suggestFrontendPackages() may have
+            // `composer require`d packages (e.g. nickdekruijk/settings) earlier in this
+            // same run. Their migrations are registered by service providers this
+            // already-booted process never loaded, so an in-process migrate would leave
+            // them pending. A fresh `php artisan` boots them via package discovery.
+            $this->artisan(['migrate', '--force']);
         }
 
         if ($this->auto('Seed the sample pages now?', false)) {
-            $this->call('db:seed', ['--class' => PageSeeder::class]);
+            // Also a subprocess: PageSeeder::seedContent() reads config('leap.content'),
+            // which generateContentTypes() appended to config/leap.php earlier in this
+            // same run. This process cached that config at boot (before the append), so an
+            // in-process seed would see an empty registry and skip every content type. A
+            // fresh `php artisan` reads the updated config.
+            $this->artisan(['db:seed', '--class=Database\\Seeders\\PageSeeder', '--force']);
+        }
+    }
+
+    /**
+     * Run an artisan command in a fresh subprocess. Required for any step that follows a
+     * mid-install `composer require`: this process booted before those packages existed,
+     * so their service providers — and the migrations and publishable config they
+     * register — are invisible to $this->call(). A fresh boot discovers them.
+     */
+    protected function artisan(array $arguments): void
+    {
+        $result = Process::path(base_path())
+            ->forever()
+            // Strip the inherited locale vars: this command booted before configureLocales()
+            // rewrote APP_LOCALE in .env, and a subprocess inherits the parent's (stale) env,
+            // which Dotenv then won't override. Removing them lets the child read .env fresh,
+            // so content is seeded under the chosen locale rather than Laravel's default.
+            ->env(['APP_LOCALE' => false, 'APP_FALLBACK_LOCALE' => false])
+            ->run(array_merge([PHP_BINARY, base_path('artisan')], $arguments));
+
+        $this->output->write($result->output());
+        if (! $result->successful()) {
+            $this->output->write($result->errorOutput());
         }
     }
 
@@ -847,8 +951,11 @@ class TemplateCommand extends Command
             passthru($command, $status);
             if ($status === 0) {
                 $this->info('Publishing settings and imageresize config...');
-                $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Settings\ServiceProvider']);
-                $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\ImageResize\ServiceProvider']);
+                // Subprocesses: the providers were just installed and are not loaded in
+                // this already-booted process, so an in-process vendor:publish finds
+                // nothing to publish. See artisan().
+                $this->artisan(['vendor:publish', '--provider=NickDeKruijk\Settings\ServiceProvider', '--no-interaction']);
+                $this->artisan(['vendor:publish', '--provider=NickDeKruijk\ImageResize\ServiceProvider', '--no-interaction']);
             }
         } else {
             $this->line('Install later with: composer require '.implode(' ', $missing));
