@@ -9,6 +9,7 @@
 	}],
 	"require": {
 		"php": "^8.3",
+		"composer-runtime-api": "^2.0",
 		"laravel/framework": "^12.0|^13.0",
 		"nickdekruijk/leap": "^0.10"
 	},
@@ -32,8 +33,6 @@
 	"scripts": {
 		"test": "vendor/bin/phpunit"
 	},
-	"minimum-stability": "dev",
-	"prefer-stable": true,
 	"extra": {
 		"laravel": {
 			"providers": [
@@ -45,14 +44,5 @@
 		"laravel/pint": "^1.18",
 		"orchestra/testbench": "^10.0|^11.0",
 		"phpunit/phpunit": "^11.0|^12.0"
-	},
-	"repositories": [
-		{
-			"type": "path",
-			"url": "../leap",
-			"options": {
-				"symlink": true
-			}
-		}
-	]
+	}
 }

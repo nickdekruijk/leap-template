@@ -5,6 +5,21 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] — 2026-07-15
+
+### Added
+
+- **Console warning when installed without `--dev`.** This is dev-only tooling, so it
+  should not ship to production; detected via
+  `Composer\InstalledVersions::isDevRequirement()` (adds a `composer-runtime-api: ^2.0`
+  requirement), shown on the console only and never while developing this package itself.
+
+### Changed
+
+- Dropped the local path repository and `minimum-stability: dev` from `composer.json`
+  now that `nickdekruijk/leap` 0.10.0 is on Packagist — leap resolves as a normal stable
+  dependency.
+
 ## [0.10.0] — 2026-07-15
 
 ### Added
