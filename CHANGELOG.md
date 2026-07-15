@@ -5,6 +5,16 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] — 2026-07-15
+
+### Fixed
+
+- **The non-dev install warning no longer needs Composer 2.2+.** It called
+  `Composer\InstalledVersions::isDevRequirement()`, which throws "Call to undefined
+  method" on older Composer. It now reads `composer.lock` (packages vs packages-dev)
+  directly, so it works on every Composer version. The `composer-runtime-api` requirement
+  is dropped (no longer used).
+
 ## [0.10.1] — 2026-07-15
 
 ### Added
