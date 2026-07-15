@@ -20,7 +20,9 @@ class Tag extends Resource
 
     public $icon = 'fas-tags';
 
-    public $priority = 1;
+    // Last of the content modules, just before the file manager (priority 50), with room
+    // to slot other modules in between.
+    public $priority = 40;
 
     public $orderBy = 'sort';
 

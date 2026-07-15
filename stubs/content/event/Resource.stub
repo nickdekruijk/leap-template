@@ -49,7 +49,14 @@ class {{ Model }} extends Resource
 
     public $icon = 'fas-calendar';
 
-    public $priority = 0;
+    /**
+     * Admin nav priority follows the leap.content registry order (Page first, the
+     * content types in registry order, Tags last — just before the file manager).
+     */
+    public function getPriority(): int
+    {
+        return (int) array_search('{{ key }}', array_keys(config('leap.content') ?: []));
+    }
 
     public $orderBy = 'date';
 

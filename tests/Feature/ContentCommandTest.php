@@ -67,6 +67,9 @@ class ContentCommandTest extends TestCase
         $this->assertStringNotContainsString('HasTags', $model);
 
         $this->assertStringContainsString("'products' => \\App\\Models\\Product::class,", $this->read('config/leap.php'));
+        // Admin nav priority is derived from the registry position, so the modules order
+        // like the menu (Page first, content types in --models order, Tags last).
+        $this->assertStringContainsString("array_search('products', array_keys(config('leap.content')", $this->read('app/Leap/Product.php'));
         $this->assertNotEmpty(glob($this->temp.'/database/migrations/*_create_products_table.php'));
         $this->assertFileExists($this->temp.'/app/Leap/Product.php');
         $this->assertFileExists($this->temp.'/database/factories/ProductFactory.php');

@@ -5,6 +5,16 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.5] — 2026-07-15
+
+### Changed
+
+- **Admin modules order like the frontend menu.** Each generated content type's Leap
+  resource derives its nav priority from its `leap.content` registry position, so the
+  `/admin` sidebar lists Page first, then the content types in `--models` order, then Tags
+  (moved to priority 40, just before the file manager at 50, leaving room to slot other
+  modules in between).
+
 ## [0.10.4] — 2026-07-15
 
 ### Fixed
