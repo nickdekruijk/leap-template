@@ -1,6 +1,6 @@
 {
 	"name": "nickdekruijk/leap-template",
-	"keywords": ["leap", "laravel", "scaffolding", "template"],
+	"keywords": ["leap", "laravel", "scaffolding", "template", "dev"],
 	"description": "Frontend website template scaffolding for nickdekruijk/leap: the leap:template and leap:content commands. Install with composer require --dev.",
 	"license": "MIT",
 	"authors": [{

@@ -5,6 +5,22 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] — 2026-07-15
+
+### Added
+
+- **Composer suggests `--dev` at install time.** Added the `dev` keyword, so
+  `composer require nickdekruijk/leap-template` without `--dev` prints "recommended to be
+  placed in require-dev" and offers to re-run with `--dev` — the same nudge debugbar and
+  other dev tools give (Composer matches the `dev`/`testing`/`static analysis` keywords).
+
+### Removed
+
+- **The runtime "install with `--dev`" console warning** (`warnIfNotDev`, added in 0.10.1,
+  reworked in 0.10.2). Composer's own keyword prompt above covers it, and a package
+  inspecting its own install topology at runtime was needless. Drops the composer.lock
+  read with it.
+
 ## [0.10.2] — 2026-07-15
 
 ### Fixed
