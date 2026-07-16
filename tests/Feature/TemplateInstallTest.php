@@ -99,7 +99,6 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
-            ->expectsConfirmation('Copy Minify config (absolute import paths)?', 'yes')
             ->expectsConfirmation('Create tests/Feature directory?', 'yes')
             ->expectsConfirmation('Copy PageRouting test?', 'yes')
             ->expectsConfirmation('Copy HasSlug test?', 'yes')

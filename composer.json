@@ -13,7 +13,7 @@
 		"nickdekruijk/leap": "^0.10"
 	},
 	"suggest": {
-		"nickdekruijk/minify": "SCSS/JS compilation and bundling used by the frontend template (php artisan leap:template)",
+		"nickdekruijk/minify": "^4.0 for SCSS/JS compilation and bundling used by the frontend template (php artisan leap:template)",
 		"nickdekruijk/settings": "Admin-editable settings and footer used by the frontend template (php artisan leap:template)",
 		"nickdekruijk/imageresize": "Responsive asset_resized() images used by the frontend template",
 		"nickdekruijk/vanilla-slider": "Carousel/slider used by the frontend template",

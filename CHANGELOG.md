@@ -5,6 +5,20 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.6] — 2026-07-16
+
+### Changed
+
+- **The template no longer installs a `config/minify.php`.** It only existed to override two
+  broken defaults in `nickdekruijk/minify` — relative import paths that resolve only when the
+  working directory is `public/`, and `testing` in `skip_environment`, which left the suite
+  reading whatever build an earlier browser request had left behind. Both are fixed at the
+  source in minify 4.0, so every project gets them through `composer update` instead of a
+  frozen copy per site. `leap:template` now requires `nickdekruijk/minify:^4.0`.
+
+  Existing installs can delete their `config/minify.php` after upgrading to minify 4.0; a
+  published config still wins, so keeping it is harmless but leaves you maintaining it.
+
 ## [0.10.5] — 2026-07-15
 
 ### Changed

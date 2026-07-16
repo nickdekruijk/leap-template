@@ -312,7 +312,6 @@ class TemplateCommand extends Command
             'app/Traits/HasSlug.php',
             'app/Traits/HasTags.php',
             'config/imageresize.php',
-            'config/minify.php',
             'lang/en.json',
             'public/css/tinymce.css',
             'tests/Feature/PageRoutingTest.php',
@@ -452,12 +451,6 @@ class TemplateCommand extends Command
         // ImageResize width presets used by the template's srcset/backgrounds
         // (overrides the vendor-published default, which lacks these templates)
         $this->copyOrReplace('config/imageresize.php', 'ImageResize config (frontend resize templates)');
-
-        // Minify with absolute import paths, and compiling during tests. The defaults do
-        // neither, which leaves the test suite depending on a build left behind by an
-        // earlier browser request — green locally, five hundred errors on a fresh CI
-        // checkout.
-        $this->copyOrReplace('config/minify.php', 'Minify config (absolute import paths)');
 
         // Generated assets are not source. After the config above, because that is
         // what decides where the resize cache lands.
@@ -923,18 +916,23 @@ class TemplateCommand extends Command
      * Suggest installing the composer packages the frontend template relies on.
      * They are kept out of leap's own "require" so existing projects are never
      * forced to pull them; the template opts in here.
+     *
+     * minify carries a version constraint: from 4.0 its default import paths are
+     * absolute and it compiles during tests, which is what the template relies on
+     * instead of shipping a config of its own. On 3.x the suite would silently read
+     * whatever build an earlier browser request left behind.
      */
     public function suggestFrontendPackages(): void
     {
         $packages = [
-            'nickdekruijk/minify' => 'SCSS compilation and JS bundling',
+            'nickdekruijk/minify:^4.0' => 'SCSS compilation and JS bundling',
             'nickdekruijk/settings' => 'admin-editable settings + footer',
             'nickdekruijk/imageresize' => 'responsive asset_resized() images',
             'nickdekruijk/vanilla-slider' => 'carousel',
             'nickdekruijk/horizontal-scroller' => 'horizontal-scroll sections',
         ];
 
-        $missing = array_filter(array_keys($packages), fn (string $package): bool => ! is_dir(base_path('vendor/'.$package)));
+        $missing = array_filter(array_keys($packages), fn (string $package): bool => ! is_dir(base_path('vendor/'.Str::before($package, ':'))));
 
         if (empty($missing)) {
             return;
