@@ -56,6 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--no-install`.** Skips the `composer require` for the packages the template needs and
+  prints the command instead. `--fresh` means yes to everything, and that included reaching
+  out to Packagist — right for an install, wrong for anything that has to be repeatable
+  offline.
+
+- **A test for `--fresh`.** It had none, so every change to the interactive flow was a guess
+  about the unattended one. It now runs a full `--fresh --no-install` install and expects no
+  prompts at all: a single question reaching the console fails it, which is what `--fresh`
+  means. Verified by letting one prompt escape.
+
 - **Every `leap:template` prompt now explains itself.** All 32 questions carry a one-line
   hint under them, saying what the file is for or what saying no costs — "Copy
   PageController?" is only obvious to someone who already knows the template. Uses Laravel

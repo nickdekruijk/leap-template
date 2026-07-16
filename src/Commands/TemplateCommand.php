@@ -29,7 +29,8 @@ class TemplateCommand extends Command
         {--fresh : Complete install with no prompts (implies --force; content = --models or News,Event; language = --locales or nl only)}
         {--force : Skip the production confirmation}
         {--models= : Comma list of content types to generate, e.g. News,Event,Project or Bericht:news:berichten (default News,Event)}
-        {--locales= : Comma list of locale codes, e.g. nl,en (default: nl only)}';
+        {--locales= : Comma list of locale codes, e.g. nl,en (default: nl only)}
+        {--no-install : Do not run "composer require" for the packages the template needs; print the command instead}';
 
     /**
      * The locale codes offered in the language picker, code => display name.
@@ -1116,6 +1117,15 @@ class TemplateCommand extends Command
         $this->info('The frontend template uses these packages:');
         foreach ($packages as $package => $why) {
             $this->line('  - '.$package.' ('.$why.')');
+        }
+
+        // --fresh means "yes to everything", which includes reaching out to Packagist. That
+        // is right for an install and wrong for anything that has to be repeatable offline,
+        // so --no-install is the way to say "the files, not the network".
+        if ($this->option('no-install')) {
+            $this->line('Install them with: composer require '.implode(' ', $missing));
+
+            return;
         }
 
         if ($this->auto(

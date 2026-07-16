@@ -74,6 +74,44 @@ class TemplateInstallTest extends TestCase
     }
 
     /**
+     * --fresh is the unattended path: every prompt answered yes, nothing asked. It had no
+     * test at all, so each change to the interactive flow was a guess about this one.
+     *
+     * --no-install keeps it off Packagist; without it a --fresh run really does composer
+     * require, which is right for an install and wrong for a test suite.
+     */
+    public function test_fresh_installs_everything_without_asking(): void
+    {
+        // No expectsConfirmation: a single prompt reaching the console fails this test,
+        // which is the point of --fresh.
+        $this->artisan('leap:template', [
+            '--fresh' => true,
+            '--no-install' => true,
+            '--models' => '',
+            '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        foreach ([
+            'app/Http/Controllers/PageController.php',
+            'app/Models/Page.php',
+            'app/Leap/Page.php',
+            'app/Leap/Concerns/ContentSections.php',
+            'app/Livewire/Search.php',
+            'database/migrations/2025_01_03_094203_create_pages_table.php',
+            'database/seeders/PageSeeder.php',
+            'lang/nl.json',
+            'public/css/tinymce.css',
+            'tests/Feature/SearchTest.php',
+            'resources/views/layouts/app.blade.php',
+        ] as $file) {
+            $this->assertFileExists($this->temp.'/'.$file, "Expected --fresh to install {$file}.");
+        }
+
+        // The language was applied rather than merely asked about.
+        $this->assertStringContainsString('APP_LOCALE=nl', file_get_contents($this->temp.'/.env'));
+    }
+
+    /**
      * The set is one question only while none of it is there. A file you already have is
      * your copy, and you may well have edited one and not the others — so a re-run asks
      * about those one by one, and taking the missing pieces must not sweep your edits
