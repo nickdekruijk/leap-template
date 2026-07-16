@@ -147,15 +147,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **The seeded tags are translated.** `PageSeeder` created them with a plain string
-  (`'name' => 'Algemeen'`), and the name is translatable — so Spatie stored it under
-  whichever locale happened to be active while seeding, and the filter chips above every
-  other overview read Dutch. They now ship every language `leap:template` can install.
-  Storing a locale the site did not pick costs a few bytes and shows nowhere, which beats a
-  tag that only speaks one language. `TagFactory` had the same bug.
+- **`PageSeeder` seeds the languages the site has, and only those.** Two bugs that met in
+  the middle.
 
-  The rest of the sample content (page titles, slugs, section text) is still nl/en only —
-  that is a bigger job, and unlike the tags it is meant to be thrown away.
+  The tags were created with a plain string (`'name' => 'Algemeen'`) on a translatable
+  field, so Spatie stored it under whichever locale happened to be active while seeding and
+  the filter chips above every other overview read Dutch. `TagFactory` had it too.
+
+  Everything else was hardcoded to `nl` and `en` regardless of what you picked, so a German
+  site got pages carrying Dutch and English titles and no German at all — rows of text that
+  render nowhere, cannot be reached from the admin's language switcher, and stay forever.
+
+  The seeds now carry every language `leap:template` can install, and `PageSeeder::forSite()`
+  strips each translation set to the site's own locales before writing, falling back to
+  English for a language the seeds have no text for. The content-type seeders already worked
+  this way (`$translate()` over `config('leap.locales')`); this brings PageSeeder in line.
 
 - **A re-run no longer resets `APP_LOCALE` on a hand-configured site.** The installer wrote
   it unconditionally, including on the branch where it had just decided to leave

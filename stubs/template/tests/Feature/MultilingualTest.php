@@ -24,12 +24,11 @@ class MultilingualTest extends TestCase
     }
 
     /**
-     * The tag name is translatable, so the seeder fills every locale. A plain string lands
-     * in whichever one happened to be active while seeding, which left the filter chips
-     * above every other overview reading Dutch.
+     * The seeds carry every language leap:template can install, and PageSeeder strips them
+     * to the ones this site has. So every configured locale has a name — no more, no fewer.
      *
-     * Checked against the languages the site actually chose. A locale leap:template ships
-     * no translations for (one typed by hand) is the editor's to fill in.
+     * Before, a plain string landed in whichever locale happened to be active while seeding
+     * and left the filter chips above every other overview reading Dutch.
      */
     public function test_the_seeded_tags_are_translated_in_every_chosen_language(): void
     {
@@ -40,22 +39,21 @@ class MultilingualTest extends TestCase
         $tag = Tag::orderBy('sort')->first();
         $this->assertNotNull($tag, 'PageSeeder seeds the shared tags.');
 
-        $shipped = array_map(
-            fn (string $file): string => basename($file, '.json'),
-            glob(lang_path('*.json')) ?: [],
-        );
+        $locales = array_keys(config('leap.locales'));
 
-        foreach (array_keys(config('leap.locales')) as $locale) {
-            if ($locale !== 'en' && ! in_array($locale, $shipped, true)) {
-                continue;
-            }
-
+        foreach ($locales as $locale) {
             $this->assertNotSame(
                 '',
                 (string) $tag->getTranslation('name', $locale, false),
-                "The seeded tags have no name in {$locale}, so its filter chips fall back to another language.",
+                "The seeded tags have no name in {$locale}, so its filter chips read another language.",
             );
         }
+
+        $this->assertSame(
+            $locales,
+            array_keys($tag->getTranslations('name')),
+            'And nothing beyond them: seeding a language the site does not have is database litter.',
+        );
     }
 
     public function test_the_default_locale_is_served_unprefixed(): void

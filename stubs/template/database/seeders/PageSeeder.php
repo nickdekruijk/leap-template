@@ -20,9 +20,70 @@ class PageSeeder extends Seeder
      * Note: the homepage uses the reserved slug "/" (not "home"), so it resolves
      * order-independently and is not also reachable under a second URL.
      */
+    /**
+     * Every language leap:template can install. A translation set is told apart from an
+     * ordinary array by having only these as keys.
+     */
+    protected const LANGUAGES = ['nl', 'en', 'de', 'fr', 'es', 'it', 'pt', 'pl'];
+
+    /**
+     * Seed a page, with its sample text stripped to the languages this site has.
+     */
+    protected function page(int $id, array $data): void
+    {
+        Page::updateOrCreate(['id' => $id], $this->forSite($data));
+    }
+
+    /**
+     * Strip sample content down to the languages this site actually has.
+     *
+     * The seeds carry every language so any install has something to show, but writing all
+     * of them would leave rows carrying text in languages nobody picked: invisible on the
+     * site, unreachable from the admin's language switcher, and there forever. A locale the
+     * seeds have no text for falls back to English rather than seeding a blank.
+     *
+     * Recursive, because the translation sets are nested inside the sections.
+     *
+     * @param  array<mixed>  $data
+     * @return array<mixed>
+     */
+    protected function forSite(array $data): array
+    {
+        $locales = config('leap.locales')
+            ? array_keys(config('leap.locales'))
+            : [app()->getLocale()];
+
+        if ($this->isTranslationSet($data)) {
+            $kept = [];
+            foreach ($locales as $locale) {
+                $kept[$locale] = $data[$locale] ?? $data['en'] ?? reset($data);
+            }
+
+            return $kept;
+        }
+
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = $this->forSite($value);
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param  array<mixed>  $data
+     */
+    protected function isTranslationSet(array $data): bool
+    {
+        return $data !== []
+            && ! array_is_list($data)
+            && array_diff(array_keys($data), self::LANGUAGES) === [];
+    }
+
     public function run(): void
     {
-        Page::updateOrCreate(['id' => 1], [
+        $this->page(1, [
             'title' => ['nl' => 'Home', 'en' => 'Home'],
             'slug' => ['nl' => '/', 'en' => '/'],
             'menuitem' => false,
@@ -101,7 +162,7 @@ class PageSeeder extends Seeder
             ],
         ]);
 
-        Page::updateOrCreate(['id' => 2], [
+        $this->page(2, [
             'title' => ['nl' => 'Over ons', 'en' => 'About us'],
             'slug' => ['nl' => 'over-ons', 'en' => 'about-us'],
             // High sort so About/Contact trail the content-type overviews (sort 100,
@@ -120,7 +181,7 @@ class PageSeeder extends Seeder
             ],
         ]);
 
-        Page::updateOrCreate(['id' => 3], [
+        $this->page(3, [
             'title' => ['nl' => 'Diensten', 'en' => 'Services'],
             'parent' => 2,
             'slug' => ['nl' => 'diensten', 'en' => 'services'],
@@ -136,7 +197,7 @@ class PageSeeder extends Seeder
             ],
         ]);
 
-        Page::updateOrCreate(['id' => 4], [
+        $this->page(4, [
             'title' => ['nl' => 'Contact', 'en' => 'Contact'],
             'slug' => ['nl' => 'contact', 'en' => 'contact'],
             'sort' => 210,
@@ -152,7 +213,7 @@ class PageSeeder extends Seeder
         ]);
 
         // Legal pages, linked from the footer but hidden from the main navigation
-        Page::updateOrCreate(['id' => 5], [
+        $this->page(5, [
             'title' => ['nl' => 'Privacybeleid', 'en' => 'Privacy policy'],
             'slug' => ['nl' => 'privacy', 'en' => 'privacy'],
             'menuitem' => false,
@@ -165,7 +226,7 @@ class PageSeeder extends Seeder
             ],
         ]);
 
-        Page::updateOrCreate(['id' => 6], [
+        $this->page(6, [
             'title' => ['nl' => 'Algemene voorwaarden', 'en' => 'Terms & conditions'],
             'slug' => ['nl' => 'algemene-voorwaarden', 'en' => 'terms'],
             'menuitem' => false,
@@ -247,7 +308,7 @@ class PageSeeder extends Seeder
                 ['nl' => 'Achtergrond', 'en' => 'Background', 'de' => 'Hintergrund', 'fr' => 'Contexte', 'es' => 'Contexto', 'it' => 'Approfondimento', 'pt' => 'Contexto', 'pl' => 'Tło'],
                 ['nl' => 'Aankondiging', 'en' => 'Announcement', 'de' => 'Ankündigung', 'fr' => 'Annonce', 'es' => 'Anuncio', 'it' => 'Annuncio', 'pt' => 'Anúncio', 'pl' => 'Ogłoszenie'],
             ] as $sort => $name) {
-                Tag::create(['name' => $name, 'sort' => $sort + 1]);
+                Tag::create($this->forSite(['name' => $name]) + ['sort' => $sort + 1]);
             }
         }
 
