@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The page tree is one question, not six.** `PageController`, the `Page` model, its
+  migration, the `/admin` module, the `ContentSections` concern and the `Search` component
+  were asked for one at a time, as if you could take some and leave the rest. You cannot: the
+  controller routes what the model holds, the model needs its table, the module is built from
+  the concern, and `layouts/app.blade.php` renders `<livewire:search />` whether or not the
+  component is there — so answering no to the search component fataled every page. They are
+  now installed as a set, under one question.
+
+  Only while none of them are there. A file you already have is a different question: your
+  copy is at stake, and you may have edited one and not the others, so a re-run asks about
+  those one by one — the same thing `copyDir` already did for a changed view.
+
+  What is genuinely optional stays its own question: the seeder (sample content), the
+  TinyMCE stylesheet, and `HasTags` (which `--no-tags` already gates).
+
+- **The starter tests are one question too**, and now include `SearchTest` and `SeoTest`.
+
 - **The templates are written in English; every other language is a translation.** The views
   used to say `__('Filter op label')` with a `lang/en.json` mapping Dutch keys to English —
   Dutch was the source language, baked into the Blade, so English was the only translation
@@ -65,6 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   different things (`leap.locales` decides the site's URLs, `APP_LOCALE` the admin, console,
   queues and mail — see leap 0.10.8), so once the languages were configured by hand, both are
   left alone and the warning says so.
+
+- **`SearchTest` and `SeoTest` are actually installed.** Both shipped as stubs from the
+  start and were never copied, nor listed in the manifest `--diff` reads — while testing
+  features the template does ship: the live search and the SEO tags.
 
 - **`--diff` no longer reports six phantom new files.** Translations are per site, so a lang
   file the project does not have was never meant to be there; only the ones it has are

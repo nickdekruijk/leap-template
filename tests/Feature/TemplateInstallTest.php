@@ -73,26 +73,61 @@ class TemplateInstallTest extends TestCase
         @rmdir($dir);
     }
 
+    /**
+     * The set is one question only while none of it is there. A file you already have is
+     * your copy, and you may well have edited one and not the others — so a re-run asks
+     * about those one by one, and taking the missing pieces must not sweep your edits
+     * along with them.
+     */
+    public function test_a_rerun_installs_what_is_missing_without_touching_an_edited_file(): void
+    {
+        // app/Models is already part of the skeleton a bare Laravel app ships with.
+        file_put_contents($this->temp.'/app/Models/Page.php', '<?php // my own Page model');
+
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl'])
+            // Asked for the rest of the set, which is still missing.
+            ->expectsConfirmation('Copy the page tree?', 'yes')
+            // And separately about the one that is already here.
+            ->expectsConfirmation('Page model already exists, do you want to overwrite it?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy HasTags trait?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
+            ->expectsConfirmation('Delete default Laravel welcome route?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Add PageController route?', 'no')
+            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->expectsConfirmation('Seed the sample pages now?', 'no')
+            ->assertExitCode(0);
+
+        $this->assertSame(
+            '<?php // my own Page model',
+            file_get_contents($this->temp.'/app/Models/Page.php'),
+            'An edited file must not be swept along with the set.',
+        );
+        $this->assertFileExists($this->temp.'/app/Http/Controllers/PageController.php', 'The missing files are still installed.');
+        $this->assertFileExists($this->temp.'/app/Livewire/Search.php');
+    }
+
     public function test_leap_template_installs_into_a_bare_app(): void
     {
         // --models='' skips content generation (no leap:content), --locales sets the
         // languages without the multiselect. The rest is driven interactively; the
         // per-file resources copy (copyDir) writes new files silently.
         $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl,en'])
-            ->expectsConfirmation('Copy PageController?', 'yes')
-            ->expectsConfirmation('Copy pages table migration?', 'yes')
+            // One question for the six files that only work together, not six.
+            ->expectsConfirmation('Copy the page tree?', 'yes')
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
-            ->expectsConfirmation('Copy Page model?', 'yes')
-            ->expectsConfirmation('Copy Page model Leap module?', 'yes')
             ->expectsConfirmation('Copy HasTags trait?', 'yes')
-            ->expectsConfirmation('Copy ContentSections concern?', 'yes')
-            ->expectsConfirmation('Copy Search Livewire component?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
-            ->expectsConfirmation('Copy PageRouting test?', 'yes')
-            ->expectsConfirmation('Copy HasSlug test?', 'yes')
-            ->expectsConfirmation('Copy Multilingual test?', 'yes')
+            ->expectsConfirmation('Copy the starter tests?', 'yes')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Delete default Laravel welcome route?', 'yes')
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
@@ -112,6 +147,12 @@ class TemplateInstallTest extends TestCase
             'app/Models/Page.php',
             'app/Leap/Page.php',
             'app/Livewire/Search.php',
+            'app/Leap/Concerns/ContentSections.php',
+            'database/migrations/2025_01_03_094203_create_pages_table.php',
+            // Shipped as stubs but never copied until 0.10.9, while testing features the
+            // template does ship: the live search and the SEO tags.
+            'tests/Feature/SearchTest.php',
+            'tests/Feature/SeoTest.php',
             'config/imageresize.php',
             'public/css/tinymce.css',
             'resources/views/sections/default.blade.php',

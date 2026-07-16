@@ -94,6 +94,69 @@ class TemplateCommand extends Command
     protected $description = 'Install a basic template replacing the default Laravel welcome template';
 
     /**
+     * Copy a set of files that only work together, as one decision.
+     *
+     * Asking per file implies a choice that does not exist: a PageController without the
+     * Page model, or a Leap module without the sections concern it builds on, is not a
+     * smaller install — it is a broken one. So while none of them are there, this is one
+     * question.
+     *
+     * A file that is already there is a different matter: what is at stake is your copy,
+     * not what the file does, and you may well have edited one and not the others. Those
+     * are asked per file, the way copyDir already handles a changed view.
+     *
+     * @param  string  $description  The set, as shown in the confirmation
+     * @param  string  $hint  One line on what the set is for
+     * @param  array<int, string>  $files  Paths relative to stubs/template, each with its
+     *                                     own description for the per-file overwrite prompt
+     */
+    public function copyGroup(string $description, string $hint, array $files): void
+    {
+        $missing = array_filter(
+            $files,
+            fn (string $file): bool => ! file_exists(base_path($file)),
+            ARRAY_FILTER_USE_KEY
+        );
+
+        if ($missing !== [] && $this->auto("Copy $description?", true, $hint)) {
+            foreach (array_keys($missing) as $file) {
+                $this->copyFile($file);
+            }
+        } elseif ($missing !== []) {
+            $this->info('Skipping '.$description);
+        }
+
+        // Whatever was already there, one prompt each — but only when it actually differs.
+        foreach ($files as $file => $fileDescription) {
+            if (! isset($missing[$file])) {
+                $this->copyOrReplace($file, $fileDescription, $hint);
+            }
+        }
+    }
+
+    /**
+     * Copy one stub over its project file, creating the directory when missing.
+     *
+     * Split out of copyOrReplace so copyGroup can copy without asking a second time.
+     */
+    protected function copyFile(string $file): void
+    {
+        if (! is_dir($directory = dirname($file)) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            $this->error('Could not create '.$directory.', skipping '.$file);
+
+            return;
+        }
+
+        if (! copy(__DIR__.'/../../stubs/template/'.$file, $file)) {
+            $this->error('Could not copy '.$file);
+
+            return;
+        }
+
+        $this->info('Copied '.$file);
+    }
+
+    /**
      * Copy or replace a file from the stubs/template folder after confirmation, asks to overwrite if it exists and sha1 hashes differ
      *
      * The destination directory is created when it is missing, silently and only once
@@ -124,19 +187,7 @@ class TemplateCommand extends Command
             ! $exists,
             $exists ? $overwriteHint : $hint,
         )) {
-            if (! is_dir($directory = dirname($file)) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
-                $this->error('Could not create '.$directory.', skipping '.$file);
-
-                return;
-            }
-
-            if (! copy(__DIR__.'/../../stubs/template/'.$file, $file)) {
-                $this->error('Could not copy '.$file);
-
-                return;
-            }
-
-            $this->info('Copied '.$file);
+            $this->copyFile($file);
         } else {
             $this->info('Skipping '.$file);
         }
@@ -343,6 +394,8 @@ class TemplateCommand extends Command
             'tests/Feature/PageRoutingTest.php',
             'tests/Feature/HasSlugTest.php',
             'tests/Feature/MultilingualTest.php',
+            'tests/Feature/SearchTest.php',
+            'tests/Feature/SeoTest.php',
         ];
 
         $stubBase = __DIR__.'/../../stubs/template';
@@ -448,24 +501,31 @@ class TemplateCommand extends Command
             $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
         }
 
-        // Ask to copy or replace files (each creates its own directory as needed)
-        $this->copyOrReplace('app/Http/Controllers/PageController.php', 'PageController', 'Serves every page and builds the menu. The frontend does not work without it.');
-        $this->copyOrReplace('database/migrations/2025_01_03_094203_create_pages_table.php', 'pages table migration', 'Creates the pages table the Page model reads.');
+        // The site itself. These are one decision because they are one thing: the
+        // controller routes what the model holds, the model needs its table, the module
+        // is built from the concern, and the layout renders <livewire:search /> whether
+        // or not the component is there. Any one of them missing is a broken install
+        // rather than a smaller one.
+        $this->copyGroup(
+            'the page tree',
+            'Routing, the Page model and its table, the /admin editor and the live search. They only work together.',
+            [
+                'app/Http/Controllers/PageController.php' => 'PageController',
+                'app/Models/Page.php' => 'Page model',
+                'database/migrations/2025_01_03_094203_create_pages_table.php' => 'pages table migration',
+                'app/Leap/Page.php' => 'Page model Leap module',
+                'app/Leap/Concerns/ContentSections.php' => 'ContentSections concern',
+                'app/Livewire/Search.php' => 'Search Livewire component',
+            ],
+        );
+
+        // The rest is genuinely optional: the site stands without it.
         $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder', 'Sample content: a home page and a few children, in every locale. Delete once the site has its own.');
-        $this->copyOrReplace('app/Models/Page.php', 'Page model', 'The page itself: slug, sections, SEO fields and the page tree.');
-        $this->copyOrReplace('app/Leap/Page.php', 'Page model Leap module', 'The screen in /admin where editors write pages.');
+
         // HasTags is the project's own: it hangs off App\Models\Tag, which is a stub and
         // optional (--no-tags). HasSections, HasSlug and the Video class are the package's,
         // and the models use them straight from there.
         $this->copyOrReplace('app/Traits/HasTags.php', 'HasTags trait', 'Lets content types carry shared tags, and their overviews filter on them.');
-
-        // Shared content-section blocks (Page + every content type build from these)
-        $this->copyOrReplace('app/Leap/Concerns/ContentSections.php', 'ContentSections concern', 'The section blocks the editor offers — text, image, video — shared by Page and every content type.');
-
-        // Frontend English strings (used when a site is multilingual with English)
-
-        // Live search (a plain Livewire class component so it works on Livewire 3 and 4)
-        $this->copyOrReplace('app/Livewire/Search.php', 'Search Livewire component', 'Powers the live search box in the menu.');
 
         // TinyMCE editor content styles, so rich-text matches the frontend in the editor
         $this->copyOrReplace('public/css/tinymce.css', 'TinyMCE editor stylesheet', 'Makes rich text in the admin look like the frontend, so editors see what they get.');
@@ -482,10 +542,20 @@ class TemplateCommand extends Command
         // what decides where the resize cache lands.
         $this->ignoreCompiledAssets();
 
-        // Starter feature tests for the copied template code (run under the host's test suite)
-        $this->copyOrReplace('tests/Feature/PageRoutingTest.php', 'PageRouting test', 'Starter test: every page resolves and renders. Runs in your own suite.');
-        $this->copyOrReplace('tests/Feature/HasSlugTest.php', 'HasSlug test', 'Starter test: slugs stay unique per locale and per parent.');
-        $this->copyOrReplace('tests/Feature/MultilingualTest.php', 'Multilingual test', 'Starter test: each locale routes and falls back correctly.');
+        // Starter feature tests for the copied template code, run under the host's suite.
+        // One decision: they all cover the page tree that was just installed, and picking
+        // three of five is not a choice anyone means to make.
+        $this->copyGroup(
+            'the starter tests',
+            'Cover the code just copied — routing, slugs, locales, search and the SEO tags. They run in your own suite.',
+            [
+                'tests/Feature/PageRoutingTest.php' => 'PageRouting test',
+                'tests/Feature/HasSlugTest.php' => 'HasSlug test',
+                'tests/Feature/MultilingualTest.php' => 'Multilingual test',
+                'tests/Feature/SearchTest.php' => 'Search test',
+                'tests/Feature/SeoTest.php' => 'SEO test',
+            ],
+        );
 
         // Ask to delete default Laravel welcome view, js/app.js, app/bootstrap.js and css/app.css
         $this->deleteFile('resources/views/welcome.blade.php');
