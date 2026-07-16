@@ -75,6 +75,47 @@
     border-top: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
 }
 
+/* Accordion — matches details/summary in .article on the frontend. TinyMCE's own
+   accordion button emits <details class="mce-accordion">; the element is styled
+   rather than the class, so a hand-written <details> looks the same. */
+.tinymce details {
+    border-block: 1px solid var(--accent);
+    padding-block: var(--space-xs);
+}
+
+.tinymce details + details {
+    margin-top: 0;
+    border-top: 0;
+}
+
+.tinymce details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space);
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: var(--fs-h4);
+    line-height: 1.15;
+    list-style: none;
+}
+
+.tinymce details > summary::-webkit-details-marker { display: none; }
+
+.tinymce details > summary::after {
+    content: "";
+    flex: none;
+    width: 0.5em;
+    height: 0.5em;
+    border-right: 2px solid var(--accent);
+    border-bottom: 2px solid var(--accent);
+    transform: translateY(-0.15em) rotate(45deg);
+    transition: transform 0.2s;
+}
+
+.tinymce details[open] > summary::after { transform: translateY(0.1em) rotate(225deg); }
+
 /* Buttons — matches .button / a[role="button"] on the frontend */
 .tinymce .button,
 .tinymce a[role="button"] {

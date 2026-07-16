@@ -166,6 +166,57 @@ a[role="button"],
         border: 0;
         border-top: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
     }
+
+    // Accordion. TinyMCE's accordion button emits <details class="mce-accordion">,
+    // but the code view can produce a bare <details> just as well, so this styles the
+    // element rather than the class — an editor should not be able to tell the two
+    // apart on the page.
+    //
+    // Consecutive accordions close ranks (no margin between them) so a series reads as
+    // one list with a rule between the rows, rather than as scattered boxes; a lone one
+    // still gets its own rule top and bottom.
+    details {
+        border-block: 1px solid var(--accent);
+        padding-block: var(--space-xs);
+
+        + details {
+            margin-top: 0;
+            border-top: 0;
+        }
+
+        > summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--space);
+            cursor: pointer;
+
+            // A summary is the heading of what it hides, so it is set like one —
+            // same family and weight as h1–h6 above, at the smallest heading size.
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: var(--fs-h4);
+            line-height: 1.15;
+
+            // The native marker, in every dialect: a triangle no design asked for.
+            list-style: none;
+            &::-webkit-details-marker { display: none; }
+
+            // The same chevron the submenu uses, pointing down until it is open.
+            &::after {
+                content: "";
+                flex: none;
+                width: 0.5em;
+                height: 0.5em;
+                border-right: 2px solid var(--accent);
+                border-bottom: 2px solid var(--accent);
+                transform: translateY(-0.15em) rotate(45deg);
+                transition: transform 0.2s;
+            }
+        }
+
+        &[open] > summary::after { transform: translateY(0.1em) rotate(225deg); }
+    }
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
@@ -627,6 +678,14 @@ a[role="button"],
     &.dark {
         color: #fff;
         .article a:not(.button) { color: #fff; }
+
+        // Same reason as the link above: the accent is picked to sit on the page's
+        // own background, not on a photo darkened to 45% black.
+        .article details {
+            border-color: #fff;
+            > summary::after { border-color: #fff; }
+        }
+
         &:not(:has(> .section-bg)) { background: $placeholder-gradient; }
         .section-overlay {
             position: absolute;

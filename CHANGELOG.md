@@ -5,6 +5,28 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.11] — 2026-07-16
+
+### Added
+
+- **The accordion is styled.** TinyMCE's accordion button ships in leap's default toolbar, so
+  every editor can already reach for one — and what came out was the browser's own `<details>`:
+  a native triangle, a summary at body size, no rule to separate one from the next. The template
+  dressed everything else the editor can make and left this to the user agent.
+
+  It is styled on the element, not on the `mce-accordion` class the plugin adds, so a `<details>`
+  written by hand in the code view is indistinguishable from one clicked into place — the editor
+  should not be able to tell where its accordion came from. The summary is set like the heading it
+  is (heading font, `--fs-h4`, bold, matching `h1`–`h6`), the native marker is dropped in both its
+  dialects, and the chevron is the one `.nav-submenu-caret` already uses rather than a second idea
+  about what a chevron is. Rule and chevron take `--accent`; on a `.dark` section they turn white,
+  for the same reason the link beside them already does — the accent is picked to sit on the page's
+  own background, not on a photo darkened to 45% black.
+
+  Consecutive accordions close ranks (no margin, no doubled rule) so a series reads as one list
+  with a line between the rows instead of as scattered boxes. `public/css/tinymce.css` carries the
+  same rules, so the editor and the page agree.
+
 ## [0.10.10] — 2026-07-16
 
 ### Changed
