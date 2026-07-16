@@ -29,6 +29,29 @@ class {{ Model }}Factory extends Factory
             'published_at' => fake()->dateTimeBetween('-1 year', 'now'),
             'title' => $translate(rtrim(fake()->sentence(3), '.')),
             'intro' => $translate(fake()->sentence(12)),
+            'sections' => [$this->textSection()],
+        ];
+    }
+
+    /**
+     * A "text with image" section, so a seeded item has a detail page with something on
+     * it rather than only its header. Without an image uploaded the text spans the full
+     * width; image_position is what the editor changes in the admin.
+     *
+     * @return array<string, mixed>
+     */
+    protected function textSection(): array
+    {
+        $locales = array_keys(config('leap.locales') ?: [app()->getLocale() => null]);
+        $translate = fn (string $value): array => array_fill_keys($locales, $value);
+
+        return [
+            '_name' => 'default',
+            '_sort' => 0,
+            'active' => true,
+            'image_position' => 'right',
+            'head' => $translate(rtrim(fake()->sentence(4), '.')),
+            'body' => $translate('<p>'.implode('</p><p>', fake()->paragraphs(2)).'</p>'),
         ];
     }
 

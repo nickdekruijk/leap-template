@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\PageController;
 use App\Models\Page;
 use App\Models\Tag;
 use Database\Seeders\PageSeeder;
@@ -74,13 +75,24 @@ class MultilingualTest extends TestCase
         $this->get('/')->assertSee('hreflang', false);
     }
 
-    public function test_the_sitemap_has_one_entry_per_page_per_locale(): void
+    /**
+     * The monolingual counterpart in PageRoutingTest already counted the content items;
+     * this one only ever counted pages, and passed anyway because a seeded item had no
+     * slug and an item without one is skipped. It was measuring the bug.
+     */
+    public function test_the_sitemap_has_one_entry_per_page_and_item_per_locale(): void
     {
         config(['leap.locales' => ['nl' => 'Nederlands', 'en' => 'English']]);
 
         $xml = simplexml_load_string($this->get('/sitemap.xml')->assertOk()->getContent());
 
-        $this->assertCount(Page::active()->count() * 2, $xml->url);
+        // One entry per locale per active page, plus one per active content item that
+        // hangs under an overview page (news/events by default).
+        $expected = Page::active()->count() + collect(PageController::indexModels())
+            ->filter(fn (string $model, string $type): bool => (bool) PageController::overviewPage($type))
+            ->sum(fn (string $model): int => $model::active()->count());
+
+        $this->assertCount($expected * 2, $xml->url);
     }
 
     public function test_the_sitemap_entry_uses_the_locale_specific_slug(): void

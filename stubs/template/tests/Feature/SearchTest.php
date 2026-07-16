@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Search;
+use App\Models\News;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -53,6 +54,36 @@ class SearchTest extends TestCase
     }
 
     /**
+     * A news item with the given intro, under the overview page its URL hangs from —
+     * Search drops an item whose URL cannot be resolved, so the overview is not
+     * optional scenery. Title is fixed and description empty, so a match can only have
+     * come from the intro.
+     *
+     * @param  array<string, string>  $intro
+     */
+    private function makeNews(array $intro): News
+    {
+        if (! class_exists(News::class)) {
+            $this->markTestSkipped('Installed without the news content type.');
+        }
+
+        [$default, $secondary] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Nieuws', $secondary => 'News'],
+            [['_name' => 'news', '_view' => 'sections.items', '_sort' => 0, 'active' => true]],
+            [$default => 'nieuws', $secondary => 'news'],
+        );
+
+        return News::factory()->create([
+            'title' => [$default => 'Persbericht', $secondary => 'Press release'],
+            'description' => [$default => '', $secondary => ''],
+            'intro' => $intro,
+            'sections' => [],
+        ]);
+    }
+
+    /**
      * @return array<int, string> matched page titles in the active locale
      */
     private function search(string $term, string $locale): array
@@ -90,6 +121,42 @@ class SearchTest extends TestCase
         // The secondary-locale section body must not leak into the default locale
         $this->assertNotContains('Diensten', $this->search('mission', $default));
         $this->assertContains('Services', $this->search('mission', $secondary));
+    }
+
+    /**
+     * An item's intro is its card text, and often the only prose it has. It is marked
+     * ->searchable() in the admin Resource; the site search used to ignore it, leaving
+     * such an item findable in the admin but not on its own website.
+     */
+    public function test_an_items_intro_is_searchable(): void
+    {
+        [$default] = $this->locales();
+        $this->makeNews([$default => 'Onze zomeractie begint', 'en' => 'Our summer campaign starts']);
+
+        $this->assertContains('Persbericht', $this->search('zomeractie', $default));
+    }
+
+    public function test_an_items_intro_is_matched_in_the_active_locale_only(): void
+    {
+        [$default, $secondary] = $this->locales();
+        $this->makeNews([$default => 'Onze zomeractie begint', $secondary => 'Our summer campaign starts']);
+
+        $this->assertContains('Persbericht', $this->search('zomeractie', $default));
+        // The secondary-locale intro must not leak into the default locale
+        $this->assertNotContains('Persbericht', $this->search('campaign', $default));
+        $this->assertContains('Press release', $this->search('campaign', $secondary));
+    }
+
+    /**
+     * Pages and items go through the same matches(), but only an item has an intro
+     * column — an ungated intro clause fails the page query with "Unknown column".
+     */
+    public function test_searching_pages_survives_a_model_without_an_intro(): void
+    {
+        [$default, $secondary] = $this->locales();
+        $this->makePage([$default => 'Contactpagina', $secondary => 'Contact page']);
+
+        $this->assertContains('Contactpagina', $this->search('contactpagina', $default));
     }
 
     public function test_legacy_plain_string_rows_do_not_crash_the_query(): void

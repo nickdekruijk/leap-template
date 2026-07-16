@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -18,11 +19,12 @@ use Livewire\Component;
  * (config('leap.content')). A plain Livewire class component (not a single-file/Volt
  * component) so it works on both Livewire 3 and 4. Mounted as <livewire:search />.
  *
- * Search is locale-aware: title and description are matched against the active locale
- * only, and section content is matched in SQL as a coarse prefilter (the whole JSON
- * blob, all locales) and then confirmed in PHP against the active locale so a match in
- * another language does not leak into the current one. Each content result carries a
- * type label (the overview page's title, e.g. "Nieuws") so the mixed list reads.
+ * Search is locale-aware: title, description and a listed item's intro are matched
+ * against the active locale only, and section content is matched in SQL as a coarse
+ * prefilter (the whole JSON blob, all locales) and then confirmed in PHP against the
+ * active locale so a match in another language does not leak into the current one. Each
+ * content result carries a type label (the overview page's title, e.g. "Nieuws") so the
+ * mixed list reads.
  */
 class Search extends Component
 {
@@ -50,7 +52,7 @@ class Search extends Component
             ->map(fn (Page $page): array => [
                 'title' => $page->getTranslation('title', $locale, false),
                 'url' => $this->resolvePageUrl($page->id),
-                'excerpt' => Str::limit($page->getTranslation('description', $locale, false), 120),
+                'excerpt' => Str::limit($page->metaDescription(), 120),
                 'label' => null,
             ]);
 
@@ -63,7 +65,7 @@ class Search extends Component
                     ->map(fn (Model $item): array => [
                         'title' => $item->getTranslation('title', $locale, false),
                         'url' => PageController::itemUrl($item),
-                        'excerpt' => Str::limit($item->getTranslation('description', $locale, false), 120),
+                        'excerpt' => Str::limit($item->metaDescription(), 120),
                         'label' => $label,
                     ])
                     ->filter(fn (array $row): bool => $row['url'] !== null)
@@ -83,19 +85,40 @@ class Search extends Component
     {
         $titleExpr = $this->localeColumnExpr('title', $locale);
         $descExpr = $this->localeColumnExpr('description', $locale);
+        // A listed item's intro is its card text, and often the only prose it has; a
+        // page has no intro column at all, so asking for one would fail the query.
+        $introExpr = $this->hasColumn($query->getModel(), 'intro')
+            ? $this->localeColumnExpr('intro', $locale)
+            : null;
 
         return $query
-            ->where(function ($q) use ($titleExpr, $descExpr, $term) {
+            ->where(function ($q) use ($titleExpr, $descExpr, $introExpr, $term) {
                 $q->whereRaw("{$titleExpr} LIKE ?", ["%{$term}%"])
                     ->orWhereRaw("{$descExpr} LIKE ?", ["%{$term}%"])
                     // Coarse prefilter across every locale; refined per locale below.
                     ->orWhereRaw('LOWER(sections) LIKE ?', ["%{$term}%"]);
+
+                if ($introExpr) {
+                    $q->orWhereRaw("{$introExpr} LIKE ?", ["%{$term}%"]);
+                }
             })
             ->limit(self::CANDIDATE_LIMIT)
             ->get()
             ->filter(fn (Model $item): bool => $this->matchesLocale($item, $term, $locale))
             ->take(self::RESULT_LIMIT)
             ->values();
+    }
+
+    /**
+     * Whether a model's table has a column, cached per table for the request. The
+     * searchable sources differ per model — every type has a title, only a listed
+     * content item has an intro — and the schema is the one honest answer.
+     */
+    private function hasColumn(Model $model, string $column): bool
+    {
+        static $cache = [];
+
+        return $cache[$model->getTable()][$column] ??= Schema::hasColumn($model->getTable(), $column);
     }
 
     /**
@@ -123,7 +146,9 @@ class Search extends Component
      */
     private function matchesLocale(Model $item, string $term, string $locale): bool
     {
-        $haystack = [$item->title, $item->description];
+        // A plain attribute read, not getTranslation(): a page has no intro and would
+        // throw. Null falls out at the is_string filter below.
+        $haystack = [$item->title, $item->description, $item->intro ?? null];
 
         foreach ((array) $item->sections as $section) {
             if (! is_array($section)) {

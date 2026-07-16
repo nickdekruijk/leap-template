@@ -11,7 +11,7 @@
         'name' => $item->title,
         'headline' => $item->title,
         'url' => url()->current(),
-        'description' => filled($item->intro ?? null) ? $item->intro : null,
+        'description' => $item->metaDescription() ?: null,
         'image' => $item->media->first()?->url ?? null,
         'datePublished' => (! $isEvent && ! empty($item->published_at)) ? $item->published_at->toIso8601String() : null,
         'startDate' => ($isEvent && ! empty($item->date)) ? $item->date->toDateString() : null,

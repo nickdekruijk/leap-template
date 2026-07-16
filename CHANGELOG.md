@@ -5,6 +5,36 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.10] — 2026-07-16
+
+### Changed
+
+- **Requires `nickdekruijk/leap: ^0.10.10`** — the layout, the JSON-LD and the search excerpt
+  all read `HasDocumentMeta::metaDescription()`, which lands in that release.
+
+### Added
+
+- **A seeded content item now carries a section.** The factories filled in a title and an intro
+  and left `sections` null, so every seeded news item and event rendered a detail page that was
+  nothing but its own header — the one page whose whole point is the sections. Each item gets a
+  "text with image" section (image right, placeholder prose) to look at and to edit.
+- **An item's intro is searchable.** It is marked `->searchable()` in the admin Resource, but the
+  site search only ever read title, description and sections — leaving an item whose words live
+  in its intro findable in the admin and nowhere else. The intro is a listed item's card text and
+  often its only prose. Pages have no intro column, and the same query serves both, so the clause
+  is gated on the schema.
+
+### Fixed
+
+- **The meta description no longer disagrees with the structured data.** `description` and `intro`
+  are both optional: the layout read only `description` and the JSON-LD read only `intro`, so an
+  item with just an intro shipped no meta/OG description at all, and an item with both described
+  itself two different ways. Both now read `HasDocumentMeta::metaDescription()` — the description,
+  else the intro. The search excerpt reads it too, instead of its own copy of the same idea.
+- **An item's first section no longer emits a second `<h1>`.** The first section carries the page's
+  `h1`, which is right for a page and wrong for an item, whose header already has one. `item.blade.php`
+  now says so and the section steps down to `h2`. Only visible now that items seed a section.
+
 ## [0.10.9] — 2026-07-16
 
 ### Changed

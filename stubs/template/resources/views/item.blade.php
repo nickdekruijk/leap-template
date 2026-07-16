@@ -57,7 +57,7 @@
         </header>
 
         @foreach ($page->sections()->where('active', true) as $section)
-            @include($section->_view ?? 'sections.' . $section->_name)
+            @include($section->_view ?? 'sections.' . $section->_name, ['hasHeading' => true])
         @endforeach
     </main>
 @endsection

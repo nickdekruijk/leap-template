@@ -659,6 +659,9 @@ class TemplateCommand extends Command
         // Register the PageSeeder so `php artisan db:seed` seeds sample pages
         $this->registerPageSeeder();
 
+        // …and let its models fire the events their slugs are generated on
+        $this->unmuteModelEvents();
+
         // Choose languages (must run before seeding — the seeders read leap.locales)
         $this->configureLocales();
 
@@ -716,6 +719,51 @@ class TemplateCommand extends Command
         )) {
             file_put_contents($path, $patched);
             $this->info('Registered PageSeeder in DatabaseSeeder');
+        }
+    }
+
+    /**
+     * Drop WithoutModelEvents from DatabaseSeeder, which a fresh Laravel app ships with
+     * enabled.
+     *
+     * A leap model generates its slug on the saving event (HasSlug), so muting events
+     * for the seed run leaves every seeded item with a null slug: its detail page is
+     * unreachable, its links render as "/news/", and it silently drops out of the
+     * sitemap. The pages escape it — PageSeeder writes their slugs literally — so the
+     * damage is limited to content items, which is exactly what makes it hard to spot.
+     *
+     * Muting cannot be undone from a nested seeder either: Model::withoutEvents() unsets
+     * the dispatcher outright, so PageSeeder cannot restore it for its own run. The
+     * trait has to go.
+     */
+    protected function unmuteModelEvents(): void
+    {
+        $path = base_path('database/seeders/DatabaseSeeder.php');
+        if (! file_exists($path)) {
+            return;
+        }
+
+        $contents = file_get_contents($path);
+        if (! str_contains($contents, 'WithoutModelEvents')) {
+            return;
+        }
+
+        $patched = preg_replace(
+            [
+                '/^use Illuminate\\\\Database\\\\Console\\\\Seeds\\\\WithoutModelEvents;\r?\n/m',
+                '/^[ \t]*use WithoutModelEvents;\r?\n(\r?\n)?/m',
+            ],
+            '',
+            $contents,
+        );
+
+        if ($patched && $patched !== $contents && $this->auto(
+            'Remove WithoutModelEvents from DatabaseSeeder?',
+            true,
+            'Leap generates slugs on a model event; muting them seeds items without one.',
+        )) {
+            file_put_contents($path, $patched);
+            $this->info('Removed WithoutModelEvents from DatabaseSeeder');
         }
     }
 

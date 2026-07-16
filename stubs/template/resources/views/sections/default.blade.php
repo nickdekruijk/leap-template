@@ -15,7 +15,9 @@
                     <p class="quote-source">&mdash; {!! $section['body'] !!}</p>
                 @endisset
             @else
-                @php($level = $loop->first ? 'h1' : 'h2')
+                {{-- The first section carries the page's h1 — except on an item, whose
+                     header already has one; a second h1 there would compete with it. --}}
+                @php($level = $loop->first && empty($hasHeading) ? 'h1' : 'h2')
                 <{{ $level }}>{!! $section['head'] !!}</{{ $level }}>
                 {!! $section['body'] ?? '' !!}
             @endif

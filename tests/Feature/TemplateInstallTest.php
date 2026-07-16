@@ -163,6 +163,103 @@ PHP);
     }
 
     /**
+     * A fresh Laravel app ships DatabaseSeeder with WithoutModelEvents enabled, and a leap
+     * model generates its slug on the saving event — so seeding under it produced items with
+     * a null slug: unreachable detail pages, links rendered as "/news/", and no sitemap entry.
+     * Pages escaped it (PageSeeder writes their slugs literally), which is what made it quiet.
+     */
+    public function test_without_model_events_is_removed_from_the_database_seeder(): void
+    {
+        // Verbatim from a fresh Laravel app.
+        file_put_contents($this->temp.'/database/seeders/DatabaseSeeder.php', <<<'PHP'
+            <?php
+
+            namespace Database\Seeders;
+
+            use App\Models\User;
+            use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+            use Illuminate\Database\Seeder;
+
+            class DatabaseSeeder extends Seeder
+            {
+                use WithoutModelEvents;
+
+                /**
+                 * Seed the application's database.
+                 */
+                public function run(): void
+                {
+                    User::factory()->create([
+                        'name' => 'Test User',
+                    ]);
+                }
+            }
+
+            PHP);
+
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'yes')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
+            ->expectsConfirmation('Remove WithoutModelEvents from DatabaseSeeder?', 'yes')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->assertExitCode(0);
+
+        $seeder = file_get_contents($this->temp.'/database/seeders/DatabaseSeeder.php');
+
+        $this->assertStringNotContainsString('WithoutModelEvents', $seeder);
+        // The rest of the class has to survive: the import went, not the file.
+        $this->assertStringContainsString('use App\Models\User;', $seeder);
+        $this->assertStringContainsString('PageSeeder::class', $seeder);
+        $this->assertStringContainsString("'name' => 'Test User',", $seeder);
+        $this->assertValidPhp($seeder);
+    }
+
+    /**
+     * A DatabaseSeeder that never muted events must not be touched, nor asked about.
+     */
+    public function test_the_database_seeder_is_left_alone_when_events_are_not_muted(): void
+    {
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'yes')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->assertExitCode(0);
+
+        $this->assertStringContainsString(
+            'PageSeeder::class',
+            file_get_contents($this->temp.'/database/seeders/DatabaseSeeder.php'),
+        );
+    }
+
+    private function assertValidPhp(string $code): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'seeder').'.php';
+        file_put_contents($file, $code);
+        exec('php -l '.escapeshellarg($file).' 2>&1', $output, $status);
+        unlink($file);
+
+        $this->assertSame(0, $status, 'DatabaseSeeder is not valid PHP: '.implode("\n", $output));
+    }
+
+    /**
      * The tag filter is one decision. HasTags used to be asked in the main run, before the
      * question that decides whether App\Models\Tag — the class it points at — is ever
      * created, so --no-tags left a trait referring to a model that does not exist.

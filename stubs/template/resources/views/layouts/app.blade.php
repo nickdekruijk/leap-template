@@ -7,8 +7,15 @@
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="csrf-token" content="{{ csrf_token() }}">
         <title>{{ ($page ?? null)?->documentTitle() ?? config('app.name') }}</title>
-        @if (($page ?? null)?->description)
-            <meta name="description" content="{{ $page->description }}">
+        {{-- The item's own description, else its intro; see HasDocumentMeta. Spelled as
+             a @php block, not @php(...): Blade pairs an inline @php with the next
+             @endphp in the file, which here is the og:image block's, swallowing
+             everything between the two. --}}
+        @php
+            $metaDescription = ($page ?? null)?->metaDescription();
+        @endphp
+        @if ($metaDescription)
+            <meta name="description" content="{{ $metaDescription }}">
         @endif
         <link rel="canonical" href="{{ url()->current() }}">
         @foreach (App\Http\Controllers\PageController::localeUrls($page ?? null) as $hrefLocale => $alt)
@@ -26,16 +33,16 @@
         <meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
         <meta property="og:title" content="{{ ($page ?? null)?->documentTitle() ?? config('app.name') }}">
         <meta property="og:url" content="{{ url()->current() }}">
-        @if (($page ?? null)?->description)
-            <meta property="og:description" content="{{ $page->description }}">
+        @if ($metaDescription)
+            <meta property="og:description" content="{{ $metaDescription }}">
         @endif
         @if ($ogImage)
             <meta property="og:image" content="{{ $ogImage }}">
         @endif
         <meta name="twitter:card" content="{{ $ogImage ? 'summary_large_image' : 'summary' }}">
         <meta name="twitter:title" content="{{ ($page ?? null)?->documentTitle() ?? config('app.name') }}">
-        @if (($page ?? null)?->description)
-            <meta name="twitter:description" content="{{ $page->description }}">
+        @if ($metaDescription)
+            <meta name="twitter:description" content="{{ $metaDescription }}">
         @endif
         @if ($ogImage)
             <meta name="twitter:image" content="{{ $ogImage }}">
