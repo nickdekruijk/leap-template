@@ -1240,10 +1240,14 @@ class TemplateCommand extends Command
     {
         $migrated = false;
 
+        // Yes, like every other question that decides whether the site works: the installer
+        // has just written a migration whose only purpose is to run, and without it there is
+        // no pages table, so no site and no /admin. --fresh already answered yes here while
+        // the interactive default said no.
         if ($this->auto(
             'Run database migrations now?',
-            false,
-            'Runs php artisan migrate. Say no to read the migrations first, then run it yourself.',
+            true,
+            'Runs php artisan migrate — every migration still pending, not only the template\'s. Without it there is no pages table, so no site.',
         )) {
             $migrated = true;
             // A subprocess, not $this->call(): suggestFrontendPackages() may have

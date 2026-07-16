@@ -46,6 +46,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dutch class name buys nothing (see leap 0.10.9's docs). `--plural` and `Name:archetype`
   stay for the exceptions.
 
+- **"Run database migrations now?" defaults to yes.** It was no, and nothing on record says
+  why — the commit that added it only says it offers to run migrate. The installer has just
+  written a migration whose only purpose is to run, and without it there is no `pages` table,
+  so no site and no `/admin`: another no that breaks what was just installed. `--fresh`
+  already answered yes here, so the unattended path and the interactive default disagreed
+  about the right answer.
+
+  The one real argument for no — `migrate` runs every pending migration, not just the
+  template's — is now in the hint, where it can inform the answer instead of deciding it.
+  Seeding still defaults to no: sample content is genuinely optional.
+
 - **The questions are asked in the order the install happens.** Every `routes/web.php` edit
   is now together — the welcome route out, the sitemap and the catch-all in — instead of the
   route questions sitting after a `composer require`. And `composer require` is the last
