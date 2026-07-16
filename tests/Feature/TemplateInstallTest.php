@@ -18,8 +18,10 @@ class TemplateInstallTest extends TestCase
         $this->originalCwd = getcwd();
         $this->temp = sys_get_temp_dir().'/leap-template-'.uniqid();
 
-        // Minimal Laravel-app skeleton: the dirs copy() writes into (it does not
-        // create parents) plus the files the patch steps expect to edit.
+        // Minimal Laravel-app skeleton: the directories a bare app already ships with,
+        // plus the files the patch steps expect to edit. Deliberately not app/Leap,
+        // app/Livewire, app/Support, lang, public/css or tests/Feature — those are the
+        // ones copyOrReplace has to create on its own.
         foreach ([
             'app/Http/Controllers', 'app/Models', 'database/migrations',
             'database/seeders', 'config', 'public', 'tests', 'routes',
@@ -77,8 +79,6 @@ class TemplateInstallTest extends TestCase
         // languages without the multiselect. The rest is driven interactively; the
         // per-file resources copy (copyDir) writes new files silently.
         $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl,en'])
-            ->expectsConfirmation('Create app/Leap directory?', 'yes')
-            ->expectsConfirmation('Create app/Traits directory?', 'yes')
             ->expectsConfirmation('Copy PageController?', 'yes')
             ->expectsConfirmation('Copy pages table migration?', 'yes')
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
@@ -87,19 +87,13 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy HasSections trait?', 'yes')
             ->expectsConfirmation('Copy HasSlug trait?', 'yes')
             ->expectsConfirmation('Copy HasTags trait?', 'yes')
-            ->expectsConfirmation('Create app/Leap/Concerns directory?', 'yes')
             ->expectsConfirmation('Copy ContentSections concern?', 'yes')
-            ->expectsConfirmation('Create lang directory?', 'yes')
             ->expectsConfirmation('Copy English translations?', 'yes')
-            ->expectsConfirmation('Create app/Livewire directory?', 'yes')
             ->expectsConfirmation('Copy Search Livewire component?', 'yes')
-            ->expectsConfirmation('Create app/Support directory?', 'yes')
             ->expectsConfirmation('Copy Video support class?', 'yes')
-            ->expectsConfirmation('Create public/css directory?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
-            ->expectsConfirmation('Create tests/Feature directory?', 'yes')
             ->expectsConfirmation('Copy PageRouting test?', 'yes')
             ->expectsConfirmation('Copy HasSlug test?', 'yes')
             ->expectsConfirmation('Copy Multilingual test?', 'yes')

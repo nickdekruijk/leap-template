@@ -5,6 +5,18 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.7] — 2026-07-16
+
+### Changed
+
+- **The installer no longer asks to create directories.** Seven `Create <dir> directory?`
+  prompts are gone; `copyOrReplace` creates the destination itself, silently, and only when
+  the copy is actually going ahead — the same thing `copyDir` already did. They were two
+  questions for one decision, and the no branch was a trap: `copy()` fails when the parent
+  is missing, and the return value went unchecked, so the install answered "no" to the
+  directory and then still reported `Copied public/css/tinymce.css` for a file that was
+  never written. A failing copy or mkdir now says so.
+
 ## [0.10.6] — 2026-07-16
 
 ### Changed

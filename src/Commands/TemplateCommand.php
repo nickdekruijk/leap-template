@@ -90,6 +90,11 @@ class TemplateCommand extends Command
     /**
      * Copy or replace a file from the stubs/template folder after confirmation, asks to overwrite if it exists and sha1 hashes differ
      *
+     * The destination directory is created when it is missing, silently and only once
+     * the copy is actually going ahead, so a directory never appears for a file that was
+     * skipped. Asking separately would be two questions for one decision, and answering
+     * no to the directory while saying yes to the file would leave copy() failing.
+     *
      * @param  string  $file  The file including path relative to the stubs/template folder
      * @param  string  $description  The description of the file to show in confirmation
      * @return void
@@ -104,7 +109,18 @@ class TemplateCommand extends Command
         }
 
         if ($this->auto($exists ? ucfirst("$description already exists, do you want to overwrite it?") : "Copy $description?", ! $exists)) {
-            copy(__DIR__.'/../../stubs/template/'.$file, $file);
+            if (! is_dir($directory = dirname($file)) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+                $this->error('Could not create '.$directory.', skipping '.$file);
+
+                return;
+            }
+
+            if (! copy(__DIR__.'/../../stubs/template/'.$file, $file)) {
+                $this->error('Could not copy '.$file);
+
+                return;
+            }
+
             $this->info('Copied '.$file);
         } else {
             $this->info('Skipping '.$file);
@@ -175,19 +191,6 @@ class TemplateCommand extends Command
         $originalFileContents = file_get_contents($file);
         $newFileContents = $callback($originalFileContents);
         file_put_contents($file, $newFileContents);
-    }
-
-    /**
-     * Ask to create a directory if it doesn't exist
-     *
-     * @return void
-     */
-    public function createDirectory(string $directory)
-    {
-        if (! file_exists($directory) && $this->auto("Create $directory directory?", true)) {
-            mkdir($directory);
-            $this->info("Created $directory");
-        }
     }
 
     /**
@@ -409,11 +412,7 @@ class TemplateCommand extends Command
             $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
         }
 
-        // Ask to create app/Leap directory if it doesn't exist
-        $this->createDirectory('app/Leap');
-        $this->createDirectory('app/Traits');
-
-        // Ask to copy or replace files
+        // Ask to copy or replace files (each creates its own directory as needed)
         $this->copyOrReplace('app/Http/Controllers/PageController.php', 'PageController');
         $this->copyOrReplace('database/migrations/2025_01_03_094203_create_pages_table.php', 'pages table migration');
         $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder');
@@ -424,24 +423,19 @@ class TemplateCommand extends Command
         $this->copyOrReplace('app/Traits/HasTags.php', 'HasTags trait');
 
         // Shared content-section blocks (Page + every content type build from these)
-        $this->createDirectory('app/Leap/Concerns');
         $this->copyOrReplace('app/Leap/Concerns/ContentSections.php', 'ContentSections concern');
 
         // Frontend English strings (used when a site is multilingual with English)
-        $this->createDirectory('lang');
         $this->copyOrReplace('lang/en.json', 'English translations');
 
         // Live search (a plain Livewire class component so it works on Livewire 3 and 4)
-        $this->createDirectory('app/Livewire');
         $this->copyOrReplace('app/Livewire/Search.php', 'Search Livewire component');
 
         // Video sections. A thin wrapper around the package class, so bugfixes to the
         // poster fetching and the provider quirks arrive via composer update.
-        $this->createDirectory('app/Support');
         $this->copyOrReplace('app/Support/Video.php', 'Video support class');
 
         // TinyMCE editor content styles, so rich-text matches the frontend in the editor
-        $this->createDirectory('public/css');
         $this->copyOrReplace('public/css/tinymce.css', 'TinyMCE editor stylesheet');
         $this->enableTinymceContentCss();
 
@@ -457,7 +451,6 @@ class TemplateCommand extends Command
         $this->ignoreCompiledAssets();
 
         // Starter feature tests for the copied template code (run under the host's test suite)
-        $this->createDirectory('tests/Feature');
         $this->copyOrReplace('tests/Feature/PageRoutingTest.php', 'PageRouting test');
         $this->copyOrReplace('tests/Feature/HasSlugTest.php', 'HasSlug test');
         $this->copyOrReplace('tests/Feature/MultilingualTest.php', 'Multilingual test');
