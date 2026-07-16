@@ -5,6 +5,50 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.8] — 2026-07-16
+
+### Changed
+
+- **The models use the package's traits directly; three stubs are gone.**
+  `App\Traits\HasSections`, `App\Traits\HasSlug` and `App\Support\Video` are no longer
+  copied into a project. `HasSections`' 70 lines of behaviour moved into
+  `NickDeKruijk\Leap\Traits\HasSections` (leap 0.10.7, now the minimum requirement), joining
+  `HasSlug` and `Classes\Video`, which were already there — and the models and the video
+  section now reference all three straight from the package.
+
+  `HasSections` never belonged in a project. It reads what Leap's own sections editor writes
+  — the JSON shape, the `Mediable` rows, `_sort`/`_name`, `leap.locales` — so it has to move
+  whenever the editor does, and as a copied stub it could not: the monolingual crash fixed in
+  0.10.4 reached no existing site for that reason.
+
+  The other two were already package behaviour behind a one-line wrapper whose only purpose
+  was a central override point. That was speculative — no project has ever used it — and it
+  cost a stub to copy, a prompt to answer, a file that could drift, and a second file to open
+  before reaching the code. A project that wants a central override can still add the trait
+  itself; a project that wants to override one model can define the method on that model.
+
+  `App\Traits\HasTags` stays a stub: it hangs off `App\Models\Tag`, which is itself a stub
+  and optional (`--no-tags`).
+
+  **Upgrading:** nothing breaks. Your `App\Traits\*` and `App\Support\Video` keep working as
+  long as your models reference them, and `leap:template` will not remove them. To pick this
+  up, accept the overwrite of `app/Models/Page.php` (and re-run `leap:content` for generated
+  types), then delete the orphaned files. Check `leap:template --diff` first if you edited
+  any of them.
+
+### Added
+
+- **A test that a generated model's imports are in pint's order.** Pint formats the `.php`
+  stubs in this repo but cannot see `Model.stub`, so nothing caught an unsorted import block
+  — which would leave every scaffolded project failing a style check on a file it never
+  wrote. Verified by breaking a stub on purpose.
+- **A test that the package classes a generated model imports actually exist.** The stubs
+  name them as plain text, so nothing tied them to the leap version `composer.json` requires:
+  a renamed trait, or one that only ever existed on a branch, would produce a model that
+  reads perfectly and fatals on use. The suite could not see it — it never loaded what it
+  generated, and was green against a leap without `HasSections` in it. Also verified by
+  breaking a stub on purpose.
+
 ## [0.10.7] — 2026-07-16
 
 ### Changed

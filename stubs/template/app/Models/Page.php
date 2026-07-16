@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use App\Http\Controllers\PageController;
-use App\Traits\HasSections;
-use App\Traits\HasSlug;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +10,8 @@ use Illuminate\Support\Collection;
 use NickDeKruijk\Leap\Contracts\Sitemapable;
 use NickDeKruijk\Leap\Traits\HasDocumentMeta;
 use NickDeKruijk\Leap\Traits\HasMedia;
+use NickDeKruijk\Leap\Traits\HasSections;
+use NickDeKruijk\Leap\Traits\HasSlug;
 use Spatie\Translatable\HasTranslations;
 
 class Page extends Model implements Sitemapable

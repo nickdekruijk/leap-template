@@ -15,7 +15,7 @@
     An uploaded poster wins over the provider's, so an editor can always override it.
 --}}
 @php
-    $video = new App\Support\Video((string) ($section['video_id'] ?? ''));
+    $video = new NickDeKruijk\Leap\Classes\Video((string) ($section['video_id'] ?? ''));
     $uploaded = ($section['image'] ?? null)?->first();
     $poster = $uploaded ? null : $video->poster();
 @endphp

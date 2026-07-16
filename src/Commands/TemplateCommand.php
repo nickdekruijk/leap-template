@@ -310,9 +310,6 @@ class TemplateCommand extends Command
             'app/Leap/Page.php',
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
-            'app/Support/Video.php',
-            'app/Traits/HasSections.php',
-            'app/Traits/HasSlug.php',
             'app/Traits/HasTags.php',
             'config/imageresize.php',
             'lang/en.json',
@@ -418,8 +415,9 @@ class TemplateCommand extends Command
         $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder');
         $this->copyOrReplace('app/Models/Page.php', 'Page model');
         $this->copyOrReplace('app/Leap/Page.php', 'Page model Leap module');
-        $this->copyOrReplace('app/Traits/HasSections.php', 'HasSections trait');
-        $this->copyOrReplace('app/Traits/HasSlug.php', 'HasSlug trait');
+        // HasTags is the project's own: it hangs off App\Models\Tag, which is a stub and
+        // optional (--no-tags). HasSections, HasSlug and the Video class are the package's,
+        // and the models use them straight from there.
         $this->copyOrReplace('app/Traits/HasTags.php', 'HasTags trait');
 
         // Shared content-section blocks (Page + every content type build from these)
@@ -430,10 +428,6 @@ class TemplateCommand extends Command
 
         // Live search (a plain Livewire class component so it works on Livewire 3 and 4)
         $this->copyOrReplace('app/Livewire/Search.php', 'Search Livewire component');
-
-        // Video sections. A thin wrapper around the package class, so bugfixes to the
-        // poster fetching and the provider quirks arrive via composer update.
-        $this->copyOrReplace('app/Support/Video.php', 'Video support class');
 
         // TinyMCE editor content styles, so rich-text matches the frontend in the editor
         $this->copyOrReplace('public/css/tinymce.css', 'TinyMCE editor stylesheet');

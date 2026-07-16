@@ -7,6 +7,7 @@ use App\Models\Tag;
 use Illuminate\Console\OutputStyle;
 use NickDeKruijk\LeapTemplate\Commands\TemplateCommand;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
 
@@ -150,6 +151,75 @@ class ContentCommandTest extends TestCase
         $this->assertStringContainsString("protected \$table = 'berichten';", $this->read('app/Models/Bericht.php'));
         $this->assertStringContainsString("'berichten' => \\App\\Models\\Bericht::class,", $this->read('config/leap.php'));
         $this->assertNotEmpty(glob($this->temp.'/database/migrations/*_create_berichten_table.php'));
+    }
+
+    /**
+     * Pint's laravel preset orders imports, and a scaffolded project runs pint over its own
+     * app/ — so an unsorted import block in a stub leaves every generated project failing a
+     * style check on a file it never wrote. Pint cannot catch this itself: it formats the
+     * .php stubs in this repo, but Model.stub is not a .php file, so nothing but this test
+     * stands between a hand-edited import block and that failure.
+     *
+     * @param  string  $type  The content type whose model stub to check
+     */
+    #[DataProvider('contentTypes')]
+    public function test_a_generated_model_has_pint_ordered_imports(string $type, string $model): void
+    {
+        if (! class_exists(Tag::class)) {
+            eval('namespace App\Models; class Tag {}');
+        }
+
+        $this->artisan('leap:content', ['name' => $model, '--archetype' => $type, '--no-interaction' => true])->assertExitCode(0);
+
+        preg_match_all('/^use (.+);$/m', $this->read("app/Models/{$model}.php"), $matches);
+        $imports = $matches[1];
+
+        $this->assertNotEmpty($imports, "Expected {$model} to import something.");
+
+        $sorted = $imports;
+        sort($sorted, SORT_STRING);
+        $this->assertSame($sorted, $imports, "The {$type} model stub's imports are not in pint's order.");
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function contentTypes(): array
+    {
+        return [
+            'news' => ['news', 'Bulletin'],
+            'event' => ['event', 'Gathering'],
+            'generic' => ['generic', 'Album'],
+        ];
+    }
+
+    /**
+     * The stubs name package classes as plain text, so nothing but this ties them to the
+     * leap version composer.json actually requires: a renamed trait, or one that only ever
+     * existed on a branch, would still produce a model that reads perfectly and fatals on
+     * use. The string assertions above cannot see it — they never load what they generate.
+     *
+     * @param  string  $type  The content type whose model stub to check
+     */
+    #[DataProvider('contentTypes')]
+    public function test_the_package_classes_a_generated_model_imports_exist(string $type, string $model): void
+    {
+        if (! class_exists(Tag::class)) {
+            eval('namespace App\Models; class Tag {}');
+        }
+
+        $this->artisan('leap:content', ['name' => $model, '--archetype' => $type, '--no-interaction' => true])->assertExitCode(0);
+
+        preg_match_all('/^use (NickDeKruijk\\\\.+);$/m', $this->read("app/Models/{$model}.php"), $matches);
+
+        $this->assertNotEmpty($matches[1], "Expected {$model} to import something from the package.");
+
+        foreach ($matches[1] as $class) {
+            $this->assertTrue(
+                trait_exists($class) || class_exists($class) || interface_exists($class),
+                "{$model} imports {$class}, which does not exist in the required leap.",
+            );
+        }
     }
 
     public function test_tags_block_is_kept_when_tags_are_on(): void

@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Traits\HasSections;
-use App\Traits\HasSlug;
 {{#tags}}use App\Traits\HasTags;
 {{/tags}}use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use NickDeKruijk\Leap\Traits\HasDocumentMeta;
 use NickDeKruijk\Leap\Traits\HasMedia;
+use NickDeKruijk\Leap\Traits\HasSections;
+use NickDeKruijk\Leap\Traits\HasSlug;
 use Spatie\Translatable\HasTranslations;
 
 /**

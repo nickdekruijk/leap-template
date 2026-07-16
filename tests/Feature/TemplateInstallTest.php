@@ -84,13 +84,10 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
             ->expectsConfirmation('Copy Page model?', 'yes')
             ->expectsConfirmation('Copy Page model Leap module?', 'yes')
-            ->expectsConfirmation('Copy HasSections trait?', 'yes')
-            ->expectsConfirmation('Copy HasSlug trait?', 'yes')
             ->expectsConfirmation('Copy HasTags trait?', 'yes')
             ->expectsConfirmation('Copy ContentSections concern?', 'yes')
             ->expectsConfirmation('Copy English translations?', 'yes')
             ->expectsConfirmation('Copy Search Livewire component?', 'yes')
-            ->expectsConfirmation('Copy Video support class?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
@@ -117,7 +114,6 @@ class TemplateInstallTest extends TestCase
             'resources/views/sections/default.blade.php',
             'resources/views/sections/video.blade.php',
             'resources/views/sections/cookies.blade.php',
-            'app/Support/Video.php',
             'resources/css/template.scss',
         ] as $file) {
             $this->assertFileExists($this->temp.'/'.$file, "Expected {$file} to be copied.");
