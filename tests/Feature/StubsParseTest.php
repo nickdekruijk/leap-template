@@ -37,18 +37,29 @@ class StubsParseTest extends TestCase
     #[DataProvider('stubs')]
     public function test_a_stub_is_valid_php(string $path): void
     {
-        $code = (string) file_get_contents($path);
-
         // Blade is not PHP, and neither is a half-templated class name.
         if (str_ends_with($path, '.blade.php')) {
             $this->markTestSkipped('Blade, not PHP.');
         }
 
-        $code = preg_replace('/\{\{#\w+\}\}|\{\{\/\w+\}\}/', '', $code);
+        $code = (string) file_get_contents($path);
+
+        // A {{#tags}} block is rendered two ways (ContentCommand::render): the inner text
+        // kept, or the whole block dropped. Only one of those used to be checked, so a stub
+        // could be broken with --no-tags and nothing would say so.
+        foreach (['with tags' => '$1', 'without tags' => ''] as $variant => $replacement) {
+            $rendered = preg_replace('/\{\{#tags\}\}(.*?)\{\{\/tags\}\}/s', $replacement, $code);
+
+            $this->assertValidPhp((string) $rendered, basename($path).' ('.$variant.')');
+        }
+    }
+
+    private function assertValidPhp(string $code, string $what): void
+    {
         $code = str_replace(
             ['{{ Model }}', '{{ Models }}', '{{ model }}', '{{ models }}', '{{ table }}', '{{ key }}', '{{ plural }}'],
             ['Thing', 'Things', 'thing', 'things', 'things', 'things', 'things'],
-            (string) $code
+            $code
         );
 
         $file = tempnam(sys_get_temp_dir(), 'stub').'.php';
@@ -56,6 +67,6 @@ class StubsParseTest extends TestCase
         exec('php -l '.escapeshellarg($file).' 2>&1', $output, $status);
         unlink($file);
 
-        $this->assertSame(0, $status, basename($path).' is not valid PHP: '.implode("\n", $output));
+        $this->assertSame(0, $status, $what.' is not valid PHP: '.implode("\n", $output));
     }
 }

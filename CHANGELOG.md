@@ -117,11 +117,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out to Packagist — right for an install, wrong for anything that has to be repeatable
   offline.
 
-- **A test that every stub is valid PHP.** The stubs are the product and nothing parsed
-  them: they are copied as text, so a syntax error shipped green and surfaced in someone
-  else's project. A duplicate import introduced while editing one got past a full suite run
-  — this is the check that caught it. `.stub` templates are checked with their placeholders
-  filled in, which is the only form a project ever sees.
+- **A test that every stub is valid PHP, in both of its forms.** The stubs are the product
+  and nothing parsed them: they are copied as text, so a syntax error shipped green and
+  surfaced in someone else's project. A duplicate import introduced while editing one got
+  past a full suite run — this is the check that caught it.
+
+  A `{{#tags}}` block renders two ways (the inner text kept, or the whole block dropped), so
+  both are checked: a stub could be fine with tags and broken with `--no-tags`, and only one
+  of those was ever rendered. Placeholders are filled in first, since that is the only form
+  a project ever sees.
 
 - **A test for `--fresh`.** It had none, so every change to the interactive flow was a guess
   about the unattended one. It now runs a full `--fresh --no-install` install and expects no
