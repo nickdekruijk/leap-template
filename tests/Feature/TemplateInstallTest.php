@@ -75,39 +75,29 @@ class TemplateInstallTest extends TestCase
     }
 
     /**
-     * Naming a content type includes its plural. leap:content asks that itself, but called
-     * from the installer it landed after the tag question, three prompts from the name it
-     * belongs to — and Str::plural is English, so Bericht guesses "Berichts".
+     * Content types are named in English whatever the site speaks, because the name is code
+     * — a class, a table, a registry key — and never a URL. URLs come from the slug of the
+     * page that lists the type, per locale, so a Dutch site is /berichten with a Story
+     * model. That makes Str::plural right by construction, and the question it used to ask
+     * ("Plural of Story?") a question with one correct answer.
      */
-    public function test_the_plural_is_asked_next_to_the_content_type_and_before_tags(): void
+    public function test_the_plural_is_derived_without_asking(): void
     {
-        // leap:content refuses without App\Models\Page — the file is copied here but never
-        // autoloaded, so declare the class the way ContentCommandTest does.
         if (! class_exists(Page::class)) {
             eval('namespace App\Models; class Page {}');
         }
 
-        $this->artisan('leap:template', ['--models' => 'Bericht:news', '--locales' => 'nl', '--no-install' => true])
-            ->expectsConfirmation('Copy the page tree?', 'yes')
-            ->expectsConfirmation('Copy PageSeeder?', 'no')
-            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
-            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
-            ->expectsConfirmation('Copy the starter tests?', 'no')
-            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
-            ->expectsConfirmation('Add sitemap.xml route?', 'no')
-            ->expectsConfirmation('Add PageController route?', 'no')
-            // Straight after the name, and before the tag question rather than after it.
-            ->expectsQuestion('Plural of Bericht?', 'berichten')
-            ->expectsConfirmation('Add the shared tag filter to content types?', 'no')
-            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
-            ->expectsConfirmation('Copy Nederlands translations?', 'no')
-            ->expectsConfirmation('Run database migrations now?', 'no')
-            ->expectsConfirmation('Seed the sample pages now?', 'no')
-            ->assertExitCode(0);
+        // No expectsQuestion for a plural: one reaching the console fails this test.
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--no-tags' => true,
+            '--models' => 'Story', '--locales' => 'nl',
+        ])->assertExitCode(0);
 
-        // The answer reached leap:content, rather than it guessing "Berichts" on its own.
-        $this->assertStringContainsString("protected \$table = 'berichten';", file_get_contents($this->temp.'/app/Models/Bericht.php'));
+        $this->assertStringContainsString(
+            "protected \$table = 'stories';",
+            file_get_contents($this->temp.'/app/Models/Story.php'),
+            'Str::plural handles an English name, which is the whole reason not to ask.',
+        );
     }
 
     /**

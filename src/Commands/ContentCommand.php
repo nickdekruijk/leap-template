@@ -9,8 +9,6 @@ use Illuminate\Console\ConfirmableTrait;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
-use function Laravel\Prompts\text;
-
 /**
  * Generate a listed content type for the frontend template: a model, a Leap resource,
  * a migration, a factory and a seeder, then register it in config('leap.content').
@@ -28,7 +26,7 @@ class ContentCommand extends Command
 
     protected $signature = 'leap:content {name : Singular StudlyCase name, e.g. News, Product}
         {--archetype= : news|event|generic (default: guessed from the name)}
-        {--plural= : Override the plural (Str::plural is English — set berichten for Bericht)}
+        {--plural= : Override the plural used for the table and registry key (Str::plural is English, and so should the name be)}
         {--no-tags : Leave out the shared Tag relation and filter}
         {--force : Overwrite existing files}';
 
@@ -82,10 +80,12 @@ class ContentCommand extends Command
             return 1;
         }
 
-        $plural = $this->option('plural')
-            ?: (($this->input->isInteractive() && ! $this->option('force'))
-                ? text('Plural of '.$name.'?', default: Str::plural($name))
-                : Str::plural($name));
+        // Str::plural is English, and so is the name: a content type is code — a class, a
+        // table, a registry key — never a URL. Those come from the slug of the page that
+        // lists the type, per locale, so a Dutch site is /berichten with a News model. That
+        // is also why there is no question here: the guess is right whenever the name is
+        // English, and naming it in English is the point.
+        $plural = $this->option('plural') ?: Str::plural($name);
 
         $tags = ! $this->option('no-tags') && class_exists(Tag::class);
 

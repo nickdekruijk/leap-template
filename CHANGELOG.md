@@ -33,11 +33,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an `App\Models\Tag` that was never created. The set now follows the decision that was
   already taken, silently. A file you edited yourself is still asked about on a re-run.
 
-- **A content type's plural is asked next to its name.** `leap:content` asks it when run on
-  its own, but from the installer it landed after the tag question — three prompts away from
-  the name it belongs to. `Str::plural` is English, so it guesses "Berichts" for Bericht, and
-  the answer becomes a table name and a URL: worth asking while you are still looking at the
-  name.
+- **The "Plural of X?" question is gone**, from `leap:template` and `leap:content` both.
+
+  It rested on a misunderstanding — that the plural becomes the overview URL. It does not.
+  URLs come from the slug of the page whose section lists the type, per locale, which is the
+  only way a Dutch site can be `/berichten` and its English twin `/news`. The plural is code:
+  the table, the `leap.content` key, the section name. Nobody visiting the site ever sees it.
+
+  Which leaves it a question with one right answer. Content types are named in English —
+  they are classes — and `Str::plural` is English, so it is right by construction. `News`,
+  `Event`, `Project`, `Story` all guess correctly; only a Dutch class name would not, and a
+  Dutch class name buys nothing (see leap 0.10.9's docs). `--plural` and `Name:archetype`
+  stay for the exceptions.
 
 - **The questions are asked in the order the install happens.** Every `routes/web.php` edit
   is now together — the welcome route out, the sitemap and the catch-all in — instead of the

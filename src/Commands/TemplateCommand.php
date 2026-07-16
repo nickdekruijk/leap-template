@@ -28,7 +28,7 @@ class TemplateCommand extends Command
         {--diff : Show how this project\'s template files differ from the current stubs without changing anything}
         {--fresh : Complete install with no prompts (implies --force; content = --models or News,Event; language = --locales or nl only)}
         {--force : Skip the production confirmation}
-        {--models= : Comma list of content types to generate, e.g. News,Event,Project or Bericht:news:berichten (default News,Event)}
+        {--models= : Comma list of content types to generate, e.g. News,Event,Project or Story:generic (default News,Event)}
         {--locales= : Comma list of locale codes, e.g. nl,en (default: nl only)}
         {--no-install : Do not run "composer require" for the packages the template needs; print the command instead}';
 
@@ -746,14 +746,6 @@ class TemplateCommand extends Command
             return;
         }
 
-        // Naming a content type includes saying its plural, so it is asked here, next to
-        // the name. leap:content asks it itself when run on its own, but called from here
-        // that landed after the tag question — three prompts away from what it is about.
-        $models = array_map(
-            fn (array $model): array => [$model[0], $model[1], $model[2] ?? $this->pluralFor($model[0])],
-            $models,
-        );
-
         // The registry lives in config/leap.php — leap:content appends to it.
         if (! file_exists(base_path('config/leap.php'))) {
             $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
@@ -892,7 +884,7 @@ class TemplateCommand extends Command
                 : text(
                     label: 'Which content types?',
                     default: 'News,Event',
-                    hint: 'Comma list. The archetype is guessed from the name — news is dated, event has start/end times, anything else is hand-ordered. Override with Name:archetype, or Name:archetype:plural for a non-English plural (Bericht:news:berichten). Empty for none.',
+                    hint: 'Comma list, named in English whatever the site speaks — they become classes and tables, never URLs. The archetype is guessed from the name: news is dated, event has start/end times, anything else is hand-ordered. Override with Name:archetype. Empty for none.',
                 );
         }
 
@@ -991,26 +983,6 @@ class TemplateCommand extends Command
             file_put_contents($env, $envContents);
             $this->info('Set APP_LOCALE / APP_FALLBACK_LOCALE to '.$default);
         }
-    }
-
-    /**
-     * The plural of a content type: from Name:archetype:plural, else asked, else guessed.
-     *
-     * Str::plural is English, so it turns Bericht into Berichts. Asking beats guessing for
-     * anything that is not an English word — and the answer is a table name and a URL, so
-     * it is worth a question.
-     */
-    protected function pluralFor(string $name): string
-    {
-        if ($this->option('fresh') || ! $this->input->isInteractive()) {
-            return Str::plural($name);
-        }
-
-        return text(
-            label: 'Plural of '.$name.'?',
-            default: Str::plural($name),
-            hint: 'Used for the table name and the overview URL. The guess is English-only.',
-        );
     }
 
     /**
