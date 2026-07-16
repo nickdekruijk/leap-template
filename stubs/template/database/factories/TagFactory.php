@@ -21,10 +21,13 @@ class TagFactory extends Factory
         $word = Str::ucfirst(fake()->unique()->word());
 
         // The name is translatable, so make one the way a real tag looks: a plain string
-        // would only ever fill the active locale, and a test rendering another one would
-        // pass against a tag no editor could have made.
+        // fills only the active locale, and a test rendering another one would pass against
+        // a tag no editor could have made. The site's own locales, not a hardcoded nl/en —
+        // seeding a language it does not have is litter nobody ever sees or deletes.
+        $locales = array_keys(config('leap.locales') ?: [app()->getLocale() => null]);
+
         return [
-            'name' => ['nl' => $word, 'en' => $word],
+            'name' => array_fill_keys($locales, $word),
         ];
     }
 }

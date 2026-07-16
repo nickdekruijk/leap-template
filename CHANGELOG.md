@@ -160,8 +160,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The seeds now carry every language `leap:template` can install, and `PageSeeder::forSite()`
   strips each translation set to the site's own locales before writing, falling back to
-  English for a language the seeds have no text for. The content-type seeders already worked
-  this way (`$translate()` over `config('leap.locales')`); this brings PageSeeder in line.
+  English for a language the seeds have no text for.
+
+  The content-type factories had the same plain-string bug on `title` and `intro`, which are
+  translatable — so seeded items existed in one language and every other language of the
+  admin showed them blank, while the overview page beside them was filled in. They now repeat
+  the placeholder text across the site's locales, which is what `$translate()` in the same
+  seeder already did. The text stays identical on purpose: it is nonsense prose, and faking a
+  different sentence per language would read as a translation that says something else.
 
 - **A re-run no longer resets `APP_LOCALE` on a hand-configured site.** The installer wrote
   it unconditionally, including on the branch where it had just decided to leave
