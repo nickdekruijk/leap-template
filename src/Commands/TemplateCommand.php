@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Console\ConfirmableTrait;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -259,48 +260,55 @@ class TemplateCommand extends Command
     }
 
     /**
-     * Remove Laravel's welcome page: its route and its view.
+     * Hand / over to the page tree: Laravel's welcome page out, the catch-all in.
      *
-     * One decision, asked once. They were two questions with a broken middle: the view
-     * defaulted to yes and the route to no, and taking both defaults left
-     * Route::get('/', fn () => view('welcome')) pointing at a view that was no longer
-     * there, so / threw "View [welcome] not found". Keeping both was no better — the
-     * welcome route shadows the homepage, because / is the page whose slug is /, not a
-     * static view.
+     * One decision, because either half alone is broken. Drop the welcome route without
+     * adding the catch-all and / is a 404. Add the catch-all without dropping it and the
+     * welcome page shadows the homepage, since / is the page whose slug is /, not a static
+     * view. And deleting welcome.blade.php while its route survives leaves / throwing
+     * "View [welcome] not found" — three ways to answer, one that works.
      *
-     * Neither half survives installing the template, which is why this defaults to yes:
-     * the route's own hint always said as much while the prompt argued the opposite.
+     * Defaults to yes: none of it survives installing the template anyway.
      */
-    protected function removeWelcomePage(): void
+    protected function serveFromThePageTree(): void
     {
-        $route = "Route::get('/', function () {\n    return view('welcome');\n});\n";
+        $welcome = "Route::get('/', function () {\n    return view('welcome');\n});\n";
+        $catchAll = "Route::get('{any}', [PageController::class, 'route'])->where('any', '(.*)');\n";
         $routes = base_path('routes/web.php');
 
-        $hasRoute = file_exists($routes) && str_contains((string) file_get_contents($routes), $route);
-        $hasView = file_exists($view = 'resources/views/welcome.blade.php');
+        $hasWelcomeRoute = file_exists($routes) && str_contains((string) file_get_contents($routes), $welcome);
+        $hasWelcomeView = file_exists($view = 'resources/views/welcome.blade.php');
+        $needsCatchAll = ! $this->routeExists("PageController::class, 'route'");
 
-        if (! $hasRoute && ! $hasView) {
+        if (! $hasWelcomeRoute && ! $hasWelcomeView && ! $needsCatchAll) {
             return;
         }
 
         if (! $this->auto(
-            "Delete Laravel's welcome page (route and view)?",
+            'Serve / from the page tree?',
             true,
-            'The template serves / from the page tree, so the welcome route would shadow your homepage.',
+            "Adds the catch-all that serves every page, and removes Laravel's welcome page. Without both, / is either a 404 or the welcome view.",
         )) {
-            $this->info("Skipping Laravel's welcome page");
+            $this->info("Skipping the routes: / stays Laravel's welcome page");
 
             return;
         }
 
-        if ($hasRoute) {
-            self::updateFile($routes, fn (string $file): string => str_replace($route, '', $file));
+        if ($hasWelcomeRoute) {
+            self::updateFile($routes, fn (string $file): string => str_replace($welcome, '', $file));
             $this->info('Removed the welcome route from routes/web.php');
         }
 
-        if ($hasView) {
+        if ($hasWelcomeView) {
             unlink($view);
             $this->info('Deleted '.$view);
+        }
+
+        // Last, so anything added after it — the sitemap above — is matched first.
+        if ($needsCatchAll) {
+            $this->importPageController();
+            self::updateFile($routes, fn (string $file): string => $file.$catchAll);
+            $this->info('Added the PageController route to routes/web.php');
         }
     }
 
@@ -616,9 +624,8 @@ class TemplateCommand extends Command
             ],
         );
 
-        // Every routes/web.php edit together: the welcome route out, ours in. The sitemap
-        // goes first so the catch-all below cannot swallow it.
-        $this->removeWelcomePage();
+        // The sitemap first: routes match in the order they are registered, and the
+        // catch-all below takes everything left.
         $sitemap = "Route::get('sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');\n";
         if (! $this->routeExists("PageController::class, 'sitemap'") && $this->auto(
             'Add sitemap.xml route?',
@@ -629,16 +636,8 @@ class TemplateCommand extends Command
             self::updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$sitemap);
         }
 
-        // Ask to add PageController route
-        $route = "Route::get('{any}', [PageController::class, 'route'])->where('any', '(.*)');\n";
-        if (! $this->routeExists("PageController::class, 'route'") && $this->auto(
-            'Add PageController route?',
-            true,
-            'The catch-all that serves every page. Without it the site has no pages at all.',
-        )) {
-            $this->importPageController();
-            self::updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$route);
-        }
+        // Laravel's welcome page out and the catch-all in, as one decision.
+        $this->serveFromThePageTree();
 
         // Ask to delete default js/app.js, app/bootstrap.js and css/app.css
         $this->deleteFile('resources/js/app.js');
@@ -685,6 +684,13 @@ class TemplateCommand extends Command
      */
     protected function registerPageSeeder(): void
     {
+        // Registering a seeder that was never copied is worse than not registering one:
+        // DatabaseSeeder would call a class that does not exist, so `php artisan db:seed`
+        // fatals — on the whole project, not just the sample pages.
+        if (! file_exists(base_path('database/seeders/PageSeeder.php'))) {
+            return;
+        }
+
         $path = base_path('database/seeders/DatabaseSeeder.php');
         if (! file_exists($path)) {
             return;
@@ -1232,17 +1238,29 @@ class TemplateCommand extends Command
      */
     protected function runMigrationsAndSeed(): void
     {
+        $migrated = false;
+
         if ($this->auto(
             'Run database migrations now?',
             false,
             'Runs php artisan migrate. Say no to read the migrations first, then run it yourself.',
         )) {
+            $migrated = true;
             // A subprocess, not $this->call(): suggestFrontendPackages() may have
             // `composer require`d packages (e.g. nickdekruijk/settings) earlier in this
             // same run. Their migrations are registered by service providers this
             // already-booted process never loaded, so an in-process migrate would leave
             // them pending. A fresh `php artisan` boots them via package discovery.
             $this->artisan(['migrate', '--force']);
+        }
+
+        // Seeding needs the tables. Asking anyway let you answer no to the migrations and
+        // yes to this, and watch db:seed fail on a pages table that was never created.
+        if (! $migrated && ! $this->pagesTableExists()) {
+            $this->line('Skipping the sample content: the pages table is not there yet. After migrating, run');
+            $this->line('  php artisan db:seed --class=Database\\Seeders\\PageSeeder');
+
+            return;
         }
 
         if ($this->auto(
@@ -1279,6 +1297,20 @@ class TemplateCommand extends Command
         $this->output->write($result->output());
         if (! $result->successful()) {
             $this->output->write($result->errorOutput());
+        }
+    }
+
+    /**
+     * Whether the pages table is already there — someone may have migrated by hand, which
+     * makes seeding a fair question even when they answered no just now. Any database
+     * trouble counts as "not there": this only decides whether to ask.
+     */
+    protected function pagesTableExists(): bool
+    {
+        try {
+            return Schema::hasTable('pages');
+        } catch (\Throwable) {
+            return false;
         }
     }
 

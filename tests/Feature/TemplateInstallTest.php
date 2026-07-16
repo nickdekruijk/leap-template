@@ -135,6 +135,34 @@ PHP);
     }
 
     /**
+     * Registering a seeder that was never copied is worse than not registering one:
+     * DatabaseSeeder would call a class that does not exist, so db:seed fatals on the whole
+     * project rather than just skipping the sample pages. The prompt defaulted to yes.
+     */
+    public function test_the_seeder_is_not_registered_when_it_was_not_copied(): void
+    {
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->assertExitCode(0);
+
+        $this->assertStringNotContainsString(
+            'PageSeeder',
+            file_get_contents($this->temp.'/database/seeders/DatabaseSeeder.php'),
+            'DatabaseSeeder must not call a seeder that is not there.',
+        );
+    }
+
+    /**
      * The tag filter is one decision. HasTags used to be asked in the main run, before the
      * question that decides whether App\Models\Tag — the class it points at — is ever
      * created, so --no-tags left a trait referring to a model that does not exist.
@@ -210,15 +238,12 @@ PHP);
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
-            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
-            ->expectsConfirmation('Add PageController route?', 'no')
-            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
-            ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);
 
         $this->assertFileExists($this->temp.'/resources/views/welcome.blade.php');
@@ -284,15 +309,12 @@ PHP);
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
-            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
-            ->expectsConfirmation('Add PageController route?', 'no')
-            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
-            ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);
 
         $this->assertSame(
@@ -317,9 +339,8 @@ PHP);
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
             ->expectsConfirmation('Copy the starter tests?', 'yes')
-            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'yes')
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
-            ->expectsConfirmation('Add PageController route?', 'yes')
+            ->expectsConfirmation('Serve / from the page tree?', 'yes')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
             // configureLocales() runs here, so this is asked only once the language is
             // known, and about the language actually chosen -- nl. English gets no file:
@@ -328,7 +349,6 @@ PHP);
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
-            ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);
 
         // Representative copies landed

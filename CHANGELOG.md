@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   homepage at a 500 (fixed in 0.10.4 — this keeps it fixed). It runs immediately before the
   migrations, which is as late as it can go.
 
+- **`/` is one question.** "Delete Laravel's welcome page?" and "Add PageController route?"
+  were two, and only one of the four answers left a working site: drop the welcome route
+  without the catch-all and `/` is a 404; add the catch-all without dropping it and the
+  welcome page shadows the homepage. The catch-all's own hint said "without it the site has
+  no pages at all", which is not a choice. Now: "Serve / from the page tree?", defaulting to
+  yes, doing both. The sitemap stays its own question and is registered first, since the
+  catch-all takes everything left.
+
 - **Laravel's welcome page is one question, asked next to the other deletions.** The view and
   the route were two prompts, eighteen lines and a `composer require` apart, with opposite
   defaults — the view yes, the route no. Take both and
@@ -150,6 +158,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   English site, and nobody noticed. Verified by removing a translation on purpose.
 
 ### Fixed
+
+- **The seeder is not registered when it was not copied.** `registerPageSeeder` only checked
+  that `DatabaseSeeder.php` existed, never `PageSeeder.php`. Answer no to "Copy PageSeeder?"
+  and yes to "Register PageSeeder in DatabaseSeeder?" — which defaulted to yes — and
+  `DatabaseSeeder` called a class that was not there, so `php artisan db:seed` fatally failed
+  on the whole project rather than skipping the sample pages.
+
+- **The sample content is not offered when there is nothing to seed into.** Migrations and
+  seeding were independent questions, so no to the first and yes to the second ran `db:seed`
+  against a `pages` table that had never been created. It is only asked when the migrations
+  ran, or when the table is already there — someone may well have migrated by hand. Declined,
+  it prints the `db:seed` command to run later.
 
 - **`PageSeeder` seeds the languages the site has, and only those.** Two bugs that met in
   the middle.
