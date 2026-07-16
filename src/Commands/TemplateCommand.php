@@ -829,13 +829,19 @@ class TemplateCommand extends Command
             $localesPhp = "[{$pairs}]";
         }
 
-        if (preg_match("/'locales'\s*=>\s*null/", $contents)) {
-            $contents = preg_replace("/'locales'\s*=>\s*null/", "'locales' => {$localesPhp}", $contents, 1);
-            file_put_contents($config, $contents);
-            $this->info('Set leap.locales'.($localesPhp === 'null' ? ' (monolingual, '.$default.')' : ': '.implode(', ', $chosen)));
-        } else {
-            $this->warn('leap.locales is already customised — left untouched.');
+        if (! preg_match("/'locales'\s*=>\s*null/", $contents)) {
+            // Someone configured the languages by hand. Leave .env alone too: APP_LOCALE
+            // may well disagree with the first locale on purpose — it steers the admin,
+            // the console, queues and mail, not the site's URLs — and resetting it here
+            // would quietly undo that on every re-run.
+            $this->warn('leap.locales is already customised — left untouched, and so is APP_LOCALE.');
+
+            return;
         }
+
+        $contents = preg_replace("/'locales'\s*=>\s*null/", "'locales' => {$localesPhp}", $contents, 1);
+        file_put_contents($config, $contents);
+        $this->info('Set leap.locales'.($localesPhp === 'null' ? ' (monolingual, '.$default.')' : ': '.implode(', ', $chosen)));
 
         $env = base_path('.env');
         if (file_exists($env)) {

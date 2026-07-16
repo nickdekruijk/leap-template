@@ -58,6 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A re-run no longer resets `APP_LOCALE` on a hand-configured site.** The installer wrote
+  it unconditionally, including on the branch where it had just decided to leave
+  `leap.locales` untouched — so `leap:template` on a site deliberately running an English
+  admin over a Dutch site quietly reset it to the first locale. The two settings mean
+  different things (`leap.locales` decides the site's URLs, `APP_LOCALE` the admin, console,
+  queues and mail — see leap 0.10.8), so once the languages were configured by hand, both are
+  left alone and the warning says so.
+
 - **`--diff` no longer reports six phantom new files.** Translations are per site, so a lang
   file the project does not have was never meant to be there; only the ones it has are
   compared against the stubs.
