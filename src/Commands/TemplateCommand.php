@@ -255,6 +255,52 @@ class TemplateCommand extends Command
     }
 
     /**
+     * Remove Laravel's welcome page: its route and its view.
+     *
+     * One decision, asked once. They were two questions with a broken middle: the view
+     * defaulted to yes and the route to no, and taking both defaults left
+     * Route::get('/', fn () => view('welcome')) pointing at a view that was no longer
+     * there, so / threw "View [welcome] not found". Keeping both was no better — the
+     * welcome route shadows the homepage, because / is the page whose slug is /, not a
+     * static view.
+     *
+     * Neither half survives installing the template, which is why this defaults to yes:
+     * the route's own hint always said as much while the prompt argued the opposite.
+     */
+    protected function removeWelcomePage(): void
+    {
+        $route = "Route::get('/', function () {\n    return view('welcome');\n});\n";
+        $routes = base_path('routes/web.php');
+
+        $hasRoute = file_exists($routes) && str_contains((string) file_get_contents($routes), $route);
+        $hasView = file_exists($view = 'resources/views/welcome.blade.php');
+
+        if (! $hasRoute && ! $hasView) {
+            return;
+        }
+
+        if (! $this->auto(
+            "Delete Laravel's welcome page (route and view)?",
+            true,
+            'The template serves / from the page tree, so the welcome route would shadow your homepage.',
+        )) {
+            $this->info("Skipping Laravel's welcome page");
+
+            return;
+        }
+
+        if ($hasRoute) {
+            self::updateFile($routes, fn (string $file): string => str_replace($route, '', $file));
+            $this->info('Removed the welcome route from routes/web.php');
+        }
+
+        if ($hasView) {
+            unlink($view);
+            $this->info('Deleted '.$view);
+        }
+    }
+
+    /**
      * Update the contents of a file with the logic of a given callback
      *
      * @param  string  $file  The file to update
@@ -558,8 +604,10 @@ class TemplateCommand extends Command
             ],
         );
 
-        // Ask to delete default Laravel welcome view, js/app.js, app/bootstrap.js and css/app.css
-        $this->deleteFile('resources/views/welcome.blade.php');
+        // Laravel's welcome page, route and view together
+        $this->removeWelcomePage();
+
+        // Ask to delete default js/app.js, app/bootstrap.js and css/app.css
         $this->deleteFile('resources/js/app.js');
         $this->deleteFile('resources/js/bootstrap.js');
         $this->deleteFile('resources/css/app.css');
@@ -575,18 +623,6 @@ class TemplateCommand extends Command
 
         // Suggest installing the frontend packages the template relies on
         $this->suggestFrontendPackages();
-
-        // Ask to delete Laravel default welcome route
-        $route = "Route::get('/', function () {\n    return view('welcome');\n});\n";
-        if (str_contains(file_get_contents('routes/web.php'), $route) && $this->auto(
-            'Delete default Laravel welcome route?',
-            false,
-            'It would shadow the homepage: / is the page whose slug is /, not the welcome view.',
-        )) {
-            self::updateFile(base_path('routes/web.php'), function ($file) use ($route) {
-                return str_replace($route, '', $file);
-            });
-        }
 
         // Ask to add the sitemap route (before the catch-all so it isn't swallowed)
         $sitemap = "Route::get('sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');\n";

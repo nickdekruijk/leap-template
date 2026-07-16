@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The starter tests are one question too**, and now include `SearchTest` and `SeoTest`.
 
+- **Laravel's welcome page is one question, asked next to the other deletions.** The view and
+  the route were two prompts, eighteen lines and a `composer require` apart, with opposite
+  defaults — the view yes, the route no. Take both and
+  `Route::get('/', fn () => view('welcome'))` was left pointing at a view that was gone, so
+  `/` threw *View [welcome] not found* on a site the installer had just built. Keep both and
+  the welcome route shadows the homepage, because `/` is the page whose slug is `/`, not a
+  static view.
+
+  Neither half survives installing the template, so it is one question defaulting to yes —
+  which is what the route prompt's own hint had been arguing while the prompt defaulted to no.
+
 - **The templates are written in English; every other language is a translation.** The views
   used to say `__('Filter op label')` with a `lang/en.json` mapping Dutch keys to English —
   Dutch was the source language, baked into the Blade, so English was the only translation

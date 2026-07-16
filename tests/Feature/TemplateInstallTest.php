@@ -74,6 +74,55 @@ class TemplateInstallTest extends TestCase
     }
 
     /**
+     * The route and the view are one thing. They used to be two prompts with opposite
+     * defaults — the view yes, the route no — so taking both left
+     * Route::get('/', fn () => view('welcome')) pointing at a view that was gone, and /
+     * threw "View [welcome] not found" on a site the installer had just built.
+     */
+    public function test_the_welcome_route_and_view_go_together(): void
+    {
+        mkdir($this->temp.'/resources/views', 0777, true);
+        file_put_contents($this->temp.'/resources/views/welcome.blade.php', 'welcome');
+
+        $this->artisan('leap:template', ['--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl'])
+            ->assertExitCode(0);
+
+        $this->assertFileDoesNotExist($this->temp.'/resources/views/welcome.blade.php');
+        $this->assertStringNotContainsString(
+            "return view('welcome');",
+            file_get_contents($this->temp.'/routes/web.php'),
+            'The view is gone, so the route pointing at it must be too.',
+        );
+    }
+
+    public function test_keeping_the_welcome_page_keeps_both_halves(): void
+    {
+        mkdir($this->temp.'/resources/views', 0777, true);
+        file_put_contents($this->temp.'/resources/views/welcome.blade.php', 'welcome');
+
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl'])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy HasTags trait?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
+            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Add PageController route?', 'no')
+            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->expectsConfirmation('Seed the sample pages now?', 'no')
+            ->assertExitCode(0);
+
+        $this->assertFileExists($this->temp.'/resources/views/welcome.blade.php');
+        $this->assertStringContainsString("return view('welcome');", file_get_contents($this->temp.'/routes/web.php'));
+    }
+
+    /**
      * --fresh is the unattended path: every prompt answered yes, nothing asked. It had no
      * test at all, so each change to the interactive flow was a guess about this one.
      *
@@ -133,8 +182,8 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
-            ->expectsConfirmation('Delete default Laravel welcome route?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Add PageController route?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
@@ -166,8 +215,8 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
             ->expectsConfirmation('Copy the starter tests?', 'yes')
+            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'yes')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
-            ->expectsConfirmation('Delete default Laravel welcome route?', 'yes')
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
             ->expectsConfirmation('Add PageController route?', 'yes')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
