@@ -604,27 +604,9 @@ class TemplateCommand extends Command
             ],
         );
 
-        // Laravel's welcome page, route and view together
+        // Every routes/web.php edit together: the welcome route out, ours in. The sitemap
+        // goes first so the catch-all below cannot swallow it.
         $this->removeWelcomePage();
-
-        // Ask to delete default js/app.js, app/bootstrap.js and css/app.css
-        $this->deleteFile('resources/js/app.js');
-        $this->deleteFile('resources/js/bootstrap.js');
-        $this->deleteFile('resources/css/app.css');
-        // Laravel's stock ExampleTest asserts GET / returns 200 for the static welcome
-        // page; the homepage is now DB-driven (PageController), so it would fail. The
-        // template's PageRoutingTest covers routing properly instead.
-        $this->deleteFile('tests/Feature/ExampleTest.php');
-
-        // Ask to copy scss files, views and javascript
-        $this->copyDir('resources/css', 'SCSS files');
-        $this->copyDir('resources/views', 'template views');
-        $this->copyDir('resources/js', 'JavaScript files');
-
-        // Suggest installing the frontend packages the template relies on
-        $this->suggestFrontendPackages();
-
-        // Ask to add the sitemap route (before the catch-all so it isn't swallowed)
         $sitemap = "Route::get('sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');\n";
         if (! $this->routeExists("PageController::class, 'sitemap'") && $this->auto(
             'Add sitemap.xml route?',
@@ -646,6 +628,20 @@ class TemplateCommand extends Command
             self::updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$route);
         }
 
+        // Ask to delete default js/app.js, app/bootstrap.js and css/app.css
+        $this->deleteFile('resources/js/app.js');
+        $this->deleteFile('resources/js/bootstrap.js');
+        $this->deleteFile('resources/css/app.css');
+        // Laravel's stock ExampleTest asserts GET / returns 200 for the static welcome
+        // page; the homepage is now DB-driven (PageController), so it would fail. The
+        // template's PageRoutingTest covers routing properly instead.
+        $this->deleteFile('tests/Feature/ExampleTest.php');
+
+        // Ask to copy scss files, views and javascript
+        $this->copyDir('resources/css', 'SCSS files');
+        $this->copyDir('resources/views', 'template views');
+        $this->copyDir('resources/js', 'JavaScript files');
+
         // Generate the chosen content types (before migrate/seed, so their migrations run)
         $this->generateContentTypes();
 
@@ -657,6 +653,11 @@ class TemplateCommand extends Command
 
         // Warn about the traits/contract the User model needs for Leap
         $this->checkUserModel();
+
+        // Last question, and the only one that leaves the machine. It cannot go after the
+        // migrations, though: nickdekruijk/settings ships one, and a run that migrated
+        // before installing it left the settings table missing and the homepage at a 500.
+        $this->suggestFrontendPackages();
 
         // Offer to run migrations and seed the sample pages
         $this->runMigrationsAndSeed();

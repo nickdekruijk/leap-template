@@ -109,11 +109,11 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
-            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Add PageController route?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);
@@ -183,11 +183,11 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
-            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Add PageController route?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);
@@ -216,7 +216,6 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
             ->expectsConfirmation('Copy the starter tests?', 'yes')
             ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'yes')
-            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
             ->expectsConfirmation('Add PageController route?', 'yes')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
@@ -224,6 +223,7 @@ class TemplateInstallTest extends TestCase
             // known, and about the language actually chosen -- nl. English gets no file:
             // the views are written in English and fall back to the key.
             ->expectsConfirmation('Copy Nederlands translations?', 'yes')
+            ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);

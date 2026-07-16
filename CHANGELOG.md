@@ -26,6 +26,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The starter tests are one question too**, and now include `SearchTest` and `SeoTest`.
 
+- **The questions are asked in the order the install happens.** Every `routes/web.php` edit
+  is now together — the welcome route out, the sitemap and the catch-all in — instead of the
+  route questions sitting after a `composer require`. And `composer require` is the last
+  question of the run: it is the only step that leaves your machine, and it has nothing to
+  say about your project.
+
+  It cannot be the last *step*, though: `nickdekruijk/settings` ships a migration, so
+  installing it after `php artisan migrate` leaves the settings table missing and the
+  homepage at a 500 (fixed in 0.10.4 — this keeps it fixed). It runs immediately before the
+  migrations, which is as late as it can go.
+
 - **Laravel's welcome page is one question, asked next to the other deletions.** The view and
   the route were two prompts, eighteen lines and a `composer require` apart, with opposite
   defaults — the view yes, the route no. Take both and
