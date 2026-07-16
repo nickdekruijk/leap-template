@@ -5,6 +5,28 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.9] — 2026-07-16
+
+### Added
+
+- **Every `leap:template` prompt now explains itself.** All 32 questions carry a one-line
+  hint under them, saying what the file is for or what saying no costs — "Copy
+  PageController?" is only obvious to someone who already knows the template. Uses Laravel
+  Prompts' `hint:`, the way the language picker already did.
+
+  Overwrite prompts get a different line: when the file already exists, what is at stake is
+  your copy, not what the file does, so it says that instead.
+
+  The hint is a required argument on `auto()`, `confirmStep()` and `copyOrReplace()`, so a
+  prompt added without one does not compile past review — a question nobody can answer is
+  the bug, not the missing string.
+
+### Changed
+
+- **The content-type question dropped its parenthetical into the hint.** The label is now
+  just "Which content types?", with the archetypes, the `Name:archetype:plural` form and the
+  empty-for-none option explained underneath instead of crammed into the question.
+
 ## [0.10.8] — 2026-07-16
 
 ### Changed

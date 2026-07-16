@@ -59,8 +59,12 @@ class TemplateCommand extends Command
      * Answer a prompt from the flags when it has a dedicated (negatable) option, else
      * yes under --fresh, else ask. Precedence: explicit --key/--no-key > --fresh >
      * interactive default.
+     *
+     * @param  string  $hint  One line under the question: what it is for, or what saying
+     *                        no costs. Nobody installing this for the first time knows,
+     *                        so it is required — a prompt without one is the bug.
      */
-    protected function confirmStep(string $key, string $question, bool $default): bool
+    protected function confirmStep(string $key, string $question, bool $default, string $hint): bool
     {
         if ($this->getDefinition()->hasOption($key) && ($opt = $this->option($key)) !== null) {
             return (bool) $opt;
@@ -69,15 +73,17 @@ class TemplateCommand extends Command
             return true;
         }
 
-        return confirm($question, $default);
+        return confirm($question, $default, hint: $hint);
     }
 
     /**
      * A prompt with no dedicated flag: yes under --fresh, else ask.
+     *
+     * @param  string  $hint  See confirmStep().
      */
-    protected function auto(string $question, bool $default): bool
+    protected function auto(string $question, bool $default, string $hint): bool
     {
-        return $this->option('fresh') ? true : confirm($question, $default);
+        return $this->option('fresh') ? true : confirm($question, $default, hint: $hint);
     }
 
     /**
@@ -97,9 +103,10 @@ class TemplateCommand extends Command
      *
      * @param  string  $file  The file including path relative to the stubs/template folder
      * @param  string  $description  The description of the file to show in confirmation
+     * @param  string  $hint  One line on what the file is for, shown under the question
      * @return void
      */
-    public function copyOrReplace(string $file, string $description)
+    public function copyOrReplace(string $file, string $description, string $hint)
     {
         $exists = file_exists($file);
 
@@ -108,7 +115,15 @@ class TemplateCommand extends Command
             return;
         }
 
-        if ($this->auto($exists ? ucfirst("$description already exists, do you want to overwrite it?") : "Copy $description?", ! $exists)) {
+        // An existing file is a different question: it is your copy that is at stake, not
+        // what the file does, so the hint says that instead.
+        $overwriteHint = 'Your copy differs from the template. Overwriting loses any edits you made to it.';
+
+        if ($this->auto(
+            $exists ? ucfirst("$description already exists, do you want to overwrite it?") : "Copy $description?",
+            ! $exists,
+            $exists ? $overwriteHint : $hint,
+        )) {
             if (! is_dir($directory = dirname($file)) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
                 $this->error('Could not create '.$directory.', skipping '.$file);
 
@@ -148,7 +163,11 @@ class TemplateCommand extends Command
                     continue;
                 }
                 // Changed — do not clobber a local edit without asking
-                if (! $this->auto("Overwrite changed $relative?", false)) {
+                if (! $this->auto(
+                    "Overwrite changed $relative?",
+                    false,
+                    'Your copy differs from the template. Overwriting loses any edits you made to it.',
+                )) {
                     continue;
                 }
             }
@@ -173,7 +192,11 @@ class TemplateCommand extends Command
      */
     public function deleteFile(string $file)
     {
-        if (file_exists($file) && $this->auto("Delete $file? (Laravel default, replaced by the template)", true)) {
+        if (file_exists($file) && $this->auto(
+            "Delete $file? (Laravel default, replaced by the template)",
+            true,
+            'The template does not use it. It is in git in a fresh project, so you can get it back.',
+        )) {
             unlink($file);
             $this->info('Deleted '.$file);
         }
@@ -208,7 +231,11 @@ class TemplateCommand extends Command
             return;
         }
 
-        if ($this->auto('Link public/storage to storage/app/public?', true)) {
+        if ($this->auto(
+            'Link public/storage to storage/app/public?',
+            true,
+            'Uploads are served from /storage. Without the link no image an editor uploads resolves.',
+        )) {
             $this->call('storage:link');
         }
     }
@@ -405,32 +432,36 @@ class TemplateCommand extends Command
         }
 
         // Publish the config (the content registry lives in config/leap.php)
-        if (! file_exists('config/leap.php') && $this->auto('Publish leap config file?', true)) {
+        if (! file_exists('config/leap.php') && $this->auto(
+            'Publish leap config file?',
+            true,
+            'config/leap.php: locales, the content-type registry and the admin settings. The template edits it.',
+        )) {
             $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
         }
 
         // Ask to copy or replace files (each creates its own directory as needed)
-        $this->copyOrReplace('app/Http/Controllers/PageController.php', 'PageController');
-        $this->copyOrReplace('database/migrations/2025_01_03_094203_create_pages_table.php', 'pages table migration');
-        $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder');
-        $this->copyOrReplace('app/Models/Page.php', 'Page model');
-        $this->copyOrReplace('app/Leap/Page.php', 'Page model Leap module');
+        $this->copyOrReplace('app/Http/Controllers/PageController.php', 'PageController', 'Serves every page and builds the menu. The frontend does not work without it.');
+        $this->copyOrReplace('database/migrations/2025_01_03_094203_create_pages_table.php', 'pages table migration', 'Creates the pages table the Page model reads.');
+        $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder', 'Sample content: a home page and a few children, in every locale. Delete once the site has its own.');
+        $this->copyOrReplace('app/Models/Page.php', 'Page model', 'The page itself: slug, sections, SEO fields and the page tree.');
+        $this->copyOrReplace('app/Leap/Page.php', 'Page model Leap module', 'The screen in /admin where editors write pages.');
         // HasTags is the project's own: it hangs off App\Models\Tag, which is a stub and
         // optional (--no-tags). HasSections, HasSlug and the Video class are the package's,
         // and the models use them straight from there.
-        $this->copyOrReplace('app/Traits/HasTags.php', 'HasTags trait');
+        $this->copyOrReplace('app/Traits/HasTags.php', 'HasTags trait', 'Lets content types carry shared tags, and their overviews filter on them.');
 
         // Shared content-section blocks (Page + every content type build from these)
-        $this->copyOrReplace('app/Leap/Concerns/ContentSections.php', 'ContentSections concern');
+        $this->copyOrReplace('app/Leap/Concerns/ContentSections.php', 'ContentSections concern', 'The section blocks the editor offers — text, image, video — shared by Page and every content type.');
 
         // Frontend English strings (used when a site is multilingual with English)
-        $this->copyOrReplace('lang/en.json', 'English translations');
+        $this->copyOrReplace('lang/en.json', 'English translations', 'Frontend strings (read more, search, …) in English. Needed if the site has an English locale.');
 
         // Live search (a plain Livewire class component so it works on Livewire 3 and 4)
-        $this->copyOrReplace('app/Livewire/Search.php', 'Search Livewire component');
+        $this->copyOrReplace('app/Livewire/Search.php', 'Search Livewire component', 'Powers the live search box in the menu.');
 
         // TinyMCE editor content styles, so rich-text matches the frontend in the editor
-        $this->copyOrReplace('public/css/tinymce.css', 'TinyMCE editor stylesheet');
+        $this->copyOrReplace('public/css/tinymce.css', 'TinyMCE editor stylesheet', 'Makes rich text in the admin look like the frontend, so editors see what they get.');
         $this->enableTinymceContentCss();
 
         // Uploaded media lives on the public disk and is served from /storage
@@ -438,16 +469,16 @@ class TemplateCommand extends Command
 
         // ImageResize width presets used by the template's srcset/backgrounds
         // (overrides the vendor-published default, which lacks these templates)
-        $this->copyOrReplace('config/imageresize.php', 'ImageResize config (frontend resize templates)');
+        $this->copyOrReplace('config/imageresize.php', 'ImageResize config (frontend resize templates)', 'Width presets for responsive images. The package default lacks the ones the template asks for.');
 
         // Generated assets are not source. After the config above, because that is
         // what decides where the resize cache lands.
         $this->ignoreCompiledAssets();
 
         // Starter feature tests for the copied template code (run under the host's test suite)
-        $this->copyOrReplace('tests/Feature/PageRoutingTest.php', 'PageRouting test');
-        $this->copyOrReplace('tests/Feature/HasSlugTest.php', 'HasSlug test');
-        $this->copyOrReplace('tests/Feature/MultilingualTest.php', 'Multilingual test');
+        $this->copyOrReplace('tests/Feature/PageRoutingTest.php', 'PageRouting test', 'Starter test: every page resolves and renders. Runs in your own suite.');
+        $this->copyOrReplace('tests/Feature/HasSlugTest.php', 'HasSlug test', 'Starter test: slugs stay unique per locale and per parent.');
+        $this->copyOrReplace('tests/Feature/MultilingualTest.php', 'Multilingual test', 'Starter test: each locale routes and falls back correctly.');
 
         // Ask to delete default Laravel welcome view, js/app.js, app/bootstrap.js and css/app.css
         $this->deleteFile('resources/views/welcome.blade.php');
@@ -469,7 +500,11 @@ class TemplateCommand extends Command
 
         // Ask to delete Laravel default welcome route
         $route = "Route::get('/', function () {\n    return view('welcome');\n});\n";
-        if (str_contains(file_get_contents('routes/web.php'), $route) && $this->auto('Delete default Laravel welcome route?', false)) {
+        if (str_contains(file_get_contents('routes/web.php'), $route) && $this->auto(
+            'Delete default Laravel welcome route?',
+            false,
+            'It would shadow the homepage: / is the page whose slug is /, not the welcome view.',
+        )) {
             self::updateFile(base_path('routes/web.php'), function ($file) use ($route) {
                 return str_replace($route, '', $file);
             });
@@ -477,14 +512,22 @@ class TemplateCommand extends Command
 
         // Ask to add the sitemap route (before the catch-all so it isn't swallowed)
         $sitemap = "Route::get('sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');\n";
-        if (! $this->routeExists("PageController::class, 'sitemap'") && $this->auto('Add sitemap.xml route?', true)) {
+        if (! $this->routeExists("PageController::class, 'sitemap'") && $this->auto(
+            'Add sitemap.xml route?',
+            true,
+            'Publishes /sitemap.xml, built from the pages and content types. For search engines.',
+        )) {
             $this->importPageController();
             self::updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$sitemap);
         }
 
         // Ask to add PageController route
         $route = "Route::get('{any}', [PageController::class, 'route'])->where('any', '(.*)');\n";
-        if (! $this->routeExists("PageController::class, 'route'") && $this->auto('Add PageController route?', true)) {
+        if (! $this->routeExists("PageController::class, 'route'") && $this->auto(
+            'Add PageController route?',
+            true,
+            'The catch-all that serves every page. Without it the site has no pages at all.',
+        )) {
             $this->importPageController();
             self::updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$route);
         }
@@ -533,7 +576,11 @@ class TemplateCommand extends Command
             1
         );
 
-        if ($patched && $patched !== $contents && $this->auto('Register PageSeeder in DatabaseSeeder?', true)) {
+        if ($patched && $patched !== $contents && $this->auto(
+            'Register PageSeeder in DatabaseSeeder?',
+            true,
+            'So php artisan db:seed creates the sample pages too.',
+        )) {
             file_put_contents($path, $patched);
             $this->info('Registered PageSeeder in DatabaseSeeder');
         }
@@ -577,14 +624,19 @@ class TemplateCommand extends Command
             $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
         }
 
-        $tags = $this->confirmStep('tags', 'Add the shared tag filter to content types?', true);
+        $tags = $this->confirmStep(
+            'tags',
+            'Add the shared tag filter to content types?',
+            true,
+            'One tag vocabulary across all content types, with filter chips above each overview.',
+        );
 
         if ($tags) {
-            $this->copyOrReplace('app/Models/Tag.php', 'Tag model');
-            $this->copyOrReplace('app/Leap/Tag.php', 'Tag Leap module');
-            $this->copyOrReplace('database/factories/TagFactory.php', 'Tag factory');
-            $this->copyOrReplace('database/migrations/2025_01_03_094210_create_tags_table.php', 'tags table migration');
-            $this->copyOrReplace('database/migrations/2025_01_03_094211_create_taggables_table.php', 'taggables table migration');
+            $this->copyOrReplace('app/Models/Tag.php', 'Tag model', 'The tag itself: a translatable name, shared by every content type.');
+            $this->copyOrReplace('app/Leap/Tag.php', 'Tag Leap module', 'The screen in /admin where editors manage the tag vocabulary.');
+            $this->copyOrReplace('database/factories/TagFactory.php', 'Tag factory', 'Makes tags in tests and seeders.');
+            $this->copyOrReplace('database/migrations/2025_01_03_094210_create_tags_table.php', 'tags table migration', 'Creates the tags table.');
+            $this->copyOrReplace('database/migrations/2025_01_03_094211_create_taggables_table.php', 'taggables table migration', 'Creates the pivot that links a tag to any content type.');
         }
 
         foreach ($models as [$name, $archetype, $plural]) {
@@ -690,7 +742,11 @@ class TemplateCommand extends Command
         if ($raw === null) {
             $raw = $this->option('fresh')
                 ? 'News,Event'
-                : text('Which content types? (comma list; Name, Name:archetype or Name:archetype:plural)', default: 'News,Event');
+                : text(
+                    label: 'Which content types?',
+                    default: 'News,Event',
+                    hint: 'Comma list. The archetype is guessed from the name — news is dated, event has start/end times, anything else is hand-ordered. Override with Name:archetype, or Name:archetype:plural for a non-English plural (Bericht:news:berichten). Empty for none.',
+                );
         }
 
         $raw = trim($raw);
@@ -775,7 +831,7 @@ class TemplateCommand extends Command
 
         if (in_array('other', $chosen, true)) {
             $chosen = array_values(array_diff($chosen, ['other']));
-            while ($code = text('Extra locale code (e.g. sv), empty to stop')) {
+            while ($code = text('Extra locale code (e.g. sv), empty to stop', hint: 'A two-letter ISO code. It is added after the languages you picked above.')) {
                 $chosen[] = $code;
             }
         }
@@ -839,7 +895,11 @@ class TemplateCommand extends Command
      */
     protected function runMigrationsAndSeed(): void
     {
-        if ($this->auto('Run database migrations now?', false)) {
+        if ($this->auto(
+            'Run database migrations now?',
+            false,
+            'Runs php artisan migrate. Say no to read the migrations first, then run it yourself.',
+        )) {
             // A subprocess, not $this->call(): suggestFrontendPackages() may have
             // `composer require`d packages (e.g. nickdekruijk/settings) earlier in this
             // same run. Their migrations are registered by service providers this
@@ -848,7 +908,11 @@ class TemplateCommand extends Command
             $this->artisan(['migrate', '--force']);
         }
 
-        if ($this->auto('Seed the sample pages now?', false)) {
+        if ($this->auto(
+            'Seed the sample pages now?',
+            false,
+            'Fills the empty site with the sample content, so there is something to click on.',
+        )) {
             // Also a subprocess: PageSeeder::seedContent() reads config('leap.content'),
             // which generateContentTypes() appended to config/leap.php earlier in this
             // same run. This process cached that config at boot (before the append), so an
@@ -930,7 +994,11 @@ class TemplateCommand extends Command
             $this->line('  - '.$package.' ('.$why.')');
         }
 
-        if ($this->auto('Run "composer require" for the missing packages now?', true)) {
+        if ($this->auto(
+            'Run "composer require" for the missing packages now?',
+            true,
+            'The template calls these packages. Without them the frontend errors on the first page load.',
+        )) {
             $command = 'composer require '.implode(' ', $missing);
             $this->info('Running: '.$command);
             passthru($command, $status);
