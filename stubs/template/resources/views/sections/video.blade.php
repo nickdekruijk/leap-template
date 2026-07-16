@@ -26,7 +26,7 @@
         class="video-poster"
         data-video="{{ $video->embedUrl() }}"
         data-video-title="{{ $section['head'] ?? __('Video') }}"
-        aria-label="{{ __('Video afspelen') }}">
+        aria-label="{{ __('Play video') }}">
         @if ($uploaded)
             <x-responsive-image :media="$uploaded" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" decorative />
         @elseif ($poster)
@@ -49,11 +49,11 @@
         stays the same for everyone and can be cached.
     --}}
     <div class="video-consent" hidden>
-        <p>{{ __('Deze video wordt geladen van :provider. Daarbij worden je gegevens, waaronder je IP-adres, naar de aanbieder gestuurd.', ['provider' => $video->provider()]) }}</p>
+        <p>{{ __('This video is loaded from :provider. That sends your data, including your IP address, to them.', ['provider' => $video->provider()]) }}</p>
 
         <p>
-            <button type="button" class="button video-consent-once">{{ __('Video laden') }}</button>
-            <button type="button" class="button outline video-consent-always">{{ __('Altijd toestaan') }}</button>
+            <button type="button" class="button video-consent-once">{{ __('Load video') }}</button>
+            <button type="button" class="button outline video-consent-always">{{ __('Always allow') }}</button>
         </p>
     </div>
 </section>

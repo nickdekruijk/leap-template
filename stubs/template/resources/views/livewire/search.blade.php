@@ -7,12 +7,12 @@
         <input
             id="search-input"
             type="search"
-            placeholder="{{ __('Zoeken...') }}"
+            placeholder="{{ __('Search…') }}"
             wire:model.live.debounce.300ms="query"
             @keydown.slash.stop
             autocomplete="off"
             spellcheck="false">
-        <button class="search-close" x-on:click="searchOpen = false" aria-label="{{ __('Zoeken sluiten') }}">
+        <button class="search-close" x-on:click="searchOpen = false" aria-label="{{ __('Close search') }}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
@@ -38,7 +38,7 @@
                 @endforeach
             </ul>
         @else
-            <p class="search-no-results">{{ __('Geen resultaten gevonden.') }}</p>
+            <p class="search-no-results">{{ __('No results found.') }}</p>
         @endif
     @endif
 </div>

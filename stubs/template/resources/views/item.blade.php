@@ -27,7 +27,7 @@
                 @if ($hasTags || ! empty($page->date) || filled($page->year ?? null) || filled($page->material ?? null) || filled($page->client ?? null))
                     <dl class="item-meta">
                         @if (! empty($page->date))
-                            <dt>{{ __('Datum') }}</dt>
+                            <dt>{{ __('Date') }}</dt>
                             <dd>
                                 <time datetime="{{ $page->date->toDateString() }}">{{ $page->date->translatedFormat('j F Y') }}</time>
                                 @if (! empty($page->start_time))
@@ -40,15 +40,15 @@
                             <dd>{{ $page->tags->pluck('name')->join(', ') }}</dd>
                         @endif
                         @if (filled($page->client ?? null))
-                            <dt>{{ __('Opdrachtgever') }}</dt>
+                            <dt>{{ __('Client') }}</dt>
                             <dd>{{ $page->client }}</dd>
                         @endif
                         @if (filled($page->material ?? null))
-                            <dt>{{ __('Materiaal') }}</dt>
+                            <dt>{{ __('Material') }}</dt>
                             <dd>{{ $page->material }}</dd>
                         @endif
                         @if (filled($page->year ?? null))
-                            <dt>{{ __('Jaar') }}</dt>
+                            <dt>{{ __('Year') }}</dt>
                             <dd>{{ $page->year }}</dd>
                         @endif
                     </dl>

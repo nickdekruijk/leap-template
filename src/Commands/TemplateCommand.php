@@ -339,7 +339,6 @@ class TemplateCommand extends Command
             'app/Livewire/Search.php',
             'app/Traits/HasTags.php',
             'config/imageresize.php',
-            'lang/en.json',
             'public/css/tinymce.css',
             'tests/Feature/PageRoutingTest.php',
             'tests/Feature/HasSlugTest.php',
@@ -354,6 +353,15 @@ class TemplateCommand extends Command
             }
             foreach ($filesystem->allFiles($stubBase.'/'.$directory) as $file) {
                 $files[] = $directory.'/'.$file->getRelativePathname();
+            }
+        }
+
+        // Translations are per site: only the languages it chose were ever copied. A
+        // lang file the project does not have is not drift — it was never meant to be
+        // there — so listing all of them would report six phantom "new" files.
+        foreach ($filesystem->glob($stubBase.'/lang/*.json') as $file) {
+            if (file_exists(base_path($relative = 'lang/'.basename($file)))) {
+                $files[] = $relative;
             }
         }
 
@@ -455,7 +463,6 @@ class TemplateCommand extends Command
         $this->copyOrReplace('app/Leap/Concerns/ContentSections.php', 'ContentSections concern', 'The section blocks the editor offers — text, image, video — shared by Page and every content type.');
 
         // Frontend English strings (used when a site is multilingual with English)
-        $this->copyOrReplace('lang/en.json', 'English translations', 'Frontend strings (read more, search, …) in English. Needed if the site has an English locale.');
 
         // Live search (a plain Livewire class component so it works on Livewire 3 and 4)
         $this->copyOrReplace('app/Livewire/Search.php', 'Search Livewire component', 'Powers the live search box in the menu.');
@@ -763,12 +770,45 @@ class TemplateCommand extends Command
     }
 
     /**
+     * Copy a lang/<code>.json for each chosen language.
+     *
+     * The views are written in English, so English needs no file — Laravel falls back to
+     * the key. Every other language is a normal translation of those keys, and only the
+     * ones actually chosen are worth copying, which is why this runs after the language
+     * picker rather than asking about a fixed language before it.
+     *
+     * @param  array<int, string>  $chosen  Locale codes, in the order they were picked
+     */
+    protected function installTranslations(array $chosen): void
+    {
+        foreach ($chosen as $code) {
+            if ($code === 'en') {
+                continue;
+            }
+
+            if (! file_exists(__DIR__.'/../../stubs/template/lang/'.$code.'.json')) {
+                $this->warn("No translations shipped for '{$code}' — the frontend strings stay English until you add lang/{$code}.json.");
+
+                continue;
+            }
+
+            $this->copyOrReplace(
+                'lang/'.$code.'.json',
+                ($this->localeNames[$code] ?? $code).' translations',
+                'The frontend strings (search, read more, …). Without it they stay English on the '.($this->localeNames[$code] ?? $code).' site.',
+            );
+        }
+    }
+
+    /**
      * Choose languages and write leap.locales + the app locale. One locale →
      * monolingual (leap.locales = null); several → an associative array.
      */
     protected function configureLocales(): void
     {
         $chosen = $this->resolveLocales();
+
+        $this->installTranslations($chosen);
 
         $config = base_path('config/leap.php');
         if (! file_exists($config)) {
@@ -822,11 +862,19 @@ class TemplateCommand extends Command
             return ['nl'];
         }
 
+        // Pre-select whatever .env already says, so the picker agrees with the project you
+        // are standing in. It only seeds the suggestion: leap.locales decides which locale
+        // is unprefixed, and this writes APP_LOCALE back to match the choice.
+        $current = app()->getLocale();
+        if (! array_key_exists($current, $this->localeNames)) {
+            $current = 'nl';
+        }
+
         $chosen = multiselect(
             label: 'Which languages? (the first is the default)',
             options: $this->localeNames + ['other' => 'Anders…'],
-            default: ['nl'],
-            hint: 'Leave just Dutch for a monolingual site.',
+            default: [$current],
+            hint: 'The first one is served on / and the rest under /xx. Pick just one for a monolingual site.',
         );
 
         if (in_array('other', $chosen, true)) {

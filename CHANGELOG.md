@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.9] — 2026-07-16
 
+### Changed
+
+- **The templates are written in English; every other language is a translation.** The views
+  used to say `__('Filter op label')` with a `lang/en.json` mapping Dutch keys to English —
+  Dutch was the source language, baked into the Blade, so English was the only translation
+  that could ever exist. The picker offered German, French, Spanish, Italian, Portuguese and
+  Polish and shipped nothing for any of them: a German site rendered German content with a
+  Dutch interface.
+
+  The source strings are now English, and `lang/nl.json`, `de`, `fr`, `es`, `it`, `pt` and
+  `pl` each translate all 29 of them. English ships no file at all — Laravel falls back to
+  the key, which is the string.
+
+  *The six non-Dutch translations are mine, not a native speaker's. They are worth a read.*
+
+- **The translations question comes after the language question, and names the language.**
+  "Copy English translations?" was asked before the picker had run, about a language you may
+  not have chosen. It now asks once the languages are known, once per chosen language —
+  "Copy Nederlands translations?" — and skips English. An unknown code (an extra locale you
+  typed) says so instead of silently shipping nothing.
+
+- **The language picker pre-selects `APP_LOCALE`** instead of hardcoding Dutch, so it agrees
+  with the project you are standing in. It only seeds the suggestion: `leap.locales` decides
+  which locale is unprefixed (see leap 0.10.8), and the installer writes `APP_LOCALE` back to
+  match what you picked.
+
+- **The content-type question dropped its parenthetical into the hint.** The label is now
+  just "Which content types?", with the archetypes, the `Name:archetype:plural` form and the
+  empty-for-none option explained underneath instead of crammed into the question.
+
 ### Added
 
 - **Every `leap:template` prompt now explains itself.** All 32 questions carry a one-line
@@ -21,11 +51,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prompt added without one does not compile past review — a question nobody can answer is
   the bug, not the missing string.
 
-### Changed
+- **A test that every shipped language translates every source string, and translates nothing
+  that no longer exists.** Nothing tied the two together: `en.json` covered 9 of 29 strings,
+  leaving the search box, the video section and the slider in the source language on an
+  English site, and nobody noticed. Verified by removing a translation on purpose.
 
-- **The content-type question dropped its parenthetical into the hint.** The label is now
-  just "Which content types?", with the archetypes, the `Name:archetype:plural` form and the
-  empty-for-none option explained underneath instead of crammed into the question.
+### Fixed
+
+- **`--diff` no longer reports six phantom new files.** Translations are per site, so a lang
+  file the project does not have was never meant to be there; only the ones it has are
+  compared against the stubs.
 
 ## [0.10.8] — 2026-07-16
 

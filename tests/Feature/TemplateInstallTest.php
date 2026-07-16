@@ -86,7 +86,6 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Copy Page model Leap module?', 'yes')
             ->expectsConfirmation('Copy HasTags trait?', 'yes')
             ->expectsConfirmation('Copy ContentSections concern?', 'yes')
-            ->expectsConfirmation('Copy English translations?', 'yes')
             ->expectsConfirmation('Copy Search Livewire component?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
@@ -99,6 +98,10 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
             ->expectsConfirmation('Add PageController route?', 'yes')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
+            // configureLocales() runs here, so this is asked only once the language is
+            // known, and about the language actually chosen -- nl. English gets no file:
+            // the views are written in English and fall back to the key.
+            ->expectsConfirmation('Copy Nederlands translations?', 'yes')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
             ->assertExitCode(0);
@@ -118,6 +121,13 @@ class TemplateInstallTest extends TestCase
         ] as $file) {
             $this->assertFileExists($this->temp.'/'.$file, "Expected {$file} to be copied.");
         }
+
+        // The chosen language gets its translations; English never does, because the views
+        // are written in English and Laravel falls back to the key.
+        $this->assertFileExists($this->temp.'/lang/nl.json');
+        $this->assertFileDoesNotExist($this->temp.'/lang/en.json');
+        // Nor do languages nobody picked.
+        $this->assertFileDoesNotExist($this->temp.'/lang/de.json');
 
         // Media lives on the public disk and is served from /storage. Without the
         // link nothing an editor uploads renders, and the failure is opaque: the

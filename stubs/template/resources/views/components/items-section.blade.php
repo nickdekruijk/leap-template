@@ -29,9 +29,9 @@
         </div>
 
         @if ($filter && $tags?->isNotEmpty())
-            <ul class="items-tags" aria-label="{{ __('Filter op label') }}">
+            <ul class="items-tags" aria-label="{{ __('Filter by tag') }}">
                 <li>
-                    <a href="{{ url()->current() }}" @click.prevent="pick('')" :class="{ active: ! selected }">{{ __('Alles') }}</a>
+                    <a href="{{ url()->current() }}" @click.prevent="pick('')" :class="{ active: ! selected }">{{ __('All') }}</a>
                 </li>
                 @foreach ($tags as $tag)
                     <li>
@@ -44,7 +44,7 @@
 
     <div class="items-scroller main-width">
         {{-- Only a horizontal scroller is a scroll region, so only it is keyboard-focusable --}}
-        <ul class="items-container" @if ($layout === 'items-horizontal') tabindex="0" @endif role="group" aria-label="{{ $head ?? __('Overzicht') }}">
+        <ul class="items-container" @if ($layout === 'items-horizontal') tabindex="0" @endif role="group" aria-label="{{ $head ?? __('Overview') }}">
             @forelse ($items as $item)
                 <li class="item article" @if ($filter) data-tags="{{ $item->tags?->pluck('slug')->implode(' ') }}" x-show="visible($el)" x-transition @endif>
                     {{-- Whole card is the link — photo, title, date and intro — but only when it has a detail URL --}}
@@ -59,7 +59,7 @@
                     @endif
                 </li>
             @empty
-                <li class="item items-empty">{{ __('Nog niets om te tonen.') }}</li>
+                <li class="item items-empty">{{ __('Nothing to show yet.') }}</li>
             @endforelse
         </ul>
     </div>
