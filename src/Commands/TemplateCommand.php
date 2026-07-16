@@ -110,8 +110,12 @@ class TemplateCommand extends Command
      * @param  string  $hint  One line on what the set is for
      * @param  array<int, string>  $files  Paths relative to stubs/template, each with its
      *                                     own description for the per-file overwrite prompt
+     * @param  bool  $ask  False when the decision has already been taken — the tag filter
+     *                     is chosen once, and asking again for the model, the module, the
+     *                     factory and the two migrations it is made of is the same question
+     *                     five more times. Files you already changed are still asked about.
      */
-    public function copyGroup(string $description, string $hint, array $files): void
+    public function copyGroup(string $description, string $hint, array $files, bool $ask = true): void
     {
         $missing = array_filter(
             $files,
@@ -119,7 +123,7 @@ class TemplateCommand extends Command
             ARRAY_FILTER_USE_KEY
         );
 
-        if ($missing !== [] && $this->auto("Copy $description?", true, $hint)) {
+        if ($missing !== [] && (! $ask || $this->auto("Copy $description?", true, $hint))) {
             foreach (array_keys($missing) as $file) {
                 $this->copyFile($file);
             }
@@ -435,7 +439,6 @@ class TemplateCommand extends Command
             'app/Leap/Page.php',
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
-            'app/Traits/HasTags.php',
             'config/imageresize.php',
             'public/css/tinymce.css',
             'tests/Feature/PageRoutingTest.php',
@@ -456,11 +459,25 @@ class TemplateCommand extends Command
             }
         }
 
-        // Translations are per site: only the languages it chose were ever copied. A
-        // lang file the project does not have is not drift — it was never meant to be
-        // there — so listing all of them would report six phantom "new" files.
+        // Translations and the tag filter are per site: a --no-tags project was never
+        // meant to have a Tag model, and only the languages it chose were ever copied.
+        // A file it does not have is not drift, so listing them all would report phantom
+        // "new" files for things it deliberately left out.
+        $conditional = [
+            'app/Traits/HasTags.php',
+            'app/Models/Tag.php',
+            'app/Leap/Tag.php',
+            'database/factories/TagFactory.php',
+            'database/migrations/2025_01_03_094210_create_tags_table.php',
+            'database/migrations/2025_01_03_094211_create_taggables_table.php',
+        ];
+
         foreach ($filesystem->glob($stubBase.'/lang/*.json') as $file) {
-            if (file_exists(base_path($relative = 'lang/'.basename($file)))) {
+            $conditional[] = 'lang/'.basename($file);
+        }
+
+        foreach ($conditional as $relative) {
+            if (file_exists(base_path($relative))) {
                 $files[] = $relative;
             }
         }
@@ -568,11 +585,6 @@ class TemplateCommand extends Command
 
         // The rest is genuinely optional: the site stands without it.
         $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder', 'Sample content: a home page and a few children, in every locale. Delete once the site has its own.');
-
-        // HasTags is the project's own: it hangs off App\Models\Tag, which is a stub and
-        // optional (--no-tags). HasSections, HasSlug and the Video class are the package's,
-        // and the models use them straight from there.
-        $this->copyOrReplace('app/Traits/HasTags.php', 'HasTags trait', 'Lets content types carry shared tags, and their overviews filter on them.');
 
         // TinyMCE editor content styles, so rich-text matches the frontend in the editor
         $this->copyOrReplace('public/css/tinymce.css', 'TinyMCE editor stylesheet', 'Makes rich text in the admin look like the frontend, so editors see what they get.');
@@ -734,6 +746,14 @@ class TemplateCommand extends Command
             return;
         }
 
+        // Naming a content type includes saying its plural, so it is asked here, next to
+        // the name. leap:content asks it itself when run on its own, but called from here
+        // that landed after the tag question — three prompts away from what it is about.
+        $models = array_map(
+            fn (array $model): array => [$model[0], $model[1], $model[2] ?? $this->pluralFor($model[0])],
+            $models,
+        );
+
         // The registry lives in config/leap.php — leap:content appends to it.
         if (! file_exists(base_path('config/leap.php'))) {
             $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
@@ -747,11 +767,23 @@ class TemplateCommand extends Command
         );
 
         if ($tags) {
-            $this->copyOrReplace('app/Models/Tag.php', 'Tag model', 'The tag itself: a translatable name, shared by every content type.');
-            $this->copyOrReplace('app/Leap/Tag.php', 'Tag Leap module', 'The screen in /admin where editors manage the tag vocabulary.');
-            $this->copyOrReplace('database/factories/TagFactory.php', 'Tag factory', 'Makes tags in tests and seeders.');
-            $this->copyOrReplace('database/migrations/2025_01_03_094210_create_tags_table.php', 'tags table migration', 'Creates the tags table.');
-            $this->copyOrReplace('database/migrations/2025_01_03_094211_create_taggables_table.php', 'taggables table migration', 'Creates the pivot that links a tag to any content type.');
+            // The question above was the decision. The trait, the model, its admin module,
+            // the factory and the two migrations are what a tag filter is made of, not five
+            // more things to weigh — and HasTags used to be asked before the question that
+            // decides whether App\Models\Tag, the class it points at, exists at all.
+            $this->copyGroup(
+                'the tag filter',
+                'One tag vocabulary across all content types, with filter chips above each overview.',
+                [
+                    'app/Traits/HasTags.php' => 'HasTags trait',
+                    'app/Models/Tag.php' => 'Tag model',
+                    'app/Leap/Tag.php' => 'Tag Leap module',
+                    'database/factories/TagFactory.php' => 'Tag factory',
+                    'database/migrations/2025_01_03_094210_create_tags_table.php' => 'tags table migration',
+                    'database/migrations/2025_01_03_094211_create_taggables_table.php' => 'taggables table migration',
+                ],
+                ask: false,
+            );
         }
 
         foreach ($models as [$name, $archetype, $plural]) {
@@ -959,6 +991,26 @@ class TemplateCommand extends Command
             file_put_contents($env, $envContents);
             $this->info('Set APP_LOCALE / APP_FALLBACK_LOCALE to '.$default);
         }
+    }
+
+    /**
+     * The plural of a content type: from Name:archetype:plural, else asked, else guessed.
+     *
+     * Str::plural is English, so it turns Bericht into Berichts. Asking beats guessing for
+     * anything that is not an English word — and the answer is a table name and a URL, so
+     * it is worth a question.
+     */
+    protected function pluralFor(string $name): string
+    {
+        if ($this->option('fresh') || ! $this->input->isInteractive()) {
+            return Str::plural($name);
+        }
+
+        return text(
+            label: 'Plural of '.$name.'?',
+            default: Str::plural($name),
+            hint: 'Used for the table name and the overview URL. The guess is English-only.',
+        );
     }
 
     /**

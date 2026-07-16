@@ -26,6 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The starter tests are one question too**, and now include `SearchTest` and `SeoTest`.
 
+- **The tag filter is one question, not six.** "Add the shared tag filter to content types?"
+  was already the decision; the trait, the `Tag` model, its admin module, the factory and the
+  two migrations it is made of were then asked for one by one. Worse, `HasTags` was asked in
+  the main run — *before* the tag question — so `--no-tags` left a trait behind referring to
+  an `App\Models\Tag` that was never created. The set now follows the decision that was
+  already taken, silently. A file you edited yourself is still asked about on a re-run.
+
+- **A content type's plural is asked next to its name.** `leap:content` asks it when run on
+  its own, but from the installer it landed after the tag question — three prompts away from
+  the name it belongs to. `Str::plural` is English, so it guesses "Berichts" for Bericht, and
+  the answer becomes a table name and a URL: worth asking while you are still looking at the
+  name.
+
 - **The questions are asked in the order the install happens.** Every `routes/web.php` edit
   is now together — the welcome route out, the sitemap and the catch-all in — instead of the
   route questions sitting after a `composer require`. And `composer require` is the last

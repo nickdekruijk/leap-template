@@ -2,6 +2,7 @@
 
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
+use App\Models\Page;
 use NickDeKruijk\Leap\ServiceProvider;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
 
@@ -74,6 +75,84 @@ class TemplateInstallTest extends TestCase
     }
 
     /**
+     * Naming a content type includes its plural. leap:content asks that itself, but called
+     * from the installer it landed after the tag question, three prompts from the name it
+     * belongs to — and Str::plural is English, so Bericht guesses "Berichts".
+     */
+    public function test_the_plural_is_asked_next_to_the_content_type_and_before_tags(): void
+    {
+        // leap:content refuses without App\Models\Page — the file is copied here but never
+        // autoloaded, so declare the class the way ContentCommandTest does.
+        if (! class_exists(Page::class)) {
+            eval('namespace App\Models; class Page {}');
+        }
+
+        $this->artisan('leap:template', ['--models' => 'Bericht:news', '--locales' => 'nl', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'yes')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation("Delete Laravel's welcome page (route and view)?", 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Add PageController route?', 'no')
+            // Straight after the name, and before the tag question rather than after it.
+            ->expectsQuestion('Plural of Bericht?', 'berichten')
+            ->expectsConfirmation('Add the shared tag filter to content types?', 'no')
+            ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->expectsConfirmation('Seed the sample pages now?', 'no')
+            ->assertExitCode(0);
+
+        // The answer reached leap:content, rather than it guessing "Berichts" on its own.
+        $this->assertStringContainsString("protected \$table = 'berichten';", file_get_contents($this->temp.'/app/Models/Bericht.php'));
+    }
+
+    /**
+     * The tag filter is one decision. HasTags used to be asked in the main run, before the
+     * question that decides whether App\Models\Tag — the class it points at — is ever
+     * created, so --no-tags left a trait referring to a model that does not exist.
+     */
+    public function test_no_tags_leaves_no_tag_files_behind(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--no-tags' => true,
+            // Tags live on content types, so there has to be one to leave them off.
+            '--models' => 'News', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        foreach ([
+            'app/Traits/HasTags.php',
+            'app/Models/Tag.php',
+            'app/Leap/Tag.php',
+            'database/factories/TagFactory.php',
+        ] as $file) {
+            $this->assertFileDoesNotExist($this->temp.'/'.$file, "--no-tags must not install {$file}.");
+        }
+    }
+
+    public function test_tags_installs_the_whole_filter_without_asking_five_more_times(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--tags' => true,
+            '--models' => 'News', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        foreach ([
+            'app/Traits/HasTags.php',
+            'app/Models/Tag.php',
+            'app/Leap/Tag.php',
+            'database/factories/TagFactory.php',
+            'database/migrations/2025_01_03_094210_create_tags_table.php',
+            'database/migrations/2025_01_03_094211_create_taggables_table.php',
+        ] as $file) {
+            $this->assertFileExists($this->temp.'/'.$file, "Choosing tags must install {$file}.");
+        }
+    }
+
+    /**
      * The route and the view are one thing. They used to be two prompts with opposite
      * defaults — the view yes, the route no — so taking both left
      * Route::get('/', fn () => view('welcome')) pointing at a view that was gone, and /
@@ -103,7 +182,6 @@ class TemplateInstallTest extends TestCase
         $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl'])
             ->expectsConfirmation('Copy the page tree?', 'no')
             ->expectsConfirmation('Copy PageSeeder?', 'no')
-            ->expectsConfirmation('Copy HasTags trait?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
@@ -177,7 +255,6 @@ class TemplateInstallTest extends TestCase
             // And separately about the one that is already here.
             ->expectsConfirmation('Page model already exists, do you want to overwrite it?', 'no')
             ->expectsConfirmation('Copy PageSeeder?', 'no')
-            ->expectsConfirmation('Copy HasTags trait?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
@@ -210,7 +287,6 @@ class TemplateInstallTest extends TestCase
             // One question for the six files that only work together, not six.
             ->expectsConfirmation('Copy the page tree?', 'yes')
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
-            ->expectsConfirmation('Copy HasTags trait?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
             ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
