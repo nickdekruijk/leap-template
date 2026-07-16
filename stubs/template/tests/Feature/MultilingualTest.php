@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Page;
+use App\Models\Tag;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,6 +21,41 @@ class MultilingualTest extends TestCase
         }
 
         $this->seed(PageSeeder::class);
+    }
+
+    /**
+     * The tag name is translatable, so the seeder fills every locale. A plain string lands
+     * in whichever one happened to be active while seeding, which left the filter chips
+     * above every other overview reading Dutch.
+     *
+     * Checked against the languages the site actually chose. A locale leap:template ships
+     * no translations for (one typed by hand) is the editor's to fill in.
+     */
+    public function test_the_seeded_tags_are_translated_in_every_chosen_language(): void
+    {
+        if (! class_exists(Tag::class)) {
+            $this->markTestSkipped('Installed without tags.');
+        }
+
+        $tag = Tag::orderBy('sort')->first();
+        $this->assertNotNull($tag, 'PageSeeder seeds the shared tags.');
+
+        $shipped = array_map(
+            fn (string $file): string => basename($file, '.json'),
+            glob(lang_path('*.json')) ?: [],
+        );
+
+        foreach (array_keys(config('leap.locales')) as $locale) {
+            if ($locale !== 'en' && ! in_array($locale, $shipped, true)) {
+                continue;
+            }
+
+            $this->assertNotSame(
+                '',
+                (string) $tag->getTranslation('name', $locale, false),
+                "The seeded tags have no name in {$locale}, so its filter chips fall back to another language.",
+            );
+        }
     }
 
     public function test_the_default_locale_is_served_unprefixed(): void

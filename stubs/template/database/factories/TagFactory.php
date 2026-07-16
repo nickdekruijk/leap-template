@@ -18,8 +18,13 @@ class TagFactory extends Factory
      */
     public function definition(): array
     {
+        $word = Str::ucfirst(fake()->unique()->word());
+
+        // The name is translatable, so make one the way a real tag looks: a plain string
+        // would only ever fill the active locale, and a test rendering another one would
+        // pass against a tag no editor could have made.
         return [
-            'name' => Str::ucfirst(fake()->unique()->word()),
+            'name' => ['nl' => $word, 'en' => $word],
         ];
     }
 }

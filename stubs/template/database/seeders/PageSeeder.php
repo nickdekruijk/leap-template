@@ -232,9 +232,21 @@ class PageSeeder extends Seeder
             return;
         }
 
-        // Tags first, so a type's seeder can attach them to its items.
+        // Tags first, so a type's seeder can attach them to its items. Their name is
+        // translatable, so it is seeded per locale — a plain string lands in whichever
+        // locale happens to be active while seeding and leaves the filter chips above
+        // every other overview reading that one language.
+        //
+        // Every language leap:template can install is here. Storing a locale the site did
+        // not pick costs a few bytes and shows nowhere, which is cheaper than a tag that
+        // only speaks Dutch.
         if (class_exists(Tag::class) && Tag::count() === 0) {
-            foreach (['Algemeen', 'Update', 'Achtergrond', 'Aankondiging'] as $sort => $name) {
+            foreach ([
+                ['nl' => 'Algemeen', 'en' => 'General', 'de' => 'Allgemein', 'fr' => 'Général', 'es' => 'General', 'it' => 'Generale', 'pt' => 'Geral', 'pl' => 'Ogólne'],
+                ['nl' => 'Update', 'en' => 'Update', 'de' => 'Update', 'fr' => 'Mise à jour', 'es' => 'Actualización', 'it' => 'Aggiornamento', 'pt' => 'Atualização', 'pl' => 'Aktualizacja'],
+                ['nl' => 'Achtergrond', 'en' => 'Background', 'de' => 'Hintergrund', 'fr' => 'Contexte', 'es' => 'Contexto', 'it' => 'Approfondimento', 'pt' => 'Contexto', 'pl' => 'Tło'],
+                ['nl' => 'Aankondiging', 'en' => 'Announcement', 'de' => 'Ankündigung', 'fr' => 'Annonce', 'es' => 'Anuncio', 'it' => 'Annuncio', 'pt' => 'Anúncio', 'pl' => 'Ogłoszenie'],
+            ] as $sort => $name) {
                 Tag::create(['name' => $name, 'sort' => $sort + 1]);
             }
         }

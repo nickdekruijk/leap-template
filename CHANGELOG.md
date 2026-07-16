@@ -117,6 +117,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   out to Packagist — right for an install, wrong for anything that has to be repeatable
   offline.
 
+- **A test that every stub is valid PHP.** The stubs are the product and nothing parsed
+  them: they are copied as text, so a syntax error shipped green and surfaced in someone
+  else's project. A duplicate import introduced while editing one got past a full suite run
+  — this is the check that caught it. `.stub` templates are checked with their placeholders
+  filled in, which is the only form a project ever sees.
+
 - **A test for `--fresh`.** It had none, so every change to the interactive flow was a guess
   about the unattended one. It now runs a full `--fresh --no-install` install and expects no
   prompts at all: a single question reaching the console fails it, which is what `--fresh`
@@ -140,6 +146,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   English site, and nobody noticed. Verified by removing a translation on purpose.
 
 ### Fixed
+
+- **The seeded tags are translated.** `PageSeeder` created them with a plain string
+  (`'name' => 'Algemeen'`), and the name is translatable — so Spatie stored it under
+  whichever locale happened to be active while seeding, and the filter chips above every
+  other overview read Dutch. They now ship every language `leap:template` can install.
+  Storing a locale the site did not pick costs a few bytes and shows nowhere, which beats a
+  tag that only speaks one language. `TagFactory` had the same bug.
+
+  The rest of the sample content (page titles, slugs, section text) is still nl/en only —
+  that is a bigger job, and unlike the tags it is meant to be thrown away.
 
 - **A re-run no longer resets `APP_LOCALE` on a hand-configured site.** The installer wrote
   it unconditionally, including on the branch where it had just decided to leave
