@@ -98,6 +98,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The installer patches the User model** instead of printing four lines for you to add by
+  hand. It already patched `routes/web.php`, `DatabaseSeeder` and `config/leap.php`, so the
+  homework was out of step — and without `HasRoles`, `TwoFactorAuthenticatable` and the
+  passkey pair, `/admin` has no roles, no 2FA and nobody can log in with a passkey.
+
+  It asks first (and `--fresh` answers yes, like everything else). `User.php` is the most
+  edited file in an app, so it follows `registerPageSeeder`: build the patch, only ask when
+  it applies, and fall back to telling you what to add when the file is not a shape it
+  recognises. An existing `implements` clause is kept.
+
+  Everything is inserted in sorted position rather than appended, because pint's laravel
+  preset orders both imports and trait names — a file the installer wrote has to survive the
+  project's own `pint --test`. There is a test that runs pint over the result.
+
 - **`--no-install`.** Skips the `composer require` for the packages the template needs and
   prints the command instead. `--fresh` means yes to everything, and that included reaching
   out to Packagist — right for an install, wrong for anything that has to be repeatable

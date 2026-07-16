@@ -663,8 +663,8 @@ class TemplateCommand extends Command
         // Choose languages (must run before seeding — the seeders read leap.locales)
         $this->configureLocales();
 
-        // Warn about the traits/contract the User model needs for Leap
-        $this->checkUserModel();
+        // Add the traits/contract the User model needs for Leap, or say what to add
+        $this->patchUserModel();
 
         // Last question, and the only one that leaves the machine. It cannot go after the
         // migrations, though: nickdekruijk/settings ships one, and a run that migrated
@@ -1046,34 +1046,185 @@ class TemplateCommand extends Command
      * Check the User model for the traits and contract Leap needs and print a
      * copy-paste snippet for anything missing. Does not modify the model.
      */
-    protected function checkUserModel(): void
+    /**
+     * The traits and interface Leap needs on the User model: HasRoles for permissions,
+     * TwoFactorAuthenticatable for 2FA, and the passkey pair for passkey login.
+     *
+     * @var array<string, string> short name => fully qualified
+     */
+    protected array $userModelTraits = [
+        'HasRoles' => 'NickDeKruijk\Leap\Traits\HasRoles',
+        'TwoFactorAuthenticatable' => 'Laravel\Fortify\TwoFactorAuthenticatable',
+        'PasskeyAuthenticatable' => 'Laravel\Passkeys\PasskeyAuthenticatable',
+    ];
+
+    protected string $userModelInterface = 'Laravel\Passkeys\Contracts\PasskeyUser';
+
+    /**
+     * Add what Leap needs to the User model, or say what to add when it cannot.
+     *
+     * The installer already patches routes/web.php, DatabaseSeeder and config/leap.php, so
+     * leaving four known lines as homework was inconsistent — and without them /admin has no
+     * roles, no 2FA and no passkeys. User.php is the most edited file in an app, though, so
+     * this follows registerPageSeeder: build the patch, only ask when it actually applies,
+     * and fall back to telling you what to add when the file is not the shape we know.
+     *
+     * The result has to survive the project's own `pint --test`: the laravel preset sorts
+     * both imports (ordered_imports) and trait names (ordered_traits), so everything is
+     * inserted in sorted position rather than appended.
+     */
+    protected function patchUserModel(): void
     {
         $path = base_path('app/Models/User.php');
         if (! file_exists($path)) {
             return;
         }
 
-        $contents = file_get_contents($path);
-        $missing = [];
-        foreach ([
-            'HasRoles' => 'use NickDeKruijk\Leap\Traits\HasRoles;',
-            'TwoFactorAuthenticatable' => 'use Laravel\Fortify\TwoFactorAuthenticatable;',
-            'PasskeyAuthenticatable' => 'use Laravel\Passkeys\PasskeyAuthenticatable;',
-            'PasskeyUser' => 'use Laravel\Passkeys\Contracts\PasskeyUser; (and "implements PasskeyUser")',
-        ] as $needle => $hint) {
-            if (! str_contains($contents, $needle)) {
-                $missing[] = $hint;
+        $contents = (string) file_get_contents($path);
+        $patched = $this->patchedUserModel($contents);
+
+        if ($patched === $contents) {
+            return;
+        }
+
+        if ($patched !== null && $this->auto(
+            'Add the Leap traits to your User model?',
+            true,
+            'HasRoles, 2FA and passkeys. Without them /admin has no roles and nobody can log in with a passkey.',
+        )) {
+            file_put_contents($path, $patched);
+            $this->info('Patched app/Models/User.php');
+
+            return;
+        }
+
+        if ($patched !== null) {
+            $this->info('Skipping app/Models/User.php');
+
+            return;
+        }
+
+        $this->warnAboutUserModel($contents);
+    }
+
+    /**
+     * The User model with the traits, imports and interface added, or null when the file is
+     * not a shape this can patch safely.
+     */
+    protected function patchedUserModel(string $contents): ?string
+    {
+        if (! preg_match('/^(?:final\s+)?class\s+User\b/m', $contents, $m, PREG_OFFSET_CAPTURE)) {
+            return null;
+        }
+
+        $split = $m[0][1];
+        $head = substr($contents, 0, $split);
+        $tail = substr($contents, $split);
+
+        $missingTraits = array_filter(
+            $this->userModelTraits,
+            fn (string $short): bool => ! preg_match('/\b'.preg_quote($short, '/').'\b/', $tail),
+            ARRAY_FILTER_USE_KEY
+        );
+        $needsInterface = ! str_contains($contents, 'PasskeyUser');
+
+        if ($missingTraits === [] && ! $needsInterface) {
+            return $contents;
+        }
+
+        // implements PasskeyUser, on the class line itself
+        if ($needsInterface) {
+            $tail = preg_replace_callback(
+                '/^((?:final\s+)?class\s+User\b[^\{]*?)(\s+implements\s+([^\{]+?))?(\s*\{)/m',
+                fn (array $m): string => $m[1].' implements '.trim(($m[3] ?? '') ? trim($m[3]).', PasskeyUser' : 'PasskeyUser').$m[4],
+                $tail,
+                1
+            );
+        }
+
+        // the trait use statement inside the class, kept alphabetical for ordered_traits
+        $traitNames = array_keys($missingTraits);
+        if ($traitNames !== []) {
+            if (preg_match('/^(\s+)use\s+([A-Za-z0-9_\\, \n\r]+);/m', $tail, $um)) {
+                $existing = array_map('trim', explode(',', $um[2]));
+                $names = array_values(array_unique(array_merge($existing, $traitNames)));
+                sort($names, SORT_NATURAL | SORT_FLAG_CASE);
+                $tail = str_replace($um[0], $um[1].'use '.implode(', ', $names).';', $tail);
+            } else {
+                $names = $traitNames;
+                sort($names, SORT_NATURAL | SORT_FLAG_CASE);
+                $tail = preg_replace('/(\{)/', "$1\n    use ".implode(', ', $names).";\n", $tail, 1);
             }
         }
 
-        if ($missing) {
-            $this->newLine();
-            $this->warn('Your User model (app/Models/User.php) is missing some Leap requirements. Add:');
-            foreach ($missing as $line) {
-                $this->line('  '.$line);
-            }
-            $this->line('  ...and add the traits to the class\'s "use ...;" statement.');
+        // the imports, likewise sorted for ordered_imports
+        $wanted = array_values($missingTraits);
+        if ($needsInterface) {
+            $wanted[] = $this->userModelInterface;
         }
+        $head = $this->withImports($head, $wanted);
+
+        return $head.$tail;
+    }
+
+    /**
+     * Add fully qualified imports to a file's import block, in pint's order.
+     *
+     * @param  array<int, string>  $wanted
+     */
+    protected function withImports(string $head, array $wanted): string
+    {
+        if (! preg_match_all('/^use\s+([^;]+);$/m', $head, $m, PREG_OFFSET_CAPTURE)) {
+            // No imports yet: put them straight after the namespace.
+            $lines = implode("\n", array_map(fn (string $c): string => 'use '.$c.';', $wanted));
+
+            return preg_replace('/^(namespace\s+[^;]+;\n)/m', "$1\n".$lines."\n", $head, 1) ?? $head;
+        }
+
+        $statements = array_map(fn (array $c): string => $c[0], $m[1]);
+        foreach ($wanted as $class) {
+            if (! in_array($class, array_map(fn (string $s): string => trim(explode(' as ', $s)[0]), $statements), true)) {
+                $statements[] = $class;
+            }
+        }
+
+        usort($statements, fn (string $a, string $b): int => strcasecmp(
+            trim(explode(' as ', $a)[0]),
+            trim(explode(' as ', $b)[0]),
+        ));
+
+        $first = $m[0][0][1];
+        $last = $m[0][count($m[0]) - 1][1] + strlen($m[0][count($m[0]) - 1][0]);
+        $block = implode("\n", array_map(fn (string $c): string => 'use '.$c.';', $statements));
+
+        return substr($head, 0, $first).$block.substr($head, $last);
+    }
+
+    /**
+     * The fallback when the file is not a shape patchUserModel() recognises.
+     */
+    protected function warnAboutUserModel(string $contents): void
+    {
+        $missing = [];
+        foreach ($this->userModelTraits as $short => $fqn) {
+            if (! str_contains($contents, $short)) {
+                $missing[] = 'use '.$fqn.';';
+            }
+        }
+        if (! str_contains($contents, 'PasskeyUser')) {
+            $missing[] = 'use '.$this->userModelInterface.'; (and "implements PasskeyUser")';
+        }
+
+        if ($missing === []) {
+            return;
+        }
+
+        $this->newLine();
+        $this->warn('Your User model (app/Models/User.php) is missing some Leap requirements. Add:');
+        foreach ($missing as $line) {
+            $this->line('  '.$line);
+        }
+        $this->line('  ...and add the traits to the class\'s "use ...;" statement.');
     }
 
     /**

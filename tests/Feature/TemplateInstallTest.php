@@ -101,6 +101,40 @@ class TemplateInstallTest extends TestCase
     }
 
     /**
+     * The installer patches routes/web.php, DatabaseSeeder and config/leap.php for you, so
+     * leaving four known lines on the User model as homework was out of step — and without
+     * them /admin has no roles, no 2FA and no passkeys.
+     */
+    public function test_fresh_patches_the_user_model(): void
+    {
+        file_put_contents($this->temp.'/app/Models/User.php', <<<'PHP'
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable
+{
+    use HasFactory, Notifiable;
+}
+
+PHP);
+
+        // No prompt: --fresh answers it, like every other question.
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        $user = file_get_contents($this->temp.'/app/Models/User.php');
+        $this->assertStringContainsString('implements PasskeyUser', $user);
+        $this->assertStringContainsString('use HasFactory, HasRoles, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;', $user);
+        $this->assertStringContainsString('use NickDeKruijk\Leap\Traits\HasRoles;', $user);
+    }
+
+    /**
      * The tag filter is one decision. HasTags used to be asked in the main run, before the
      * question that decides whether App\Models\Tag — the class it points at — is ever
      * created, so --no-tags left a trait referring to a model that does not exist.
@@ -181,6 +215,7 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Add PageController route?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
@@ -254,6 +289,7 @@ class TemplateInstallTest extends TestCase
             ->expectsConfirmation('Add PageController route?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
@@ -289,6 +325,7 @@ class TemplateInstallTest extends TestCase
             // known, and about the language actually chosen -- nl. English gets no file:
             // the views are written in English and fall back to the key.
             ->expectsConfirmation('Copy Nederlands translations?', 'yes')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Seed the sample pages now?', 'no')
