@@ -132,10 +132,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prompts at all: a single question reaching the console fails it, which is what `--fresh`
   means. Verified by letting one prompt escape.
 
-- **Every `leap:template` prompt now explains itself.** All 32 questions carry a one-line
-  hint under them, saying what the file is for or what saying no costs — "Copy
-  PageController?" is only obvious to someone who already knows the template. Uses Laravel
-  Prompts' `hint:`, the way the language picker already did.
+- **Every `leap:template` prompt now explains itself.** Each question carries a one-line hint
+  under it, saying what the thing is for or what saying no costs — "Copy PageController?" is
+  only obvious to someone who already knows the template. Uses Laravel Prompts' `hint:`, the
+  way the language picker already did.
 
   Overwrite prompts get a different line: when the file already exists, what is at stake is
   your copy, not what the file does, so it says that instead.
