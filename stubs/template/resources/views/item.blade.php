@@ -24,7 +24,7 @@
                 {{-- Only filled-in parts show; a missing translation is an empty string,
                      not null, so filled() rather than isset(). --}}
                 @php($hasTags = method_exists($page, 'tags') && $page->tags->isNotEmpty())
-                @if ($hasTags || ! empty($page->date) || filled($page->year ?? null) || filled($page->material ?? null) || filled($page->client ?? null))
+                @if (! empty($page->date) || filled($page->year ?? null) || filled($page->material ?? null) || filled($page->client ?? null))
                     <dl class="item-meta">
                         @if (! empty($page->date))
                             <dt>{{ __('Date') }}</dt>
@@ -34,10 +34,6 @@
                                     , {{ Str::substr($page->start_time, 0, 5) }}@if (! empty($page->end_time))–{{ Str::substr($page->end_time, 0, 5) }}@endif
                                 @endif
                             </dd>
-                        @endif
-                        @if ($hasTags)
-                            <dt>{{ __('Tags') }}</dt>
-                            <dd>{{ $page->tags->pluck('name')->join(', ') }}</dd>
                         @endif
                         @if (filled($page->client ?? null))
                             <dt>{{ __('Client') }}</dt>
@@ -52,6 +48,17 @@
                             <dd>{{ $page->year }}</dd>
                         @endif
                     </dl>
+                @endif
+
+                {{-- Tags stand apart from the meta list: they are chips, the same ones the
+                     overview filters with, so they carry their own look rather than a
+                     dt/dd row of comma-separated names. --}}
+                @if ($hasTags)
+                    <ul class="item-tags" aria-label="{{ __('Tags') }}">
+                        @foreach ($page->tags as $tag)
+                            <li>{{ $tag->name }}</li>
+                        @endforeach
+                    </ul>
                 @endif
             </div>
         </header>
