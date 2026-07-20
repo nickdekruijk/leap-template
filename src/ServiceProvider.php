@@ -4,6 +4,7 @@ namespace NickDeKruijk\LeapTemplate;
 
 use Illuminate\Support\ServiceProvider as BaseServiceProvider;
 use NickDeKruijk\LeapTemplate\Commands\ContentCommand;
+use NickDeKruijk\LeapTemplate\Commands\ContentDeleteCommand;
 use NickDeKruijk\LeapTemplate\Commands\TemplateCommand;
 
 /**
@@ -22,6 +23,7 @@ class ServiceProvider extends BaseServiceProvider
             $this->commands([
                 TemplateCommand::class,
                 ContentCommand::class,
+                ContentDeleteCommand::class,
             ]);
         }
     }

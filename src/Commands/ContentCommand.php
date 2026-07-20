@@ -30,8 +30,12 @@ class ContentCommand extends Command
      * example inside the doc comment above it — prefixed with "| " — is never matched
      * instead. Non-greedy, so it stops at the first closing bracket on its own line, and
      * it matches an empty `'content' => []` as well.
+     *
+     * Public because ContentDeleteCommand unregisters with the same expression that this
+     * one registers with — two copies would drift, and a delete that misses its entry
+     * leaves the registry pointing at a class that no longer exists.
      */
-    protected const CONTENT_ARRAY = "/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms";
+    public const CONTENT_ARRAY = "/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms";
 
     protected $signature = 'leap:content {name : Singular StudlyCase name, e.g. News, Product}
         {--archetype= : news|event|generic (default: guessed from the name)}
