@@ -276,8 +276,11 @@ class ContentDeleteCommand extends Command
         $patched = preg_replace_callback(
             ContentCommand::CONTENT_ARRAY,
             function (array $m) use ($key): string {
+                // \R? rather than \R: CONTENT_ARRAY swallows the newline after the last
+                // entry, so requiring one here would match every line except the last —
+                // and the last is exactly where a freshly generated type is appended.
                 $body = preg_replace(
-                    "/^[ \t]*'".preg_quote($key, '/')."'\s*=>.*\R/m",
+                    "/^[ \t]*'".preg_quote($key, '/')."'\s*=>.*\R?/m",
                     '',
                     $m[2]
                 );

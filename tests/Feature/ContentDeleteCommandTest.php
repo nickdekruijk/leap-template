@@ -113,6 +113,24 @@ class ContentDeleteCommandTest extends TestCase
     }
 
     /**
+     * The last entry is where a freshly generated type lands, so it is the one a typo
+     * needs taken back — and the one a line-removal that insists on a trailing newline
+     * silently leaves behind, because the array's closing bracket took that newline.
+     */
+    public function test_it_unregisters_the_last_entry_in_the_array(): void
+    {
+        $this->generate('News');
+        $this->generate('Product');
+
+        $this->artisan('leap:content-delete', ['name' => 'Product', '--force' => true, '--no-interaction' => true])->assertExitCode(0);
+
+        $config = $this->read('config/leap.php');
+
+        $this->assertStringNotContainsString("'products' =>", $config);
+        $this->assertStringContainsString("'news' =>", $config);
+    }
+
+    /**
      * Str::plural('Events') is 'Events', so a stray type generated from the plural form
      * derives to the real Event's table and registry key. Deleting it must not take the
      * type that got there first with it.
