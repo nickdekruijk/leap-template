@@ -874,7 +874,16 @@ a[role="button"],
             border-radius: var(--radius);
             img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.45s ease; }
         }
-        h3 { transition: color 0.2s ease; }
+        // The card carries .article for its prose typography, and that colours every
+        // link in the accent. Here the link is the whole card, so the date and intro
+        // would be tinted along with it — the heading is the only part that should
+        // read as accent, the rest is body text.
+        > a:not([role="button"]):not(.button) { color: inherit; }
+
+        h3 {
+            color: var(--accent-text, var(--accent));
+            transition: color 0.2s ease;
+        }
         .item-date {
             color: var(--muted, #777);
             font-size: 0.9em;
@@ -890,6 +899,12 @@ a[role="button"],
         color: #fff;
         &:not(:has(> .section-bg)) { background: $placeholder-gradient; }
         .section-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
+
+        // An accent heading is picked to read on the page background, not on a dark
+        // photo, so on this variant the title stays white like the rest of the card.
+        .item h3,
+        .item > a:hover h3,
+        .item > a:focus-visible h3 { color: inherit; }
     }
 }
 
