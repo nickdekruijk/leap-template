@@ -34,6 +34,12 @@ class TemplateCommand extends Command
         {--no-install : Do not run "composer require" for the packages the template needs; print the command instead}';
 
     /**
+     * Whether this run left behind a user that can open the admin panel — decides
+     * whether the closing summary still asks for one.
+     */
+    protected bool $adminUserCreated = false;
+
+    /**
      * The locale codes offered in the language picker, code => display name.
      *
      * @var array<string, string>
@@ -678,6 +684,10 @@ class TemplateCommand extends Command
         // Offer to run migrations and seed the sample pages
         $this->runMigrationsAndSeed();
 
+        // …and to create a user with a role, the last thing standing between a migrated
+        // database and an admin panel that opens
+        $this->createAdminUser();
+
         // Closing summary with the remaining manual steps
         $this->printNextSteps();
     }
@@ -1284,6 +1294,65 @@ class TemplateCommand extends Command
     }
 
     /**
+     * Offer to create a user that can actually open the admin panel.
+     *
+     * Leap's role_user migration seeds the superuser role and attaches the first existing
+     * user to it — but on a fresh install there is no user yet, and the installer only
+     * seeds PageSeeder, so nothing ever claims that role. Whoever runs `db:seed` later
+     * gets Laravel's test@example.com without a role, which RequireRole answers with a
+     * 403. So: one question at the end, and `leap:user --role` does the rest.
+     */
+    protected function createAdminUser(): void
+    {
+        // Both tables come from migrations that may have just been declined. Offering to
+        // create a user against them is a question that can only end in an error.
+        if (! $this->tableExists('users') || ! $this->tableExists(config('leap.table_prefix').'roles')) {
+            return;
+        }
+
+        if (! $this->auto(
+            'Create an admin user now?',
+            true,
+            'Creates the user and gives it the superuser role. Without a role /admin answers 403, so a fresh install has no way in.',
+        )) {
+            return;
+        }
+
+        // Laravel's own DatabaseSeeder uses this address, so defaulting to it reuses (and
+        // gives a role to) an already seeded user instead of leaving a second one next to it.
+        $column = config('leap.credentials')[0] ?? 'email';
+        $username = $this->option('fresh')
+            ? 'test@example.com'
+            : text(label: 'Which '.($column === 'email' ? 'e-mail address' : $column).'?', default: 'test@example.com', required: true);
+
+        // $this->call(), not artisan(): a subprocess has no TTY, and leap:user asks for the
+        // password. None of artisan()'s reasons apply here — leap is loaded in this process
+        // and the command reads no config the installer rewrote.
+        $arguments = [$column => $username, '--role' => null];
+
+        // --fresh is an unattended install; the password prompt would hang it, and leap:user
+        // falls back to a random password it prints once.
+        if ($this->option('fresh')) {
+            $arguments['--no-interaction'] = true;
+        }
+
+        $this->adminUserCreated = $this->call('leap:user', $arguments) === self::SUCCESS;
+    }
+
+    /**
+     * Whether a table is there. Any database trouble counts as "not there": this only
+     * decides whether a question is worth asking.
+     */
+    protected function tableExists(string $table): bool
+    {
+        try {
+            return Schema::hasTable($table);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
      * Offer to run the migrations and seed the sample pages.
      */
     protected function runMigrationsAndSeed(): void
@@ -1361,11 +1430,7 @@ class TemplateCommand extends Command
      */
     protected function pagesTableExists(): bool
     {
-        try {
-            return Schema::hasTable('pages');
-        } catch (\Throwable) {
-            return false;
-        }
+        return $this->tableExists('pages');
     }
 
     /**
@@ -1382,7 +1447,10 @@ class TemplateCommand extends Command
             $this->line('  • Run `php artisan storage:link` — without it no uploaded image resolves.');
         }
 
-        $this->line('  • Create an admin user: php artisan leap:user you@example.com');
+        if (! $this->adminUserCreated) {
+            $this->line('  • Create an admin user: php artisan leap:user you@example.com --role');
+        }
+
         $this->line('  • Visit /admin to manage pages, and / for the site.');
     }
 

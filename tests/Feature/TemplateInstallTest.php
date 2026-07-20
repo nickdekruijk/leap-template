@@ -3,7 +3,12 @@
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
 use App\Models\Page;
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use NickDeKruijk\Leap\Commands\UserCommand;
 use NickDeKruijk\Leap\ServiceProvider;
+use NickDeKruijk\LeapTemplate\Tests\Fixtures\User;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
 
 class TemplateInstallTest extends TestCase
@@ -139,6 +144,80 @@ PHP);
      * DatabaseSeeder would call a class that does not exist, so db:seed fatals on the whole
      * project rather than just skipping the sample pages. The prompt defaulted to yes.
      */
+    /**
+     * Leap's role_user migration seeds the superuser role and attaches the first existing
+     * user — but a fresh install has no user yet, and the installer only seeds PageSeeder.
+     * The account that db:seed leaves behind therefore has no role, which RequireRole
+     * answers with a 403. The last step of the install closes that gap.
+     */
+    public function test_fresh_leaves_behind_a_user_that_can_open_the_panel(): void
+    {
+        $this->prepareLeapDatabase();
+
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        $user = User::where('email', 'test@example.com')->first();
+        $this->assertNotNull($user, 'The install must end with a user to log in as.');
+
+        $role = $user->roles()->wherePivot('accepted', true)->first();
+        $this->assertNotNull($role, 'A user without an accepted role is 403ed by RequireRole.');
+        $this->assertSame([['_name' => 'all_modules', 'all_permissions' => true]], $role->permissions);
+    }
+
+    public function test_declining_the_admin_user_leaves_the_hint_in_the_summary(): void
+    {
+        $this->prepareLeapDatabase();
+
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->expectsConfirmation('Create an admin user now?', 'no')
+            ->expectsOutputToContain('php artisan leap:user you@example.com --role')
+            ->assertExitCode(0);
+
+        $this->assertSame(0, User::count());
+    }
+
+    /**
+     * The tables the admin-user step needs: a users table and leap's roles/role_user pair,
+     * whose migration seeds the superuser role. leap:user is registered by hand because
+     * these tests deliberately don't boot leap's service provider.
+     */
+    private function prepareLeapDatabase(): void
+    {
+        config([
+            'leap.table_prefix' => 'leap_',
+            'leap.credentials' => ['email', 'password'],
+            'auth.providers.users.model' => User::class,
+        ]);
+
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->string('password');
+            $table->timestamps();
+        });
+
+        $migrations = dirname((new \ReflectionClass(ServiceProvider::class))->getFileName(), 2).'/migrations';
+        foreach (['2023_00_00_000001_create_leap_roles_table.php', '2023_00_00_000002_create_leap_role_user_table.php'] as $migration) {
+            (require $migrations.'/'.$migration)->up();
+        }
+
+        $this->app[Kernel::class]->registerCommand(new UserCommand);
+    }
+
     public function test_the_seeder_is_not_registered_when_it_was_not_copied(): void
     {
         $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl', '--no-install' => true])

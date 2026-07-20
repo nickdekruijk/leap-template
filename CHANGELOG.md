@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The install ends with a user that can open the admin panel.** Leap's `role_user` migration
+  seeds the superuser role and attaches the first existing user to it — but a fresh install has
+  no user yet, and the installer only seeds `PageSeeder`, so nothing ever claimed that role.
+  Whoever ran `db:seed` afterwards got Laravel's `test@example.com` without one, which
+  `RequireRole` answers with a 403: an install that finished successfully and still had no way in.
+
+  A last question now creates the user (defaulting to that same address, so an already seeded one
+  is reused rather than duplicated) and hands it the role, via `leap:user --role` — which is why
+  this needs leap 0.10.13. Under `--fresh` it runs unattended and prints the generated password
+  once. Decline it, or migrate nothing, and the closing summary still says how to do it by hand.
+
 - **`leap:content-delete` takes a generated content type back.** `leap:content` wrote five files,
   a registry entry, a table and the page that lists it, and nothing undid any of that. A typo in
   `leap:template --models=…` therefore cost an afternoon of hand-editing across six places, and
