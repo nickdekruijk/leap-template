@@ -32,6 +32,7 @@ class {{ Model }} extends Resource
             Attribute::make('images')->media()->label(['nl' => 'Afbeelding(en)', 'en' => 'Image(s)'])
                 ->hint(['nl' => 'De eerste afbeelding is de kaartafbeelding in het overzicht.', 'en' => 'The first image is the card image in the overview.']),
 {{#tags}}            Attribute::make('tags')->pivot(Tag::class, orderBy: 'sort', index: 'name')
+                ->index()->filterable()
                 ->label(['nl' => 'Tags', 'en' => 'Tags'])
                 ->hint(['nl' => 'Waarmee bezoekers het overzicht kunnen filteren.', 'en' => 'What visitors filter the overview by.']),
 {{/tags}}            Attribute::make('html_title')->searchable()
