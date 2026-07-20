@@ -29,7 +29,7 @@
                         @if (! empty($page->date))
                             <dt>{{ __('Date') }}</dt>
                             <dd>
-                                <time datetime="{{ $page->date->toDateString() }}">{{ $page->date->translatedFormat('j F Y') }}</time>
+                                <time datetime="{{ $page->date->toDateString() }}">{{ Str::ucfirst($page->date->translatedFormat('l j F Y')) }}</time>
                                 @if (! empty($page->start_time))
                                     , {{ Str::substr($page->start_time, 0, 5) }}@if (! empty($page->end_time))–{{ Str::substr($page->end_time, 0, 5) }}@endif
                                 @endif

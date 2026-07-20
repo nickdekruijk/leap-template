@@ -4,9 +4,11 @@ namespace App\Models;
 
 {{#tags}}use App\Traits\HasTags;
 {{/tags}}use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use NickDeKruijk\Leap\Traits\HasDocumentMeta;
 use NickDeKruijk\Leap\Traits\HasMedia;
 use NickDeKruijk\Leap\Traits\HasSections;
@@ -39,6 +41,23 @@ class {{ Model }} extends Model
         'sections' => 'array',
         'meta' => 'array',
     ];
+
+    /**
+     * The date the card and the detail page show. The shared item views ask every
+     * content type for `date`, and this type has no column of its own: being published
+     * is what dates it, so that is the date it shows. This deliberately sits on the
+     * model rather than in the views — a type without a meaningful date then simply has
+     * none and the views leave the line out.
+     *
+     * Read-only, and not a column: {{ Model }}::where('date', …) and orderBy('date') do
+     * not work. Query published_at for those.
+     *
+     * @return Attribute<?Carbon, never>
+     */
+    protected function date(): Attribute
+    {
+        return Attribute::get(fn (): ?Carbon => $this->published_at);
+    }
 
     /**
      * Only items whose publication moment has passed — the frontend never shows a

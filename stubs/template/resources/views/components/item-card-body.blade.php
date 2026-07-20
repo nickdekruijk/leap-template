@@ -14,7 +14,11 @@
 
 @if (! empty($item->date))
     <p class="item-date">
-        <time datetime="{{ $item->date->toDateString() }}">{{ $item->date->translatedFormat('j F Y') }}</time>
+        {{-- Short weekday on a card, where the line has to stay narrow; the detail page
+             writes it out. Dutch keeps day names lowercase and abbreviates them with a
+             full stop ("do."), but here the date opens the line and reads as a label,
+             so it is capitalised and the stop goes. --}}
+        <time datetime="{{ $item->date->toDateString() }}">{{ Str::ucfirst(rtrim($item->date->translatedFormat('D'), '.')) }} {{ $item->date->translatedFormat('j F Y') }}</time>
         @if (! empty($item->start_time))
             <span class="item-time">{{ Str::substr($item->start_time, 0, 5) }}@if (! empty($item->end_time))–{{ Str::substr($item->end_time, 0, 5) }}@endif</span>
         @endif
