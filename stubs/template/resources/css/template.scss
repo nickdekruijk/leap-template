@@ -779,7 +779,10 @@ a[role="button"],
         // pulled back out by the same amount, and the gap is shrunk by it too, which
         // keeps the distance measured content to content exactly what it was.
         margin-inline: calc(-1 * var(--space-xs));
-        gap: calc(var(--space-l) - 2 * var(--space-xs));
+        // One source for the space between cards: the card width in a horizontal row is
+        // worked out from it, so the two cannot drift apart.
+        --items-gap: calc(var(--space-l) - 2 * var(--space-xs));
+        gap: var(--items-gap);
 
         &:focus-visible { outline-offset: -2px; }
     }
@@ -843,10 +846,27 @@ a[role="button"],
                 background-image: linear-gradient(transparent, transparent 2px, black 2px, black 11px, transparent 11px);
             }
         }
+
+        // As many cards as the section asks for, plus half of the next one. That half is
+        // the only thing that says the row continues — a row of whole cards looks like a
+        // row that ends. The width used to be a flat min(80vw, 360px), which happened to
+        // leave a sliver at the usual content width and nothing at others.
+        //
+        // calc() may do arithmetic on a custom property; repeat() may not, which is why
+        // the grid above has its counts written out for it instead.
+        .item {
+            flex: 0 0 calc((100% - var(--items-columns, 3) * var(--items-gap)) / (var(--items-columns, 3) + 0.5));
+
+            @media (max-width: $bp-tablet) {
+                flex-basis: calc((100% - var(--items-columns-tablet, 2) * var(--items-gap)) / (var(--items-columns-tablet, 2) + 0.5));
+            }
+            @media (max-width: $bp-mobile) {
+                flex-basis: calc((100% - var(--items-columns-mobile, 1) * var(--items-gap)) / (var(--items-columns-mobile, 1) + 0.5));
+            }
+        }
     }
 
     .item {
-        flex: 0 0 min(80vw, 360px);
         scroll-snap-align: start;
         display: flex;
         flex-direction: column;

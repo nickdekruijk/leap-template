@@ -7,6 +7,9 @@
     "Events": "Agenda",
     "Filter by tag": "Filter op label",
     "Go straight to": "Direct naar",
+    "Grid": "Grid",
+    "Horizontal row": "Horizontale rij",
+    "Including past": "Ook afgelopen",
     "Load video": "Video laden",
     "Main menu": "Hoofdmenu",
     "Material": "Materiaal",
@@ -16,6 +19,7 @@
     "Open or close the :name submenu": "Submenu :name openen of sluiten",
     "Open or close the menu": "Menu openen of sluiten",
     "Overview": "Overzicht",
+    "Past only": "Alleen afgelopen",
     "Play video": "Video afspelen",
     "Projects": "Projecten",
     "Search": "Zoeken",
@@ -28,7 +32,9 @@
     "Tags": "Tags",
     "This video is loaded from :provider. That sends your data, including your IP address, to them.": "Deze video wordt geladen van :provider. Daarbij worden je gegevens, waaronder je IP-adres, naar de aanbieder gestuurd.",
     "To the homepage": "Naar de homepage",
+    "Upcoming": "Aankomend",
     "Video": "Video",
+    "View all": "Bekijk alles",
     "Year": "Jaar",
     "slide": "slide"
 }

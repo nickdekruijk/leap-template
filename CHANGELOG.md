@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A card row chooses its own layout, and how many cards stand side by side.** The limit decided
+  everything: empty meant every item in a grid, a number meant a sideways-scrolling teaser. So a
+  row of six in three columns — a teaser that reads as part of the page rather than a filmstrip —
+  could not be asked for at all. One setting was doing two jobs.
+
+  Layout and column count are their own fields now. A section saved before they existed has
+  neither and falls back to the old rule, so nothing rearranges itself on upgrade. The count
+  applies to both layouts and means the same in each: how many cards stand beside one another. All
+  three screen sizes are written into the section's `style`, because `grid-template-columns` takes
+  a track count and `repeat()` will not evaluate a `calc()` — CSS cannot narrow the number down for
+  a tablet by itself. A tablet gets at most two, a phone one.
+
+  A horizontal row does its own arithmetic, which `calc()` does allow, so its cards are as wide as
+  the count asks for plus half of the next one. That half card is the only thing that says the row
+  continues; the width used to be a flat `min(80vw, 360px)` that happened to leave a sliver at the
+  usual content width and nothing at others.
+
+  A teaser also links to the overview it previews, falling back to the page that lists its type.
+  That URL was there all along — `items()` builds it to give every card its detail link — but it
+  had to be typed into two fields by hand, so in practice it was left empty. `PageController` now
+  exposes it as `overviewUrl()` and uses it for both.
+
 - **The install ends with a user that can open the admin panel.** Leap's `role_user` migration
   seeds the superuser role and attaches the first existing user to it — but a fresh install has
   no user yet, and the installer only seeds `PageSeeder`, so nothing ever claimed that role.
@@ -83,6 +105,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   demonstrate.
 
 ### Fixed
+
+- **A select option is translated with `__()`, not with a per-locale array.** Leap resolves such an
+  array for `label()` and `hint()`, but the options of a select are printed as they are — so an
+  array reaches `htmlspecialchars()` and takes the whole editor down with a TypeError, on any page
+  carrying that section. The events `period` field had been written that way from the start and
+  was waiting for someone to open a page that used it.
+
+  A test now walks every section the page resource offers and holds each option to being a string,
+  because the failure only shows up in the one place nobody looks first.
 
 - **A slug no longer falls back to another language.** `loadPages()` read the page's slug as a
   plain attribute (`$page->only()`), and laravel-translatable answers that with

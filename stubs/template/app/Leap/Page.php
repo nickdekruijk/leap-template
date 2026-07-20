@@ -65,10 +65,13 @@ class Page extends Resource
             if (method_exists($model, 'scopeFuture')) {
                 $attributes[] = Attribute::make('period')->select()->default('upcoming')
                     ->label(['nl' => 'Periode', 'en' => 'Period'])
+                    // Option labels are echoed as-is by leap's select — unlike label() and
+                    // hint(), a per-locale array is not resolved there and lands in
+                    // htmlspecialchars() as an array. So these go through __().
                     ->values([
-                        'upcoming' => ['nl' => 'Aankomend', 'en' => 'Upcoming'],
-                        'both' => ['nl' => 'Ook afgelopen', 'en' => 'Including past'],
-                        'past' => ['nl' => 'Alleen afgelopen', 'en' => 'Past only'],
+                        'upcoming' => __('Upcoming'),
+                        'both' => __('Including past'),
+                        'past' => __('Past only'),
                     ]);
             }
 
@@ -80,10 +83,36 @@ class Page extends Resource
                     ->values(['' => '—'] + Tag::orderBy('sort')->pluck('name', 'id')->all());
             }
 
+            $attributes[] = Attribute::make('layout')->select()
+                ->label(['nl' => 'Weergave', 'en' => 'Layout'])
+                ->hint(['nl' => 'Grid zet de kaarten onder elkaar door; een rij scrolt zijwaarts en laat een halve kaart uitsteken.', 'en' => 'A grid wraps the cards onto rows; a row scrolls sideways, with half a card showing.'])
+                ->values([
+                    'grid' => __('Grid'),
+                    'horizontal' => __('Horizontal row'),
+                ]);
+
+            $attributes[] = Attribute::make('columns')->select()
+                ->label(['nl' => 'Kaarten naast elkaar', 'en' => 'Cards side by side'])
+                ->hint(['nl' => 'Leeg volgt de site. In een grid is dit het aantal kolommen, in een rij hoeveel er volledig in beeld staan. Op tablet worden het er hoogstens twee, op mobiel één.', 'en' => 'Empty follows the site. In a grid this is the column count, in a row how many fit fully in view. Tablets get at most two, phones one.'])
+                ->values(['' => '—', 2 => '2', 3 => '3', 4 => '4']);
+
             $attributes[] = Attribute::make('limit')->label(['nl' => 'Aantal (leeg = alles)', 'en' => 'Limit (empty = all)'])
-                ->hint(['nl' => 'Leeg toont alles als grid (de overzichtspagina). Een getal maakt er een horizontale teaser-rij van.', 'en' => 'Empty shows everything as a grid (the overview page). A number makes it a horizontal teaser row.']);
-            $attributes[] = Attribute::make('link')->label(['nl' => 'Link "bekijk alle" (optioneel)', 'en' => '"View all" link (optional)'])->translatable();
-            $attributes[] = Attribute::make('link_label')->label(['nl' => 'Link-tekst', 'en' => 'Link label'])->translatable();
+                ->hint(['nl' => 'Leeg toont alles én geeft de tag-filter; dit is de overzichtspagina. Een getal maakt er een teaser van, met een link naar het overzicht.', 'en' => 'Empty shows everything and adds the tag filter; this is the overview page. A number makes it a teaser, with a link to the overview.']);
+            // A limited section links to its overview on its own, so these two are an
+            // override and not something to fill in. The label comes first and the URL
+            // only appears once it has text: on its own an address with nothing to click
+            // is not a link, and the overview is where it would have gone anyway.
+            $attributes[] = Attribute::make('link_label')
+                ->label(['nl' => 'Link-tekst (leeg = automatisch)', 'en' => 'Link label (empty = automatic)'])
+                ->hint(['nl' => 'Een beperkte sectie linkt vanzelf naar het overzicht. Vul dit alleen als je een andere tekst wilt.', 'en' => 'A limited section links to its overview by itself. Fill this in only to word it differently.'])
+                ->translatable();
+
+            $attributes[] = Attribute::make('link')
+                ->label(['nl' => 'Link-adres', 'en' => 'Link URL'])
+                ->hint(['nl' => 'Leeg wijst naar de overzichtspagina van dit type.', 'en' => 'Empty points at this type\'s overview page.'])
+                ->translatable()
+                // showWhenTrue until leap 0.10.14 is out; it forwards to showIf() there.
+                ->showWhenTrue('link_label');
 
             $sections[] = Section::make($key)->view($view)
                 ->label(['nl' => 'Kaartrij: '.Str::headline($key), 'en' => 'Card row: '.Str::headline($key)])

@@ -10,6 +10,7 @@
 @props([
     'items',
     'layout' => 'items-grid',
+    'columns' => null,
     'head' => null,
     'link' => null,
     'linkLabel' => null,
@@ -17,7 +18,19 @@
     'filter' => false,
 ])
 
-<section class="items {{ $layout }}" @if ($filter && $tags?->isNotEmpty()) x-data="tagFilter" @endif>
+@php
+    // How many cards stand side by side, when the section overrides the site's own
+    // setting. All three sizes are written out because grid-template-columns takes a
+    // track count, and repeat() will not accept a calc() — CSS cannot narrow the number
+    // down for a smaller screen by itself. Two is the most a tablet can carry without
+    // the cards turning into slivers, and a phone gets one.
+    $columns = (int) $columns;
+    $columnStyle = $columns
+        ? sprintf('--items-columns: %d; --items-columns-tablet: %d; --items-columns-mobile: 1', $columns, min($columns, 2))
+        : null;
+@endphp
+
+<section class="items {{ $layout }}" @if ($columnStyle) style="{{ $columnStyle }}" @endif @if ($filter && $tags?->isNotEmpty()) x-data="tagFilter" @endif>
     <div class="main-width">
         <div class="items-header">
             @isset($head)

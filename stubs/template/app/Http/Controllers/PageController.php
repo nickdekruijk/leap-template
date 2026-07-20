@@ -64,6 +64,17 @@ class PageController extends Controller
     }
 
     /**
+     * The path of a content type's overview page in the active locale, or null when the
+     * type has none. Detail URLs hang off this, and a teaser row links to it.
+     */
+    public static function overviewUrl(string $type): ?string
+    {
+        $overview = static::overviewPage($type);
+
+        return $overview ? Leap::localePrefix().static::localePath($overview, app()->getLocale()) : null;
+    }
+
+    /**
      * The items an index section lists, each carrying the URL of its detail page.
      *
      * @return Collection<int, Model>
@@ -119,8 +130,7 @@ class PageController extends Controller
             $items = $base->limit($limit ?: null)->get();
         }
 
-        $overview = static::overviewPage($type);
-        $prefix = $overview ? Leap::localePrefix().static::localePath($overview, app()->getLocale()) : null;
+        $prefix = static::overviewUrl($type);
 
         return $items->each(function (Model $item) use ($prefix): void {
             $item->url = $prefix ? rtrim($prefix, '/').'/'.$item->slug : null;

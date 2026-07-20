@@ -7,6 +7,9 @@
     "Events": "Veranstaltungen",
     "Filter by tag": "Nach Schlagwort filtern",
     "Go straight to": "Direkt zu",
+    "Grid": "Raster",
+    "Horizontal row": "Horizontale Reihe",
+    "Including past": "Auch vergangene",
     "Load video": "Video laden",
     "Main menu": "Hauptmenü",
     "Material": "Material",
@@ -16,6 +19,7 @@
     "Open or close the :name submenu": "Untermenü :name öffnen oder schließen",
     "Open or close the menu": "Menü öffnen oder schließen",
     "Overview": "Übersicht",
+    "Past only": "Nur vergangene",
     "Play video": "Video abspielen",
     "Projects": "Projekte",
     "Search": "Suchen",
@@ -28,7 +32,9 @@
     "Tags": "Schlagwörter",
     "This video is loaded from :provider. That sends your data, including your IP address, to them.": "Dieses Video wird von :provider geladen. Dabei werden deine Daten, einschließlich deiner IP-Adresse, an den Anbieter gesendet.",
     "To the homepage": "Zur Startseite",
+    "Upcoming": "Bevorstehend",
     "Video": "Video",
+    "View all": "Alle anzeigen",
     "Year": "Jahr",
     "slide": "Folie"
 }
