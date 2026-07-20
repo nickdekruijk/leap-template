@@ -18,13 +18,26 @@ class TranslationsTest extends TestCase
     private const STUBS = __DIR__.'/../../stubs';
 
     /**
+     * Content type names, which reach __() through the '{{ Models }}' placeholder in a
+     * seeder and so cannot be found by scanning. A site does need them: the name is what
+     * the overview page is called and what its slug is derived from, so an untranslated
+     * one leaves a Dutch site with News at /news.
+     *
+     * News and Events are what the template installs by default; Projects is here because
+     * it is the common third and costs nothing to have ready.
+     *
+     * @var array<int, string>
+     */
+    private const CONTENT_TYPE_NAMES = ['News', 'Events', 'Projects'];
+
+    /**
      * Every string the templates hand to __() or @lang(), including the parameterised ones.
      *
      * @return array<int, string>
      */
     private static function sourceStrings(): array
     {
-        $found = [];
+        $found = self::CONTENT_TYPE_NAMES;
 
         foreach (Finder::create()->files()->in(self::STUBS)->notPath('template/lang') as $file) {
             /** @var SplFileInfo $file */
@@ -36,7 +49,12 @@ class TranslationsTest extends TestCase
             $found = array_merge($found, $matches[1]);
         }
 
-        $found = array_values(array_unique($found));
+        // A seeder names its overview page with __('{{ Models }}'), a placeholder the
+        // generator substitutes — as a literal it translates to nothing.
+        $found = array_values(array_filter(
+            array_unique($found),
+            fn (string $string): bool => ! str_contains($string, '{{'),
+        ));
         sort($found);
 
         return $found;
