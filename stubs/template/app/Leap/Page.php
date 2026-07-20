@@ -111,8 +111,7 @@ class Page extends Resource
                 ->label(['nl' => 'Link-adres', 'en' => 'Link URL'])
                 ->hint(['nl' => 'Leeg wijst naar de overzichtspagina van dit type.', 'en' => 'Empty points at this type\'s overview page.'])
                 ->translatable()
-                // showWhenTrue until leap 0.10.14 is out; it forwards to showIf() there.
-                ->showWhenTrue('link_label');
+                ->showIf('link_label');
 
             $sections[] = Section::make($key)->view($view)
                 ->label(['nl' => 'Kaartrij: '.Str::headline($key), 'en' => 'Card row: '.Str::headline($key)])

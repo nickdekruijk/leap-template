@@ -5,9 +5,13 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.12] — 2026-07-20
 
 ### Added
+
+- **Requires leap 0.10.14.** The "view all" URL field is hidden until its label has text, through
+  `showIf()` — named `showWhenTrue()` before 0.10.14, and unable to read a translatable trigger
+  before it.
 
 - **A card row chooses its own layout, and how many cards stand side by side.** The limit decided
   everything: empty meant every item in a grid, a number meant a sideways-scrolling teaser. So a
