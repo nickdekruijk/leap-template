@@ -753,6 +753,11 @@ a[role="button"],
         justify-content: space-between;
         gap: var(--space-xs) var(--space);
         margin-bottom: var(--space);
+
+        // A row of cards is headed like any other section, but .article — which is what
+        // restores a heading size after the reset — sits on the cards here, not on this
+        // header. Without this the title of a news or events row rendered at body size.
+        h2 { font-size: var(--fs-h2); }
     }
     .items-link:hover { color: var(--accent); }
 
