@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`leap:content-delete` takes a generated content type back.** `leap:content` wrote five files,
+  a registry entry, a table and the page that lists it, and nothing undid any of that. A typo in
+  `leap:template --models=…` therefore cost an afternoon of hand-editing across six places, and
+  missing one of them left `leap.content` pointing at a class that no longer existed.
+
+  Files and the registry entry go. The table, its migration record, its tag links and its overview
+  page are a separate question that defaults to no, with the row count in it, so a reflex Enter
+  keeps the data; `--drop-table` answers it up front and a run without a tty never drops anything.
+
+  The name is checked against what owns the registry key before anything is touched.
+  `Str::plural('Events')` is `Events`, so deleting a stray type generated from a plural name
+  derives to the real `Event`'s table, page and registration — without that check the command
+  would be more dangerous than the hand-editing it replaces. It removes the stray files and leaves
+  the rest alone, saying so.
+
+- **The accordion opens and shuts as one movement.** 0.10.11 styled it and left the panel to the
+  browser: the chevron turned over 0.2s while the panel snapped, which read as two events rather
+  than one. Chrome animates to the real height through `interpolate-size`; Safari and Firefox have
+  `::details-content` but not `interpolate-size`, and there is nothing to load that would give it
+  to them, so `scripts.js` measures each panel and hands the height to CSS as `--panel-height`.
+
+  Closing is taken over in JavaScript as well. A `<details>` drops its content the moment the
+  `open` attribute goes, so the panel is gone before a transition can run — `content-visibility`
+  with `allow-discrete` is supposed to hold it there and Safari does not honour it. The element is
+  kept open until the panel has travelled, and a `.closing` class turns the chevron back on the
+  click rather than at the end. Where the CSS route works, none of this code runs at all.
+
+- **A content item's tags are chips on its detail page.** The filter above an overview and the tags
+  on the item itself are the same thing, but only the filter looked like it: the detail page put a
+  "Tags" label beside the names glued together with commas. The chip is described once now and both
+  places use it — the filter on its `<a>`, which Alpine intercepts, and the detail page on its
+  `<li>`, which is only a label. The filter chips gained the rounded corners they lacked.
+
+- **A news-shaped item is dated by its publication.** An event has a `date` column and always
+  showed one; a news item has only `published_at`, so its cards and its detail page showed no date
+  at all. Being published is what dates such an item, so a `date` accessor hands that to the shared
+  item views. It sits on the model rather than in the views on purpose: a type with no meaningful
+  date then has none, instead of every type inheriting a fallback it did not ask for.
+
+  Dates now open with the weekday — written out on a detail page, abbreviated on a card where the
+  line has to stay narrow. Dutch abbreviates with a full stop, which reads as a typo beside the
+  number, so that is dropped.
+
+- **Tags are filterable in the admin list.** The field exists so that content can be found by them,
+  but in the overview it was only a column: no index, no filter. All three content archetypes ship
+  the same field and now get the same treatment.
+
+### Changed
+
+- **Seeded events have varied times, and two deliberate edge cases.** Every seeded event ran
+  20:00–22:00 on a date picked at random between a month back and three months on. That said
+  nothing about how a card handles the width of a time, never produced either case the model has a
+  rule for, and — because an overview shows upcoming events by default — made a set of six turn up
+  as anywhere between two and six, differently on every reseed.
+
+  Times land on the half hour and run one to four hours. The seeder asks for six upcoming and six
+  finished, so a section set to past or both has as much to show as the default one, and two of the
+  upcoming ones are deliberate: one running past midnight, which ends the next day, and one with no
+  end time, which lasts until the end of its own day. Both are dated `future()` on purpose — being
+  created is not the same as being seen, and a random date could hide the very thing they exist to
+  demonstrate.
+
 ### Fixed
 
 - **A slug no longer falls back to another language.** `loadPages()` read the page's slug as a
@@ -43,6 +107,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each shipped stub is listed, which is the direction that hides a file rather than a typo. It now
   checks both, with the deliberate exceptions named: the tag filter and translations ship only when
   the project asked for them, and `routes/web.php` is patched in place rather than copied.
+
+- **An overview page is named in each locale, not English everywhere.** The seeders mapped one
+  English string over every locale, so a Dutch site got a page called "News" at `/news`. The title
+  goes through the lang files per locale now and the slug is derived from it: with a translation
+  present, a Dutch site gets Nieuws at `/nieuws`. A locale without one falls back to the English
+  word rather than to nothing, so this is safe for a type nobody has translated yet.
+
+  All three seeder archetypes carried the same shape and are fixed together. Every shipped language
+  translates News, Events and Projects — without that, a German site would quietly serve News at
+  `/news`, which is this bug one language over. The translation test could not see those names at
+  all, since a seeder reaches `__()` through the `{{ Models }}` placeholder and scanning the stubs
+  finds a placeholder, not a string; they are declared as source strings in their own right now.
+
+- **A content type is not registered twice when the config imports its model.** `registerInConfig`
+  matched only the fully qualified form, so a `config/leap.php` that imports its models and writes
+  `'news' => News::class` looked unregistered and the key was appended again on every run. PHP
+  resolves duplicate keys to the last one without complaining, so the file quietly grew a pair of
+  lines each time the template was published. The key decides now, not how the class is spelled,
+  and it is looked for inside the content array only — the doc comment above it carries an example
+  of the same shape.
+
+- **The sitemap route is registered.** `PageController` has had a `sitemap()` method all along, but
+  `routes/web.php` never pointed at it: the catch-all swallowed `/sitemap.xml`, so the template
+  shipped a sitemap nothing could reach — and publishing over a project that had added the route
+  itself silently took it away again.
+
+- **A card's body text is body colour, and only its heading takes the accent.** A card carries
+  `.article` for its prose typography, and that rule colours every link in the accent. Here the
+  link wraps the whole card, so the date and the intro were tinted along with the title. The card
+  link inherits its colour now and the heading takes the accent explicitly rather than by accident.
+  On a dark section the title stays white: an accent picked to read on the page background does not
+  hold up over a photo or the placeholder gradient.
+
+- **The heading above a card row is sized like any other section heading.** The reset drops every
+  heading to body size and `.article` puts the sizes back — but on a card row that class sits on
+  the cards, not on the header above them. The title of a news or events row therefore rendered
+  bold and in the heading face at body size: close enough to look intentional, and wrong next to a
+  default section.
+
+- **A card's hover wash stays inside the card, and its focus ring is a normal focus ring.** The
+  wash was an outline: drawn outside the box, so it reached past the card's edge and doubled as its
+  padding. A horizontal row scrolls with `overflow-x`, which clips exactly that — and because the
+  outline was as wide as the padding, the keyboard focus ring inherited that width and came out far
+  too heavy.
+
+  It is padding and a background now, so the wash stays inside the card and the global focus ring
+  applies at its own weight, drawn just inside the edge so a scrolling row cannot cut it off. Both
+  parts fade together: the outline was never in the transition, so it snapped into place around a
+  background that was still arriving. Padding insets a card's content, so the row is pulled back out
+  by the same amount and its gaps shrunk by it — the distance from content to content is what it
+  was, and the heading above still lines up with the first card's title. The scrollbar under a
+  horizontal row gets the same inset on its start side; the end side runs off screen anyway.
+
+  The `tabindex` on a scrolling row is conditional now. A scroll region has to be reachable without
+  a mouse, but linked cards are focusable themselves and tabbing already scrolls the row along, so
+  the extra stop only earns its place when a card in the row has no detail page.
+
+- **The bundled tests ask for a content path instead of hardcoding `/news`.** An overview page is
+  named after the translated type, so it lives at `/nieuws` on a Dutch site and `/news` on an
+  English one, and `SeoTest` wrote `/news` — which made it pass or fail on the language the project
+  happens to be in. The helpers live in a trait rather than on `TestCase`: every Laravel app owns
+  its own `TestCase`, and publishing one over it would take whatever the project had put there.
 
 ## [0.10.11] — 2026-07-16
 
