@@ -108,6 +108,37 @@ class ContentCommandTest extends TestCase
         $this->assertLessThan(strpos($config, "'projects'"), strpos($config, "'events'"));
     }
 
+    /**
+     * A config that imports its models and writes `'news' => News::class` means exactly
+     * what the fully qualified form means. Matching only the latter added the key a
+     * second time on every run, and PHP resolves duplicate keys to the last one without
+     * complaining, so the file quietly grew.
+     */
+    public function test_an_already_registered_type_is_not_added_again_when_the_config_imports_its_model(): void
+    {
+        file_put_contents($this->temp.'/config/leap.php', "<?php\n\nuse App\\Models\\Product;\n\nreturn [\n    'content' => [\n        'products' => Product::class,\n    ],\n];\n");
+
+        $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--force' => true, '--no-interaction' => true])->assertExitCode(0);
+
+        $this->assertSame(1, substr_count($this->read('config/leap.php'), "'products' =>"));
+    }
+
+    /**
+     * The guard looks inside the content array, not the whole file: the doc comment that
+     * ships above it carries an example of the same shape, and matching that would make
+     * the command skip a registration that never happened.
+     */
+    public function test_a_new_type_is_still_registered_when_the_config_documents_an_example(): void
+    {
+        file_put_contents($this->temp.'/config/leap.php', "<?php\n\nreturn [\n\n    /*\n    | 'content' => [\n    |     'products' => \\App\\Models\\Product::class,\n    | ],\n    */\n    'content' => [],\n];\n");
+
+        $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+
+        $config = $this->read('config/leap.php');
+
+        $this->assertStringContainsString("'content' => [\n        'products' => \\App\\Models\\Product::class,", $config);
+    }
+
     public function test_rerunning_reuses_the_migration_instead_of_duplicating_it(): void
     {
         $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);

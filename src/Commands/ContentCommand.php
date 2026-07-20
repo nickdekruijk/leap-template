@@ -24,6 +24,15 @@ class ContentCommand extends Command
 {
     use ConfirmableTrait;
 
+    /**
+     * The `'content' => [ ... ]` array in config/leap.php, capturing its indent and its
+     * body. Anchored to the start of a line with only whitespace before the key, so the
+     * example inside the doc comment above it — prefixed with "| " — is never matched
+     * instead. Non-greedy, so it stops at the first closing bracket on its own line, and
+     * it matches an empty `'content' => []` as well.
+     */
+    protected const CONTENT_ARRAY = "/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms";
+
     protected $signature = 'leap:content {name : Singular StudlyCase name, e.g. News, Product}
         {--archetype= : news|event|generic (default: guessed from the name)}
         {--plural= : Override the plural used for the table and registry key (Str::plural is English, and so should the name be)}
@@ -201,7 +210,16 @@ class ContentCommand extends Command
 
         $contents = file_get_contents($path);
 
-        if (str_contains($contents, "'{$key}' => \\App\\Models\\{$model}::class")) {
+        // Already registered? The key is what decides that, not how the class behind it
+        // is written: a config that imports the model and says `'news' => News::class`
+        // means the same as the fully qualified form written below, and matching only
+        // the latter appended a duplicate on every run. PHP resolves duplicate keys to
+        // the last one silently, so this piled up unnoticed.
+        //
+        // Looked for inside the content array only — the doc comment above it carries an
+        // example with the same shape, and matching that would skip a real registration.
+        if (preg_match(static::CONTENT_ARRAY, $contents, $found)
+            && preg_match("/^\s*'".preg_quote($key, '/')."'\s*=>/m", $found[2])) {
             return;
         }
 
@@ -213,7 +231,7 @@ class ContentCommand extends Command
         // matched instead. Handles the empty `'content' => []` too, and rebuilds the
         // whole array so the closing bracket stays on its own line.
         $patched = preg_replace_callback(
-            "/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms",
+            static::CONTENT_ARRAY,
             function (array $m) use ($line): string {
                 $indent = $m[1];
                 $existing = ltrim(rtrim($m[2]), "\n");
