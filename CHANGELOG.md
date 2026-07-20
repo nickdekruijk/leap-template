@@ -5,6 +5,45 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A slug no longer falls back to another language.** `loadPages()` read the page's slug as a
+  plain attribute (`$page->only()`), and laravel-translatable answers that with
+  `config('app.fallback_locale')` filled in when the active locale has no translation. Harmless
+  while the fallback is a language the site does not serve — Laravel's default `en` on a Dutch-only
+  site — and silently wrong the moment it is one of its own: a page with no English slug then
+  answered on `/en/{its Dutch slug}` and appeared in the English menu, rendering Dutch.
+
+  A slug is an address, not prose. `buildLocalePath()`, which builds the sitemap, has always asked
+  without the fallback and left such a page out, so the two halves of the same site disagreed about
+  which URLs exist — decided by one line in `.env`, per environment, in a file that is not in
+  version control. The same shape as the `APP_LOCALE` leak leap fixed in 0.10.8.
+
+- **A translatable section heading no longer breaks the navigation.** `loadPages()` collects the
+  headings of sections flagged as a menu item and hands them to the menu as titles. Every heading
+  in `ContentSections` is `translatable()`, so on a multilingual site that heading is a per-locale
+  array — and this reads the raw `sections` cast rather than `HasSections`, so nothing resolved it.
+  `Str::slug()` turned the array into the string `"array"`, giving every anchor the same `#array`,
+  and the layout then rendered the title, where `htmlspecialchars()` refuses an array outright.
+
+  The navigation lives in the layout, so that was a `TypeError` on every page of the site, caused
+  by an editor ticking a switch the admin offers. Nothing in the shipped seed switches `menuitem`
+  on, which is why a default install never met it. The heading is now resolved to the active
+  locale, falling back to the first translation there is — the rule `HasSections` already uses —
+  so a half-translated heading still reads.
+
+- **`leap:template` copies `tests/Concerns/ResolvesContentPaths.php`.** `SeoTest` uses the trait
+  and the installer's file list did not mention it, so a fresh install landed a test suite that
+  fatally errored on the first file PHPUnit read: `Trait "Tests\Concerns\ResolvesContentPaths" not
+  found`. Introduced with the trait itself and never released.
+
+  `TemplateManifestTest` only ever checked that each listed file has a matching stub — never that
+  each shipped stub is listed, which is the direction that hides a file rather than a typo. It now
+  checks both, with the deliberate exceptions named: the tag filter and translations ship only when
+  the project asked for them, and `routes/web.php` is patched in place rather than copied.
+
 ## [0.10.11] — 2026-07-16
 
 ### Added

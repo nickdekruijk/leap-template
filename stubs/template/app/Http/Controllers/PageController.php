@@ -184,15 +184,30 @@ class PageController extends Controller
         // Get all pages but only the attributes we need for navigation
         $attributes = ['id', 'title', 'slug', 'parent', 'menuitem', 'sections'];
         foreach (Page::active()->get($attributes) as $page) {
-            // Only keep section titles that are flagged as a menu item, to add them as in-page anchors later
+            // Only keep section titles that are flagged as a menu item, to add them as in-page
+            // anchors later. A section 'head' is translatable, so on a multilingual site it is a
+            // per-locale array; this reads the raw sections cast rather than HasSections, so it
+            // has to resolve that itself — the menu renders the title as a string.
             if (isset($page->sections)) {
                 $menuitemTitles = [];
                 foreach (collect($page->sections)->where('menuitem', 1)->sortBy('_sort') as $menuitem) {
-                    $menuitemTitles[] = $menuitem['head'];
+                    $head = $menuitem['head'] ?? '';
+                    // Missing in the active locale: fall back to the first translation there is,
+                    // as HasSections does, so a half-translated heading still reads.
+                    $menuitemTitles[] = is_array($head) ? ($head[app()->getLocale()] ?? (reset($head) ?: '')) : $head;
                 }
                 $page->sections = $menuitemTitles;
             }
-            $pages[$page->parent ?: 0][] = $page->only($attributes);
+
+            $data = $page->only($attributes);
+            // Resolve the slug without laravel-translatable's fallback. A slug is an address, not
+            // prose: a page with no slug in the active locale must read as empty (not routable
+            // there) rather than borrow another locale's. Reading it as an attribute would fall
+            // back to config('app.fallback_locale'), so on a site whose fallback is one of its own
+            // languages an untranslated page would answer on the other locale's URL — while
+            // buildLocalePath() (the sitemap) already asks without the fallback and leaves it out.
+            $data['slug'] = (string) $page->getTranslation('slug', app()->getLocale(), false);
+            $pages[$page->parent ?: 0][] = $data;
         }
 
         return $pages;

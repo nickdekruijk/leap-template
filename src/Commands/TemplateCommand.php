@@ -449,6 +449,7 @@ class TemplateCommand extends Command
             'app/Livewire/Search.php',
             'config/imageresize.php',
             'public/css/tinymce.css',
+            'tests/Concerns/ResolvesContentPaths.php',
             'tests/Feature/PageRoutingTest.php',
             'tests/Feature/HasSlugTest.php',
             'tests/Feature/MultilingualTest.php',
@@ -616,6 +617,7 @@ class TemplateCommand extends Command
             'the starter tests',
             'Cover the code just copied — routing, slugs, locales, search and the SEO tags. They run in your own suite.',
             [
+                'tests/Concerns/ResolvesContentPaths.php' => 'Content path helper',
                 'tests/Feature/PageRoutingTest.php' => 'PageRouting test',
                 'tests/Feature/HasSlugTest.php' => 'HasSlug test',
                 'tests/Feature/MultilingualTest.php' => 'Multilingual test',
