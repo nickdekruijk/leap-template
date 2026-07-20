@@ -3,15 +3,5 @@
 use App\Http\Controllers\PageController;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "web" middleware group. Make something great!
-|
-*/
-
-Route::get('{uri}', [PageController::class, 'route'])->where('uri', '.*');
+Route::get('sitemap.xml', [PageController::class, 'sitemap'])->name('sitemap');
+Route::get('{any}', [PageController::class, 'route'])->where('any', '(.*)');
