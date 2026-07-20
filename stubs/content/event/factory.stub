@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\{{ Model }};
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Carbon;
 
 /**
  * @extends Factory<{{ Model }}>
@@ -24,11 +25,13 @@ class {{ Model }}Factory extends Factory
         $locales = array_keys(config('leap.locales') ?: [app()->getLocale() => null]);
         $translate = fn (string $value): array => array_fill_keys($locales, $value);
 
+        [$start, $end] = $this->halfHourTimes();
+
         return [
             'active' => true,
             'date' => fake()->dateTimeBetween('-1 month', '+3 months'),
-            'start_time' => '20:00',
-            'end_time' => '22:00',
+            'start_time' => $start,
+            'end_time' => $end,
             'title' => $translate(rtrim(fake()->sentence(3), '.')),
             'intro' => $translate(fake()->sentence(12)),
             'sections' => [$this->textSection()],
@@ -55,6 +58,62 @@ class {{ Model }}Factory extends Factory
             'head' => $translate(rtrim(fake()->sentence(4), '.')),
             'body' => $translate('<p>'.implode('</p><p>', fake()->paragraphs(2)).'</p>'),
         ];
+    }
+
+    /**
+     * A start and end on the half hour — real programmes are planned that way, and a
+     * seeded set that all runs 20:00–22:00 says nothing about how the card handles the
+     * width of a time. Starts somewhere between 09:00 and 22:30, runs one to four hours.
+     *
+     * Named halfHourTimes rather than times: Factory::times() already exists as a
+     * static alias for count(), and redeclaring it non-static is a fatal error that
+     * takes down the whole test run without printing anything.
+     *
+     * An end past midnight comes out of this on its own: Carbon rolls over the day and
+     * H:i then reads 00:30, which is exactly the case {{ Model }}::calculateEndsAt() has to
+     * push to the next day. pastMidnight() below makes sure a seeded set has one rather
+     * than leaving it to chance.
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function halfHourTimes(): array
+    {
+        $start = Carbon::today()->addMinutes(30 * fake()->numberBetween(18, 45));
+        $end = $start->copy()->addMinutes(30 * fake()->numberBetween(2, 8));
+
+        return [$start->format('H:i'), $end->format('H:i')];
+    }
+
+    /**
+     * An event that says when it starts but not when it stops — a talk or an opening
+     * whose end nobody commits to. The model's other branch: no end time means it runs
+     * until the end of its own day, and the card shows the start on its own without a
+     * dash trailing off into nothing.
+     */
+    public function withoutEndTime(): static
+    {
+        return $this->state(fn (): array => ['end_time' => null]);
+    }
+
+    /**
+     * An event that runs into the small hours — the exception the model has a rule for:
+     * an end at or before the start means it finishes the next day.
+     */
+    public function pastMidnight(): static
+    {
+        return $this->state(function (): array {
+            // The end is measured from the next midnight rather than from the start, so
+            // it lands after it whatever the start turns out to be — a duration added to
+            // a 21:00 start could still finish the same evening and quietly not test the
+            // exception at all.
+            $start = Carbon::today()->addMinutes(30 * fake()->numberBetween(42, 47)); // 21:00–23:30
+            $end = Carbon::tomorrow()->addMinutes(30 * fake()->numberBetween(1, 6)); // 00:30–03:00
+
+            return [
+                'start_time' => $start->format('H:i'),
+                'end_time' => $end->format('H:i'),
+            ];
+        });
     }
 
     public function past(): static

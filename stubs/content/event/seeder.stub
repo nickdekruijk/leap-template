@@ -18,9 +18,20 @@ class {{ Model }}Seeder extends Seeder
             return;
         }
 
-        {{ Model }}::factory()->count(6)->create(){{#tags}}->each(function ({{ Model }} $item): void {
-            $item->tags()->sync(Tag::inRandomOrder()->limit(rand(1, 2))->pluck('id'));
-        }){{/tags}};
+        // Dated on purpose rather than at random. An overview shows upcoming events by
+        // default, so a date spanning today would make a seeded set turn up at a
+        // different size on every reseed — and the two deliberate cases below could land
+        // in the past, where the thing they exist to demonstrate is never seen.
+        //
+        // Six upcoming and six finished, so the overview always looks the same and a
+        // section set to past (or both) has as much to show as the default one.
+        {{ Model }}::factory()->future()->count(4)->create()
+            ->push({{ Model }}::factory()->future()->pastMidnight()->create())
+            ->push({{ Model }}::factory()->future()->withoutEndTime()->create())
+            ->concat({{ Model }}::factory()->past()->count(6)->create()){{#tags}}
+            ->each(function ({{ Model }} $item): void {
+                $item->tags()->sync(Tag::inRandomOrder()->limit(rand(1, 2))->pluck('id'));
+            }){{/tags}};
     }
 
     /**
