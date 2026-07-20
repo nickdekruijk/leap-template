@@ -7,11 +7,13 @@ use App\Models\Page;
 use Database\Seeders\NewsSeeder;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ResolvesContentPaths;
 use Tests\TestCase;
 
 class SeoTest extends TestCase
 {
     use RefreshDatabase;
+    use ResolvesContentPaths;
 
     public function test_document_title_appends_the_site_name_to_a_plain_page_title(): void
     {
@@ -65,7 +67,7 @@ class SeoTest extends TestCase
         $news->setTranslations('intro', array_fill_keys($this->locales(), 'De korte kaarttekst'));
         $news->save();
 
-        $html = $this->get('/news/'.$news->slug)->assertOk()->getContent();
+        $html = $this->get($this->itemPath('News', $news->slug))->assertOk()->getContent();
 
         $this->assertStringContainsString('<meta name="description" content="De korte kaarttekst">', $html);
         $this->assertStringContainsString('<meta property="og:description" content="De korte kaarttekst">', $html);
@@ -80,7 +82,7 @@ class SeoTest extends TestCase
         $news->setTranslations('intro', array_fill_keys($this->locales(), 'De korte kaarttekst'));
         $news->save();
 
-        $html = $this->get('/news/'.$news->slug)->assertOk()->getContent();
+        $html = $this->get($this->itemPath('News', $news->slug))->assertOk()->getContent();
 
         $this->assertStringContainsString('<meta name="description" content="De bewuste SEO-tekst">', $html);
         // The JSON-LD used to disagree with the meta tags by preferring the intro.
