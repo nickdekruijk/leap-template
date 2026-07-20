@@ -43,8 +43,13 @@
     </div>
 
     <div class="items-scroller main-width">
-        {{-- Only a horizontal scroller is a scroll region, so only it is keyboard-focusable --}}
-        <ul class="items-container" @if ($layout === 'items-horizontal') tabindex="0" @endif role="group" aria-label="{{ $head ?? __('Overview') }}">
+        {{-- A scroll region has to be reachable without a mouse, or the cards past the
+             edge cannot be brought into view. Only a horizontal row scrolls, and only
+             when a card in it is not a link: linked cards are focusable themselves, so
+             tabbing already scrolls the row along and a tabindex here would add a stop
+             on every row that does nothing. --}}
+        @php($needsFocus = $layout === 'items-horizontal' && $items->contains(fn ($item): bool => blank($item->url)))
+        <ul class="items-container" @if ($needsFocus) tabindex="0" @endif role="group" aria-label="{{ $head ?? __('Overview') }}">
             @forelse ($items as $item)
                 <li class="item article" @if ($filter) data-tags="{{ $item->tags?->pluck('slug')->implode(' ') }}" x-show="visible($el)" x-transition @endif>
                     {{-- Whole card is the link — photo, title, date and intro — but only when it has a detail URL --}}

@@ -770,8 +770,16 @@ a[role="button"],
 
     .items-container {
         display: flex;
-        gap: var(--space-l);
         list-style: none;
+
+        // The cards carry padding now, so their hover wash stays inside them instead of
+        // being drawn beyond the edge where a scrolling row clips it. Left alone that
+        // padding would inset every card's content from the page grid — the heading above
+        // the row would no longer line up with the first card's title. So the row is
+        // pulled back out by the same amount, and the gap is shrunk by it too, which
+        // keeps the distance measured content to content exactly what it was.
+        margin-inline: calc(-1 * var(--space-xs));
+        gap: calc(var(--space-l) - 2 * var(--space-xs));
 
         &:focus-visible { outline-offset: -2px; }
     }
@@ -781,7 +789,8 @@ a[role="button"],
     &.items-grid .items-container {
         display: grid;
         grid-template-columns: repeat(var(--items-columns, 3), minmax(0, 1fr));
-        row-gap: var(--space-xl);
+        // Shrunk by the cards' padding, for the same reason as the column gap above.
+        row-gap: calc(var(--space-xl) - 2 * var(--space-xs));
 
         @media (max-width: $bp-tablet) {
             grid-template-columns: repeat(var(--items-columns-tablet, 2), minmax(0, 1fr));
@@ -808,13 +817,30 @@ a[role="button"],
         // scrollbar-color/scrollbar-width is set, so neither is used here;
         // Firefox falls back to its default scrollbar.
         &::-webkit-scrollbar { height: 13px; }
+
+        // The row is pulled out by the width of the cards' padding, so the bar would
+        // start before the page grid it sits under. A transparent border, clipped out of
+        // the background, starts the hairline and the thumb where the cards' content
+        // does — the scrollbar still spans the scrollport, it just isn't drawn there.
+        //
+        // Start side only: the row runs off the end of the screen anyway, so nothing to
+        // line up against on the right. Scrolled all the way to the last card the bar
+        // does overshoot by that much, which is not worth a second inset.
+        &::-webkit-scrollbar-track,
+        &::-webkit-scrollbar-thumb {
+            border-inline-start: var(--space-xs) solid transparent;
+            background-clip: padding-box;
+        }
+
         &::-webkit-scrollbar-track {
-            background: linear-gradient(transparent, transparent 6px, var(--accent) 6px, var(--accent) 7px, transparent 7px);
+            // background-image, not the shorthand: `background:` would reset the
+            // background-clip set above and the border would stop hiding anything.
+            background-image: linear-gradient(transparent, transparent 6px, var(--accent) 6px, var(--accent) 7px, transparent 7px);
         }
         &::-webkit-scrollbar-thumb {
-            background: linear-gradient(transparent, transparent 2px, var(--accent) 2px, var(--accent) 11px, transparent 11px);
+            background-image: linear-gradient(transparent, transparent 2px, var(--accent) 2px, var(--accent) 11px, transparent 11px);
             &:hover {
-                background: linear-gradient(transparent, transparent 2px, black 2px, black 11px, transparent 11px);
+                background-image: linear-gradient(transparent, transparent 2px, black 2px, black 11px, transparent 11px);
             }
         }
     }
@@ -836,9 +862,12 @@ a[role="button"],
             height: 100%;
             color: inherit;
             text-decoration: none;
-            // A permanent transparent outline that hover/focus tints — doubles as the
-            // card's only padding and the keyboard focus ring.
-            outline: transparent var(--space-xs) solid;
+            // Real padding, not an outline. An outline is drawn outside the box, which
+            // let the hover wash reach past the card — and a horizontal row scrolls with
+            // overflow-x, which clips exactly that. Padding keeps the wash inside the
+            // card, and leaves the outline free to be nothing but a focus ring.
+            padding: var(--space-xs);
+            border-radius: var(--radius);
             transition: background-color 0.25s ease;
         }
 
@@ -847,14 +876,16 @@ a[role="button"],
         > a:hover,
         > a:focus-visible {
             background: var(--accent-hover-bg, color-mix(in srgb, var(--accent) 12%, transparent));
-            outline-color: var(--accent-hover-bg, color-mix(in srgb, var(--accent) 12%, transparent));
 
             h3 { color: var(--accent-text, var(--accent)); }
             .item-thumbnail img { transform: scale(1.05); }
         }
-        // The transparent outline outweighs the global :focus-visible ring, so the card
-        // draws its own — and the faint wash is too light to read as a focus indicator.
-        > a:focus-visible { outline-color: var(--accent-text, var(--accent)); }
+
+        // The focus ring is the global one, at its normal weight — the card no longer
+        // overrides it with something the width of its own padding. It is drawn just
+        // inside the edge rather than 2px beyond it, because a horizontal row scrolls
+        // with overflow and would cut an outside ring off at the first and last card.
+        > a:focus-visible { outline-offset: -2px; }
 
         .item-thumbnail {
             aspect-ratio: 3 / 2;
