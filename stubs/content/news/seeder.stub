@@ -6,6 +6,7 @@ use App\Models\Page;
 use App\Models\{{ Model }};
 {{#tags}}use App\Models\Tag;
 {{/tags}}use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class {{ Model }}Seeder extends Seeder
 {
@@ -23,10 +24,13 @@ class {{ Model }}Seeder extends Seeder
     }
 
     /**
-     * The overview page this type's cards hang under (/{{ key }}), created once. The
-     * unlimited, untagged "{{ key }}" section is what makes it the canonical overview
-     * (see PageController::overviewPage()) and gives every item its detail URL. Rename
-     * its slug per locale in the admin (e.g. nieuws / news).
+     * The overview page this type's cards hang under, created once. The unlimited,
+     * untagged "{{ key }}" section is what makes it the canonical overview (see
+     * PageController::overviewPage()) and gives every item its detail URL.
+     *
+     * Title and slug are per locale: give "{{ Models }}" a translation in a lang file
+     * and that locale gets that name, with the slug derived from it. A locale without
+     * one falls back to the English word rather than to nothing.
      */
     protected function ensureOverviewPage(): void
     {
@@ -41,20 +45,21 @@ class {{ Model }}Seeder extends Seeder
         }
 
         $locales = array_keys(config('leap.locales') ?: [app()->getLocale() => null]);
-        $translate = fn (string $value): array => collect($locales)->mapWithKeys(fn ($locale): array => [$locale => $value])->all();
+        $title = collect($locales)->mapWithKeys(fn ($locale): array => [$locale => __('{{ Models }}', [], $locale)])->all();
+        $slug = collect($title)->map(fn (string $value): string => Str::slug($value))->all();
 
         Page::create([
             'active' => true,
             'menuitem' => true,
-            'title' => $translate('{{ Models }}'),
-            'slug' => $translate('{{ key }}'),
+            'title' => $title,
+            'slug' => $slug,
             'sort' => 100 + (int) array_search('{{ key }}', array_keys(config('leap.content') ?: [])), // config order → menu/section order
             'sections' => [[
                 '_name' => '{{ key }}',
                 '_view' => 'sections.items',
                 '_sort' => 0,
                 'active' => true,
-                'head' => $translate('{{ Models }}'),
+                'head' => $title,
             ]],
         ]);
     }
