@@ -145,6 +145,111 @@ new HorizontalScroller({
     draggable: true,
 });
 
+// Accordion panels, for browsers without interpolate-size.
+//
+// Chrome animates an accordion open on its own: interpolate-size lets the panel
+// transition to `auto`, so it lands on its own height with no help. Safari and Firefox
+// do not have it, and there is nothing to load that would give it to them — a length is
+// the only thing they will animate to. So the height is measured here and handed to CSS
+// as --panel-height, which the @supports-not block in template.scss animates towards.
+// Where the CSS route works this code never runs at all.
+if (!CSS.supports('interpolate-size', 'allow-keywords')) {
+    const panels = document.querySelectorAll('.article details');
+
+    const measure = function (details) {
+        const summary = details.querySelector('summary');
+
+        if (!summary) {
+            return;
+        }
+
+        // Reading the height means opening the panel for a moment, which would animate
+        // and would be seen. The class switches the transition off for that moment, and
+        // lifting the cap first keeps a panel taller than the fallback 100vh from being
+        // measured at the clipped height.
+        const wasOpen = details.open;
+
+        details.classList.add('measuring');
+        details.style.setProperty('--panel-height', 'none');
+        details.open = true;
+
+        // scrollHeight covers the whole open element, so the summary and the padding the
+        // details itself carries have to come off to leave the panel on its own.
+        const padding = getComputedStyle(details);
+        const height = details.scrollHeight - summary.offsetHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom);
+
+        details.dataset.panelHeight = height + 'px';
+        details.style.setProperty('--panel-height', details.dataset.panelHeight);
+
+        details.open = wasOpen;
+        details.offsetHeight; // Forces the reflow, so the transition is back before anything else changes it
+        details.classList.remove('measuring');
+    };
+
+    // Closing has to be taken over. A details element drops its content the instant the
+    // open attribute goes, so the panel is gone before any transition can run — opening
+    // animates, closing snaps. content-visibility with allow-discrete is supposed to hold
+    // the content in place for the duration; Safari does not honour it here. So the click
+    // is caught, the element is kept open while the panel travels back to zero, and only
+    // then is it really closed.
+    const collapse = function (details, summary) {
+        summary.addEventListener('click', function (event) {
+            // Opening needs no help — the browser gets that right on its own.
+            if (!details.open || reduceMotion) {
+                return;
+            }
+
+            event.preventDefault();
+
+            // The chevron hangs off [open], which is held on until the panel has landed,
+            // so it needs telling that the close has started or it turns back late.
+            details.classList.add('closing');
+            details.style.setProperty('--panel-height', '0px');
+
+            const done = function () {
+                details.open = false;
+                details.classList.remove('closing');
+                details.style.setProperty('--panel-height', details.dataset.panelHeight || 'none');
+            };
+
+            // transitionend is the honest signal, but it never arrives if the panel was
+            // already at zero height or the transition is cancelled, so the duration read
+            // back from the stylesheet closes it regardless.
+            const duration = parseFloat(getComputedStyle(details, '::details-content').transitionDuration) * 1000 || 200;
+            const guard = setTimeout(done, duration + 50);
+
+            details.addEventListener('transitionend', function () {
+                clearTimeout(guard);
+                done();
+            }, { once: true });
+        });
+    };
+
+    const measureAll = function () {
+        panels.forEach(measure);
+    };
+
+    measureAll();
+
+    panels.forEach(function (details) {
+        const summary = details.querySelector('summary');
+
+        if (summary) {
+            collapse(details, summary);
+        }
+    });
+
+    // A measurement is only true for the width it was taken at: narrower means more
+    // lines means a taller panel. Images settling after load move it as well.
+    window.addEventListener('load', measureAll);
+
+    let pending;
+    window.addEventListener('resize', function () {
+        clearTimeout(pending);
+        pending = setTimeout(measureAll, 150);
+    });
+}
+
 // Light parallax on slider media (skipped when the user prefers reduced motion)
 if (!reduceMotion) {
     let pending = false;

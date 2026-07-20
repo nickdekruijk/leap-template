@@ -216,6 +216,47 @@ a[role="button"],
         }
 
         &[open] > summary::after { transform: translateY(0.1em) rotate(225deg); }
+
+        // A closing panel is still open as far as the attribute goes — scripts.js holds
+        // it there until the panel has finished travelling — so the chevron would stay
+        // turned until the very end. This turns it back on the click, with the panel.
+        // It follows the [open] rule above deliberately: same specificity, so it wins.
+        &.closing > summary::after { transform: translateY(-0.15em) rotate(45deg); }
+
+        // The panel travels on the same 0.2s as the chevron, so opening reads as one
+        // movement rather than a snap next to a turning arrow. content-visibility has
+        // to be in the transition too — without it the content appears and disappears
+        // at once and the height change is never seen. overflow keeps the margins of
+        // the content from escaping the closed panel.
+        //
+        // Which height property gets animated depends on the browser, hence the two
+        // @supports blocks below; both are listed here so the timing is stated once.
+        &::details-content {
+            overflow: hidden;
+            transition: block-size 0.2s, max-block-size 0.2s, content-visibility 0.2s allow-discrete;
+        }
+
+        // The good path: interpolate-size lets `auto` take part in a transition, so the
+        // panel animates to its own height with nothing measured and nothing capped.
+        @supports (interpolate-size: allow-keywords) {
+            interpolate-size: allow-keywords;
+
+            &::details-content { block-size: 0; }
+            &[open]::details-content { block-size: auto; }
+        }
+
+        // Safari and Firefox have ::details-content but not interpolate-size, so `auto`
+        // is not animatable there and the panel has to travel to a length instead.
+        // scripts.js measures each panel and writes the result to --panel-height; the
+        // 100vh is only what stands in until it does, or if scripting is off — in which
+        // case the panel still opens, just without the animation landing precisely.
+        @supports not (interpolate-size: allow-keywords) {
+            &::details-content { max-block-size: 0; }
+            &[open]::details-content { max-block-size: var(--panel-height, 100vh); }
+
+            // Measuring means briefly opening the panel; this keeps that from animating.
+            &.measuring::details-content { transition: none; }
+        }
     }
 }
 
