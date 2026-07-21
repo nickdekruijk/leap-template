@@ -1026,14 +1026,18 @@ a[role="button"],
 
     // The separator is drawn, not written, so a screen reader reads the trail as a
     // list of page names instead of "projecten slash marktplein".
+    //
+    // Optically centred rather than geometrically: rotating the corner leaves its ink
+    // sitting above the middle of the box it is centred by, so it rides a hair high
+    // between two words. In em, so a site that resizes the trail keeps the nudge.
     li + li::before {
         content: "";
-        width: 0.4em;
-        height: 0.4em;
+        width: 0.45em;
+        height: 0.45em;
         flex: none;
         border-top: 1.5px solid currentColor;
         border-right: 1.5px solid currentColor;
-        transform: rotate(45deg);
+        transform: translateY(0.0625em) rotate(45deg);
         opacity: 0.6;
     }
 
@@ -1063,6 +1067,14 @@ a[role="button"],
         width: 1em;
         height: 1em;
         flex: none;
+    }
+
+    // The house carries no word of its own, so it stands next to the letters rather
+    // than among them: a hair larger than a capital, or it reads as the smallest
+    // thing in the row.
+    ol svg {
+        width: 1.15em;
+        height: 1.15em;
     }
 }
 
