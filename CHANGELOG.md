@@ -5,6 +5,26 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.14] — 2026-07-21
+
+### Added
+
+- **The install now offers Laravel's own translations for the languages you picked.** It already
+  copied `lang/nl.json` — the template's own strings — but the framework's, the validation errors
+  and the password mails, stayed English, so a fresh Dutch site rejected a form in a language it
+  does not speak. `leap:template` now runs `composer require --dev laravel-lang/common` and
+  `php artisan lang:add <codes>` for every chosen non-English locale that has no `lang/<code>/`
+  yet. Laravel ships no translations of its own — `lang:publish` only writes `lang/en` — and the
+  package is a dev dependency because it publishes files into the repository and nothing at
+  runtime depends on it afterwards. `lang:add` merges into an existing `lang/<code>.json`, so the
+  template's strings survive. An English-only site is not asked and `--no-install` prints the
+  commands instead of reaching Packagist.
+
+  A re-run does not ask again, but it does merge those keys back: copying the template's
+  `lang/<code>.json` over your copy puts the bare stub back, and the framework's strings would be
+  gone with it. Accepting that overwrite already answered the question, so the merge happens
+  without a second one.
+
 ## [0.10.13] — 2026-07-21
 
 ### Fixed

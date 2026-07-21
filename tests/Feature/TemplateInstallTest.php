@@ -419,6 +419,7 @@ PHP);
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
+            ->expectsConfirmation("Install Laravel's own translations (validation, auth) for nl?", 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -490,6 +491,7 @@ PHP);
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
+            ->expectsConfirmation("Install Laravel's own translations (validation, auth) for nl?", 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -524,6 +526,7 @@ PHP);
             ->expectsConfirmation('Copy Nederlands translations?', 'yes')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
+            ->expectsConfirmation("Install Laravel's own translations (validation, auth) for nl?", 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -595,5 +598,75 @@ PHP);
 
         $seeder = file_get_contents($this->temp.'/database/seeders/DatabaseSeeder.php');
         $this->assertStringContainsString('PageSeeder::class', $seeder);
+    }
+
+    /**
+     * lang/nl.json holds the template's own strings; Laravel's — the validation errors, the
+     * password mails — come from laravel-lang, and a Dutch install used to leave them English
+     * with nothing said about it.
+     *
+     * --no-install is the offline half of the step, so this asserts the instructions rather
+     * than a directory: the files themselves need Packagist.
+     */
+    public function test_the_install_says_how_to_get_laravels_own_translations(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl',
+        ])
+            // One assertion, because both halves are printed on one line: two substrings of
+            // the same write only ever match the first expectation.
+            ->expectsOutputToContain('composer require --dev laravel-lang/common && php artisan lang:add nl')
+            ->assertExitCode(0);
+
+        $this->assertDirectoryDoesNotExist($this->temp.'/lang/nl', '--no-install must stay off the network.');
+    }
+
+    /**
+     * Every chosen language in one command — laravel-lang takes them as a list, and asking
+     * per language would be the same question twice.
+     */
+    public function test_every_chosen_language_is_named_at_once(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl,de',
+        ])
+            ->expectsOutputToContain('php artisan lang:add nl de')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * English is what Laravel's own strings already are, so an English-only site has nothing
+     * to install and must not be asked about it.
+     */
+    public function test_an_english_site_is_not_asked_about_translations(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'en',
+        ])
+            ->doesntExpectOutputToContain('laravel-lang')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * A second run over an installed project does not ask again — lang/nl is there and the
+     * package with it. What it does have to do is merge laravel-lang's keys back into
+     * lang/nl.json, because the run just copied the template's stub over them. That is not a
+     * question: saying yes to the overwrite already answered it.
+     */
+    public function test_a_rerun_merges_the_framework_strings_back_into_the_json(): void
+    {
+        mkdir($this->temp.'/lang/nl', 0777, true);
+        file_put_contents($this->temp.'/lang/nl/validation.php', "<?php\n\nreturn [];\n");
+        mkdir($this->temp.'/vendor/laravel-lang/common', 0777, true);
+
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl',
+        ])
+            // No composer require: the package is already a dev dependency.
+            ->doesntExpectOutputToContain('composer require --dev laravel-lang/common')
+            ->expectsOutputToContain('Merge Laravel\'s own translations back with: php artisan lang:add nl')
+            ->assertExitCode(0);
+
+        $this->assertSame("<?php\n\nreturn [];\n", file_get_contents($this->temp.'/lang/nl/validation.php'));
     }
 }

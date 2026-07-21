@@ -40,6 +40,14 @@ class TemplateCommand extends Command
     protected bool $adminUserCreated = false;
 
     /**
+     * The locale codes this run settled on, first = default. Filled by configureLocales(),
+     * so any step after it works on the languages actually chosen rather than asking again.
+     *
+     * @var array<int, string>
+     */
+    protected array $locales = [];
+
+    /**
      * The locale codes offered in the language picker, code => display name.
      *
      * @var array<string, string>
@@ -688,6 +696,11 @@ class TemplateCommand extends Command
         // before installing it left the settings table missing and the homepage at a 500.
         $this->suggestFrontendPackages();
 
+        // Laravel's own strings in the chosen languages. After the packages above because it
+        // is the same kind of step (Packagist, then a subprocess), and after configureLocales()
+        // because it only installs the languages that were picked.
+        $this->installFrameworkTranslations();
+
         // Offer to run migrations and seed the sample pages
         $this->runMigrationsAndSeed();
 
@@ -1011,7 +1024,7 @@ class TemplateCommand extends Command
      */
     protected function configureLocales(): void
     {
-        $chosen = $this->resolveLocales();
+        $chosen = $this->locales = $this->resolveLocales();
 
         $this->installTranslations($chosen);
 
@@ -1520,5 +1533,117 @@ class TemplateCommand extends Command
         } else {
             $this->line('Install later with: composer require '.implode(' ', $missing));
         }
+    }
+
+    /**
+     * Publish Laravel's own translations — validation, auth, passwords, pagination — for the
+     * languages this run chose.
+     *
+     * installTranslations() copies the template's frontend strings (lang/nl.json); this is the
+     * other half, and without it a Dutch site still rejects a form in English. Laravel ships no
+     * translations of its own: `lang:publish` only writes lang/en, so laravel-lang/common is
+     * where the rest comes from. It is a dev dependency on purpose — it publishes files into the
+     * repository and nothing at runtime depends on it afterwards.
+     *
+     * Runs after installTranslations(): `lang:add` merges into an existing lang/<code>.json
+     * rather than replacing it, so the template's strings survive. The other order would leave
+     * copyOrReplace() asking to overwrite a file that had just been merged.
+     */
+    protected function installFrameworkTranslations(): void
+    {
+        $installed = is_dir(base_path('vendor/laravel-lang/common'));
+
+        // English needs nothing: Laravel's own strings are already English. A locale whose
+        // directory is there was published before — this is a re-run, not a second install.
+        $candidates = array_values(array_filter($this->locales, fn (string $code): bool => $code !== 'en'));
+        $missing = array_values(array_filter($candidates, fn (string $code): bool => ! is_dir(base_path('lang/'.$code))));
+
+        // …unless installTranslations() just put the bare stub back over a lang/<code>.json
+        // that laravel-lang had merged its own keys into, which a re-run does whenever you
+        // accept the overwrite. Those keys have to be merged back, and that is not a question
+        // — you already answered it by saying yes to the overwrite. Only repairable with the
+        // package here; without it the locale falls in with the ones that still need it.
+        $stale = array_values(array_filter(
+            array_diff($candidates, $missing),
+            fn (string $code): bool => $this->langJsonIsBareStub($code),
+        ));
+
+        if ($installed) {
+            $repair = $stale;
+        } else {
+            $missing = array_values(array_unique(array_merge($missing, $stale)));
+            $repair = [];
+        }
+
+        if (empty($missing) && empty($repair)) {
+            return;
+        }
+
+        $require = 'composer require --dev laravel-lang/common';
+        $add = 'php artisan lang:add '.implode(' ', array_merge($missing, $repair));
+
+        if (empty($missing)) {
+            if ($this->option('no-install')) {
+                $this->line('Merge Laravel\'s own translations back with: '.$add);
+
+                return;
+            }
+
+            $this->info('Restoring Laravel\'s own translations in lang/'.implode('.json, lang/', $repair).'.json');
+            $this->artisan(array_merge(['lang:add'], $repair));
+
+            return;
+        }
+
+        // See suggestFrontendPackages(): --no-install is how you ask for the files without the
+        // network, which a repeatable test run needs and an install does not.
+        if ($this->option('no-install')) {
+            $this->line('Install Laravel\'s own translations with: '.($installed ? $add : $require.' && '.$add));
+
+            return;
+        }
+
+        if (! $this->auto(
+            'Install Laravel\'s own translations (validation, auth) for '.implode(', ', $missing).'?',
+            true,
+            'laravel-lang/common publishes lang/'.$missing[0].'/*.php. Without it form errors and password mails stay English.',
+        )) {
+            $this->line('Install later with: '.($installed ? $add : $require.' && '.$add));
+
+            return;
+        }
+
+        if (! $installed) {
+            $this->info('Running: '.$require);
+            passthru($require, $status);
+
+            if ($status !== 0) {
+                $this->warn('composer require failed — Laravel\'s own strings stay English. Retry with: '.$require.' && '.$add);
+
+                return;
+            }
+        }
+
+        // A subprocess, like the vendor:publish above it: the package was installed a moment ago
+        // and its service provider — which is what registers lang:add — was never loaded here.
+        // Passing the locales as arguments also keeps the command from asking anything. A code
+        // laravel-lang does not know throws, and artisan() prints that without failing the run,
+        // so the language simply stays English.
+        $this->artisan(array_merge(['lang:add'], $missing, $repair));
+    }
+
+    /**
+     * Whether lang/<code>.json is byte-for-byte the template's stub — so it holds the frontend
+     * strings and nothing else. True right after a copy, and true for a language laravel-lang
+     * never merged into; either way the framework's strings are not in there.
+     */
+    protected function langJsonIsBareStub(string $code): bool
+    {
+        $stub = __DIR__.'/../../stubs/template/lang/'.$code.'.json';
+        $installed = base_path('lang/'.$code.'.json');
+
+        return file_exists($stub)
+            && file_exists($installed)
+            && sha1_file($stub) === sha1_file($installed);
     }
 }
