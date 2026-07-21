@@ -4,18 +4,17 @@
     and intro on top, since those double as the card text in the overview and would
     otherwise have to be repeated in a section.
 
-    $page is the item, $type its content key, $parent the overview page, $parentUrl its
-    URL.
+    $page is the item, $type its content key, $parent the overview page — which the
+    layout turns into the breadcrumb trail above this header.
 --}}
 @extends('layouts.app')
 
 @section('content')
-    @include('partials.schema', ['item' => $page, 'type' => $type, 'parent' => $parent, 'parentUrl' => $parentUrl])
+    @include('partials.schema', ['item' => $page, 'type' => $type])
 
     <main id="main">
         <header class="item-header">
             <div class="main-width article">
-                <p class="item-parent"><a href="{{ $parentUrl }}">{{ $parent->title }}</a></p>
                 <h1>{{ $page->title }}</h1>
                 @isset($page->intro)
                     <p class="item-intro">{{ $page->intro }}</p>

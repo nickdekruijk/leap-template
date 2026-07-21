@@ -38,6 +38,7 @@ class Page extends Model implements Sitemapable
         'active' => 'boolean',
         'published_at' => 'datetime',
         'menuitem' => 'boolean',
+        'breadcrumb' => 'boolean',
         'sections' => 'array',
         'meta' => 'array',
     ];

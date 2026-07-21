@@ -87,6 +87,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A breadcrumb on every page but the homepage.** A detail page carried a lone link to the
+  overview it hangs under, and an ordinary page had nothing at all: a visitor on
+  `/over-ons/diensten` was told neither where they were nor how to step back up. The trail —
+  the homepage as a house icon, every ancestor, then the current page — comes from
+  `PageController::breadcrumbs()` and is rendered by `components/breadcrumbs.blade.php`, which
+  the layout drops above the content. It shows itself whenever the trail is longer than a single
+  step, so the homepage keeps quiet without a rule of its own.
+
+  The page you are on is named but never linked, since it is a position rather than a
+  destination, and neither is an ancestor whose slug is untranslated in the active locale — the
+  same pages the router already refuses to serve there. In front of the trail sits a **back
+  link** to the page above: a plain `<a>`, so it survives a visitor arriving from a search
+  result and a crawler follows it, upgraded by Alpine to the browser's own back when the
+  referrer *is* that page — which returns a filtered, scrolled overview exactly as they left it,
+  for no request.
+
+  Editors get a **"Toon kruimelpad" switch per page** (new `breadcrumb` column, on by default);
+  a content item follows the overview page it lives under. Existing sites need the column added
+  by hand — the migration stub only runs on a fresh install.
+
+- **The `BreadcrumbList` structured data now describes the whole trail**, on ordinary pages too.
+  It used to be written by the item schema partial, listing two steps and skipping the homepage,
+  and it was the only place a page's position was recorded. It is emitted from the same trail the
+  visitor sees, so the two cannot drift apart.
+
 - **A starter test for what the section views render**, covering the above: the carousel opens
   and closes exactly once whichever slide is switched off, the white text follows its switch, and
   a text section saved under `dark_background` still comes out white.

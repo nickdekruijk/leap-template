@@ -73,6 +73,39 @@ document.addEventListener('alpine:init', function () {
             },
         };
     });
+
+    // The "back" link in front of a breadcrumb. It is a plain link to the parent page, so
+    // it works without JavaScript and a crawler follows it — but a visitor who arrived
+    // from that very page is better served by the browser's own back: it restores their
+    // scroll position and the tag filter they had picked, and costs no request. Only in
+    // that case is the click taken over, and never when a modifier says "new tab".
+    Alpine.data('breadcrumbBack', function () {
+        return {
+            back(event) {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                }
+
+                if (!document.referrer || history.length < 2) {
+                    return;
+                }
+
+                let from;
+                try {
+                    from = new URL(document.referrer);
+                } catch (e) {
+                    return;
+                }
+
+                // Path only: the referrer may carry a ?tag= filter, and stepping back to
+                // exactly that is the point.
+                if (from.origin === location.origin && from.pathname === this.$el.pathname) {
+                    event.preventDefault();
+                    history.back();
+                }
+            },
+        };
+    });
 });
 
 // Carousel(s)

@@ -456,6 +456,7 @@ class TemplateCommand extends Command
             'config/imageresize.php',
             'public/css/tinymce.css',
             'tests/Concerns/ResolvesContentPaths.php',
+            'tests/Feature/BreadcrumbTest.php',
             'tests/Feature/PageRoutingTest.php',
             'tests/Feature/SectionAttributeTest.php',
             'tests/Feature/HasSlugTest.php',

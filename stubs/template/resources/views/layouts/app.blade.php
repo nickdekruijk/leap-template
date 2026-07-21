@@ -155,6 +155,10 @@
             <livewire:search />
         </div>
 
+        {{-- Above the content, below the bar: an item page passes the overview it hangs
+             under as $parent, a plain page has none, and an error page neither. --}}
+        <x-breadcrumbs :page="$page ?? null" :parent="$parent ?? null" />
+
         @yield('content')
 
         <footer class="footer">

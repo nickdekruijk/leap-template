@@ -21,6 +21,7 @@ return new class extends Migration
             $table->datetime('published_at')->nullable();
 
             $table->boolean('menuitem')->default(1);
+            $table->boolean('breadcrumb')->default(1);
 
             $table->json('title');
             $table->json('html_title')->nullable();

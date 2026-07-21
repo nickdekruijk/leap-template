@@ -992,11 +992,103 @@ a[role="button"],
     &.active { background: var(--accent); color: var(--accent-contrast, #fff); }
 }
 
+// ── Breadcrumbs ───────────────────────────────────────────────────────────────
+// The trail sits between the bar and the content, on every page but the homepage.
+// The back link and the trail share one line, with a divider between them: the link
+// is a control, the trail is where you are, and they should not read as one row of
+// links.
+.breadcrumbs {
+    font-size: var(--fs-breadcrumb, 0.9375rem);
+    color: var(--muted, #777);
+
+    > .main-width {
+        display: flex;
+        align-items: center;
+        gap: var(--space-s) var(--space);
+        padding-block: var(--space-s);
+    }
+
+    ol {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-xxs) var(--space-s);
+        list-style: none;
+        min-width: 0;
+    }
+
+    li {
+        display: flex;
+        align-items: center;
+        gap: var(--space-s);
+        min-width: 0;
+    }
+
+    // The separator is drawn, not written, so a screen reader reads the trail as a
+    // list of page names instead of "projecten slash marktplein".
+    li + li::before {
+        content: "";
+        width: 0.4em;
+        height: 0.4em;
+        flex: none;
+        border-top: 1.5px solid currentColor;
+        border-right: 1.5px solid currentColor;
+        transform: rotate(45deg);
+        opacity: 0.6;
+    }
+
+    a {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-xxs);
+        text-decoration: none;
+
+        &:hover {
+            color: var(--accent-text, var(--accent));
+            text-decoration: underline;
+        }
+    }
+
+    // Where the visitor already is, not somewhere to go: it carries the weight the
+    // links do not, and a long item title is cut rather than pushing the trail wide.
+    [aria-current="page"] {
+        color: var(--text);
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    svg {
+        width: 1em;
+        height: 1em;
+        flex: none;
+    }
+}
+
+.breadcrumbs-back {
+    padding-inline-end: var(--space-s);
+    border-inline-end: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+    white-space: nowrap;
+}
+
+@media (max-width: $bp-mobile) {
+    // Sideways rather than a second line: the trail is orientation, and the phone's
+    // vertical space belongs to the content. Every crumb but the last is a link, so
+    // tabbing brings the row along; the last one only repeats the h1 right below it.
+    .breadcrumbs ol {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar { display: none; }
+    }
+}
+
 // ── Content detail page (news/event/… item) ──────────────────────────────────
 .item-header {
     padding-block: var(--space-l) var(--space);
 
-    .item-parent { margin-bottom: var(--space-s); }
     .item-intro { font-size: var(--fs-lead, 1.15rem); }
 
     .item-meta {

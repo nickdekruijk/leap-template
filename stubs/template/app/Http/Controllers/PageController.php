@@ -325,6 +325,88 @@ class PageController extends Controller
     }
 
     /**
+     * The homepage: the page carrying the reserved slug "/" in the active locale, which
+     * is how the router recognises it too (see the traverse in getPages()). Null when a
+     * site has none. Memoized per locale — the closure's used variables are part of the
+     * once() key — since a trail asks for it on every page.
+     */
+    public static function homePage(?string $locale = null): ?Page
+    {
+        $locale ??= app()->getLocale();
+
+        return once(function () use ($locale): ?Page {
+            foreach (Page::active()->get() as $page) {
+                if ($page->getTranslation('slug', $locale, false) === '/') {
+                    return $page;
+                }
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * The breadcrumb trail for a page or a content item: the homepage, every ancestor,
+     * and the current page itself. A content item hangs under its type's overview page,
+     * so pass that as $parent — item.blade.php already has it.
+     *
+     * The last crumb carries no URL: it is where the visitor already is, a position
+     * rather than a destination. Neither does an ancestor without a slug in the active
+     * locale, which loadPages() likewise treats as not routable — a crumb is then still
+     * worth naming, just not worth linking.
+     *
+     * Empty when there is nothing to build a trail from, or when the owning page has its
+     * breadcrumb switched off. The homepage yields a single crumb; dropping that is left
+     * to the view, since a one-step trail is a correct answer, just not one worth showing.
+     *
+     * @return Collection<int, array{title: string, url: ?string, home: bool}>
+     */
+    public static function breadcrumbs(Page|Model|null $page = null, ?Page $parent = null): Collection
+    {
+        // For an item the trail — and the switch that turns it on — belongs to the
+        // overview page it lives under, not to the item.
+        $owner = $page instanceof Page ? $page : $parent;
+
+        if (! $owner || ! ($owner->breadcrumb ?? true)) {
+            return collect();
+        }
+
+        $locale = app()->getLocale();
+        $prefix = Leap::localePrefix();
+
+        // Walk up the parent chain, root first.
+        $chain = collect();
+        for ($current = $owner; $current; $current = $current->parent ? Page::find($current->parent) : null) {
+            $chain->prepend($current);
+        }
+
+        // The homepage is a sibling of the top-level pages, not their parent, so the walk
+        // never reaches it — unless the page tree really does hang underneath it.
+        $home = static::homePage($locale);
+        if ($home && ! $chain->first()->is($home)) {
+            $chain->prepend($home);
+        }
+
+        // The home flag rather than "the first crumb": a site without a homepage starts
+        // its trail on an ordinary page, and that one gets a name, not a house icon.
+        $crumbs = $chain->map(fn (Page $crumb): array => [
+            'title' => $crumb->title,
+            'url' => $crumb->getTranslation('slug', $locale, false) === ''
+                ? null
+                : (rtrim($prefix.static::localePath($crumb, $locale), '/') ?: '/'),
+            'home' => (bool) $home?->is($crumb),
+        ])->values()->all();
+
+        if ($page instanceof Model && ! $page instanceof Page) {
+            $crumbs[] = ['title' => $page->title, 'url' => null, 'home' => false];
+        }
+
+        $crumbs[array_key_last($crumbs)]['url'] = null;
+
+        return collect($crumbs);
+    }
+
+    /**
      * Frontend catch-all route.
      */
     public function route(?string $uri = null): View
@@ -380,7 +462,6 @@ class PageController extends Controller
                 'page' => $item,
                 'type' => $type,
                 'parent' => $parent,
-                'parentUrl' => Leap::localePrefix().static::localePath($parent, app()->getLocale()),
             ]);
         }
 

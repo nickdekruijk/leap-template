@@ -20,6 +20,8 @@ class Page extends Resource
         return [
             Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
             Attribute::make('menuitem')->index(3)->switch()->label(['nl' => 'Toon in navigatie', 'en' => 'Show in navigation'], 'Nav')->default(true),
+            Attribute::make('breadcrumb')->switch()->label(['nl' => 'Toon kruimelpad', 'en' => 'Show breadcrumb'])->default(true)
+                ->hint(['nl' => 'Het pad naar deze pagina, met een terug-link. De homepage toont er nooit een: die is zelf de enige stap.', 'en' => 'The path to this page, with a back link. The homepage never shows one: it is the only step there is.']),
             Attribute::make('title')->index(1)->searchable()->required()->label(['nl' => 'Titel', 'en' => 'Title']),
             Attribute::make('parent')->tree($this)->label(['nl' => 'Subpagina van', 'en' => 'Subpage of']),
             Attribute::make('html_title')->searchable()
