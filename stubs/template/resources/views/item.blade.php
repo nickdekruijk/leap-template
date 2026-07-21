@@ -22,7 +22,17 @@
 
                 {{-- Only filled-in parts show; a missing translation is an empty string,
                      not null, so filled() rather than isset(). --}}
-                @php($hasTags = method_exists($page, 'tags') && $page->tags->isNotEmpty())
+                @php
+                    use App\Http\Controllers\PageController;
+
+                    $hasTags = method_exists($page, 'tags') && $page->tags->isNotEmpty();
+
+                    // Where a tag chip leads: this type's overview, narrowed to that tag.
+                    // Always there on a detail page — the router only reaches this view
+                    // through the overview — but a chip without a destination is left as
+                    // plain text rather than pointed at nothing.
+                    $tagUrl = $hasTags ? PageController::overviewUrl($type) : null;
+                @endphp
                 @if (! empty($page->date) || filled($page->year ?? null) || filled($page->material ?? null) || filled($page->client ?? null))
                     <dl class="item-meta">
                         @if (! empty($page->date))
@@ -51,11 +61,18 @@
 
                 {{-- Tags stand apart from the meta list: they are chips, the same ones the
                      overview filters with, so they carry their own look rather than a
-                     dt/dd row of comma-separated names. --}}
+                     dt/dd row of comma-separated names. And they lead there: a chip is a
+                     link back to the overview with that tag picked. --}}
                 @if ($hasTags)
                     <ul class="item-tags" aria-label="{{ __('Tags') }}">
                         @foreach ($page->tags as $tag)
-                            <li>{{ $tag->name }}</li>
+                            <li>
+                                @if ($tagUrl)
+                                    <a href="{{ $tagUrl }}?tag={{ $tag->slug }}">{{ $tag->name }}</a>
+                                @else
+                                    {{ $tag->name }}
+                                @endif
+                            </li>
                         @endforeach
                     </ul>
                 @endif

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\News;
 use App\Models\Page;
+use App\Models\Tag;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\Concerns\ResolvesContentPaths;
@@ -189,6 +190,71 @@ class ItemsSectionTest extends TestCase
     }
 
     /**
+     * A visitor arriving on ?tag= — from a chip on a detail page — used to get the whole
+     * grid painted first and the non-matching cards blinked out once Alpine booted. The
+     * server states the same answer up front now.
+     */
+    public function test_a_tag_in_the_url_hides_the_other_cards_before_alpine_boots(): void
+    {
+        [$tag, $tagged] = $this->seedTaggedNews(3);
+
+        $html = $this->get($this->overviewPath('News').'?tag='.$tag->slug)->assertOk()->getContent();
+
+        // One card carries the tag and stays; the other two start hidden.
+        $this->assertSame(2, substr_count($html, 'style="display: none"'));
+        $this->assertStringContainsString('data-tags="'.$tag->slug.'" x-show="visible($el)" x-transition ', $html);
+        $this->assertStringContainsString($tagged->title, $html);
+    }
+
+    public function test_a_tag_in_the_url_marks_its_own_chip_active(): void
+    {
+        [$tag] = $this->seedTaggedNews(3);
+
+        $html = $this->get($this->overviewPath('News').'?tag='.$tag->slug)->assertOk()->getContent();
+
+        $this->assertStringContainsString($this->chip($tag->slug, active: true), $html);
+        $this->assertStringContainsString($this->chip('', active: false), $html);
+    }
+
+    public function test_without_a_tag_nothing_is_hidden_and_all_is_active(): void
+    {
+        [$tag] = $this->seedTaggedNews(3);
+
+        $html = $this->get($this->overviewPath('News'))->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('style="display: none"', $html);
+        $this->assertStringContainsString($this->chip('', active: true), $html);
+        $this->assertStringContainsString($this->chip($tag->slug, active: false), $html);
+    }
+
+    /**
+     * A slug no chip offers — a renamed tag, a hand-typed URL — narrows to nothing. An
+     * empty grid with no chip to explain it is worse than the unfiltered one.
+     */
+    public function test_an_unknown_tag_in_the_url_is_ignored(): void
+    {
+        [$tag] = $this->seedTaggedNews(3);
+
+        $html = $this->get($this->overviewPath('News').'?tag=er-is-geen-tag-zo')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('style="display: none"', $html);
+        $this->assertStringContainsString($this->chip('', active: true), $html);
+        $this->assertStringContainsString($this->chip($tag->slug, active: false), $html);
+    }
+
+    /**
+     * The server-rendered state of one filter chip. Matched together with the click
+     * handler that names the tag, since `class="active"` on its own also turns up
+     * elsewhere on the page (the language switcher).
+     *
+     * @param  string  $slug  The tag's slug, or '' for the "All" chip.
+     */
+    private function chip(string $slug, bool $active): string
+    {
+        return 'class="'.($active ? 'active' : '').'" @click.prevent="pick(\''.$slug.'\')"';
+    }
+
+    /**
      * The overview page the teasers point at, plus enough items to be limited.
      */
     private function seedNews(int $count): void
@@ -202,6 +268,27 @@ class ItemsSectionTest extends TestCase
         );
 
         News::factory()->count($count)->create();
+    }
+
+    /**
+     * The overview page with $count news items, exactly one of them tagged, so a filtered
+     * view has both something to keep and something to hide.
+     *
+     * @return array{0: Tag, 1: News}
+     */
+    private function seedTaggedNews(int $count): array
+    {
+        if (! class_exists(Tag::class) || ! method_exists(News::class, 'tags')) {
+            $this->markTestSkipped('Installed without tags.');
+        }
+
+        $this->seedNews($count);
+
+        $tag = Tag::factory()->create();
+        $tagged = News::query()->first();
+        $tagged->tags()->attach($tag);
+
+        return [$tag, $tagged];
     }
 
     /**

@@ -959,10 +959,10 @@ a[role="button"],
 // item on its detail page. They are the same thing and should read as the same
 // thing, so the chip is described once here.
 //
-// Where the chip sits differs, because only one of the two is interactive: a filter
-// chip is a real ?tag= link that Alpine intercepts — it looks like a control but
-// behaves like a link — while a detail page only lists what the item is tagged with,
-// so there the <li> is the chip itself.
+// Both are links to the same ?tag= URL — the filter chip is one Alpine intercepts,
+// the detail one a plain navigation back to the filtered overview — so the anchor is
+// the chip in both places and the whole of it is clickable. A detail chip falls back
+// to the bare <li> when its type has no overview page to point at.
 .items-tags,
 .item-header .item-tags {
     display: flex;
@@ -976,7 +976,8 @@ a[role="button"],
 .items-tags { margin-bottom: var(--space); }
 
 .items-tags > li > a,
-.item-header .item-tags > li {
+.item-header .item-tags > li > a,
+.item-header .item-tags > li:not(:has(> a)) {
     display: inline-block;
     padding: var(--space-xxs, 0.25rem) var(--space-s);
     border-radius: var(--radius);
@@ -985,12 +986,21 @@ a[role="button"],
     text-decoration: none;
 }
 
-.items-tags > li > a {
+.items-tags > li > a,
+.item-header .item-tags > li > a {
     cursor: pointer;
 
     &:hover { background: var(--button-bg-hover, color-mix(in srgb, var(--button-bg, #e5e5e5) 85%, black)); }
-    &.active { background: var(--accent); color: var(--accent-contrast, #fff); }
 }
+
+// A detail chip sits inside .article, which paints every link in it the accent — the
+// same reason a card's link has to opt out of that. A chip is a control, not prose, so
+// it reads like the filter chips it mirrors instead. The :not() is only there to
+// outweigh .article's own selector.
+.item-header .item-tags > li > a:not(.button) { color: var(--button-text, inherit); }
+
+// Only a filter chip has an active state: it says which tag the overview is showing.
+.items-tags > li > a.active { background: var(--accent); color: var(--accent-contrast, #fff); }
 
 // ── Breadcrumbs ───────────────────────────────────────────────────────────────
 // The trail sits between the bar and the content, on every page but the homepage.

@@ -78,6 +78,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and closes exactly once whichever slide is switched off, the white text follows its switch, and
   a text section saved under `dark_background` still comes out white.
 
+- **The tags on a detail page are links now.** They looked exactly like the filter chips above
+  the overview — same shape, same colour — and did nothing when clicked. A visitor reading a
+  project tagged "hout" had to go back up and find that chip themselves. Each tag now points at
+  its type's overview with `?tag=` already set, the same URL the filter chips use, so the two can
+  never disagree on the slug. A type without an overview page has nowhere to send them and keeps
+  its chips as plain text.
+
 ### Fixed
 
 - **The breadcrumb starter test is installed.** It was listed among the template's files but not
@@ -174,6 +181,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gradient and were only white through the placeholder's own default — which the option can now
   override. Saying it outright keeps them readable, and keeps them so once a real image is put
   behind them.
+
+- **An overview honours `?tag=` before Alpine boots.** The filter was client-side only, which was
+  fine while the parameter could only be set by a click. Now that a link arrives on a filtered URL,
+  the whole grid would paint first and the non-matching cards blink out a moment later. The server
+  states the same answer up front: the chip rendered active, the other cards with `display: none`,
+  which is the very style `x-show` writes — so Alpine takes the hiding over on boot and "All" still
+  brings everything back. A `?tag=` no chip offers is ignored rather than emptying the grid.
 
 ## [0.10.12] — 2026-07-20
 

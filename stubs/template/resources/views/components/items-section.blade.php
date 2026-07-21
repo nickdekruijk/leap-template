@@ -29,6 +29,16 @@
     $columnStyle = $columns
         ? sprintf('--items-columns: %d; --items-columns-tablet: %d; --items-columns-mobile: 1', $columns, min($columns, 2))
         : null;
+
+    // The tag the URL asks for. Alpine reads ?tag= itself once it boots, but a visitor
+    // arriving on a filtered URL — from a chip on a detail page — would see every card
+    // painted first and the non-matching ones blink out. So the server states the same
+    // answer up front: the chip active, the other cards hidden. Only a tag that is
+    // actually on offer counts; an unknown slug narrows to nothing and would leave an
+    // empty grid with no chip to explain it.
+    $activeTag = $filter && $tags?->isNotEmpty()
+        ? $tags->firstWhere('slug', request('tag'))?->slug
+        : null;
 @endphp
 
 <section class="items {{ $layout }}" @if ($columnStyle) style="{{ $columnStyle }}" @endif @if ($filter && $tags?->isNotEmpty()) x-data="tagFilter" @endif>
@@ -44,12 +54,14 @@
 
         @if ($filter && $tags?->isNotEmpty())
             <ul class="items-tags" aria-label="{{ __('Filter by tag') }}">
+                {{-- The server-rendered `active` only has to hold until Alpine evaluates
+                     its own :class, which replaces it. --}}
                 <li>
-                    <a href="{{ url()->current() }}" @click.prevent="pick('')" :class="{ active: ! selected }">{{ __('All') }}</a>
+                    <a href="{{ url()->current() }}" @class(['active' => ! $activeTag]) @click.prevent="pick('')" :class="{ active: ! selected }">{{ __('All') }}</a>
                 </li>
                 @foreach ($tags as $tag)
                     <li>
-                        <a href="{{ url()->current() }}?tag={{ $tag->slug }}" @click.prevent="pick('{{ $tag->slug }}')" :class="{ active: selected === '{{ $tag->slug }}' }">{{ $tag->name }}</a>
+                        <a href="{{ url()->current() }}?tag={{ $tag->slug }}" @class(['active' => $activeTag === $tag->slug]) @click.prevent="pick('{{ $tag->slug }}')" :class="{ active: selected === '{{ $tag->slug }}' }">{{ $tag->name }}</a>
                     </li>
                 @endforeach
             </ul>
@@ -65,7 +77,11 @@
         @php($needsFocus = $layout === 'items-horizontal' && $items->contains(fn ($item): bool => blank($item->url)))
         <ul class="items-container" @if ($needsFocus) tabindex="0" @endif role="group" aria-label="{{ $head ?? __('Overview') }}">
             @forelse ($items as $item)
-                <li class="item article" @if ($filter) data-tags="{{ $item->tags?->pluck('slug')->implode(' ') }}" x-show="visible($el)" x-transition @endif>
+                @php($itemTags = $filter ? ($item->tags?->pluck('slug')->all() ?? []) : [])
+                {{-- display:none rather than a class: x-show writes the very same inline
+                     style, so Alpine takes the hiding over on boot and clicking "All"
+                     brings the card back. --}}
+                <li class="item article" @if ($filter) data-tags="{{ implode(' ', $itemTags) }}" x-show="visible($el)" x-transition @if ($activeTag && ! in_array($activeTag, $itemTags, true)) style="display: none" @endif @endif>
                     {{-- Whole card is the link — photo, title, date and intro — but only when it has a detail URL --}}
                     @if ($item->url)
                         <a href="{{ $item->url }}" draggable="false">
