@@ -5,9 +5,32 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.14] — 2026-07-21
+## [0.10.13] — 2026-07-21
 
 ### Added
+
+- **`leap:template --diff` now reports the whole install, not only the files.** It compared a
+  sha1 per template file and said nothing else — while a release that adds a database column or
+  a translation key touches no file this project has. Those arrive silently and show up as an
+  admin that refuses to save (this release's own `pages.breadcrumb`) or a Dutch page in English.
+  On top of the file diff it now reports:
+
+  - **columns a later release added**, read from the stub migrations themselves rather than a
+    list that has to be kept up, with the declaration and a `make:migration` line to copy out.
+    A table that is not there is skipped: no database is an unanswered question, not drift.
+  - **translation keys the template added and this project never got.** A `lang/<code>.json` is
+    no longer diffed at all: it is not a copy of the stub — the site has its own strings and
+    `lang:add` merged Laravel's whole vocabulary into it — so only the one direction is drift.
+    In leap-test that turned 290 lines of the project's own translations into one line, and the
+    key the diff did flag turned out to be present all along, in a different position.
+  - **the install steps that leave no trace in a file**: the catch-all and sitemap routes, the
+    `public/storage` link, the `.gitignore` rules, `leap.tinymce.content_css`, `PageSeeder` and
+    `WithoutModelEvents` in `DatabaseSeeder`, the Leap traits on `User`, the frontend packages
+    and Laravel's own translations per locale. Each is one line with a ✓, or a ✗ with the
+    command that fixes it.
+
+  It still writes nothing and still exits 0 — it is a report, and it has to be safe to run in a
+  project that is customised on purpose.
 
 - **The install now offers Laravel's own translations for the languages you picked.** It already
   copied `lang/nl.json` — the template's own strings — but the framework's, the validation errors
@@ -25,9 +48,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gone with it. Accepting that overwrite already answered the question, so the merge happens
   without a second one.
 
-## [0.10.13] — 2026-07-21
+- **A breadcrumb on every page but the homepage.** A detail page carried a lone link to the
+  overview it hangs under, and an ordinary page had nothing at all: a visitor on
+  `/over-ons/diensten` was told neither where they were nor how to step back up. The trail —
+  the homepage as a house icon, every ancestor, then the current page — comes from
+  `PageController::breadcrumbs()` and is rendered by `components/breadcrumbs.blade.php`, which
+  the layout drops above the content. It shows itself whenever the trail is longer than a single
+  step, so the homepage keeps quiet without a rule of its own.
+
+  The page you are on is named but never linked, since it is a position rather than a
+  destination, and neither is an ancestor whose slug is untranslated in the active locale — the
+  same pages the router already refuses to serve there. In front of the trail sits a **back
+  link** to the page above: a plain `<a>`, so it survives a visitor arriving from a search
+  result and a crawler follows it, upgraded by Alpine to the browser's own back when the
+  referrer *is* that page — which returns a filtered, scrolled overview exactly as they left it,
+  for no request.
+
+  Editors get a **"Toon kruimelpad" switch per page** (new `breadcrumb` column, on by default);
+  a content item follows the overview page it lives under. Existing sites need the column added
+  by hand — the migration stub only runs on a fresh install — and `leap:template --diff` now
+  names it, with the migration line to copy out.
+
+- **The `BreadcrumbList` structured data now describes the whole trail**, on ordinary pages too.
+  It used to be written by the item schema partial, listing two steps and skipping the homepage,
+  and it was the only place a page's position was recorded. It is emitted from the same trail the
+  visitor sees, so the two cannot drift apart.
+
+- **A starter test for what the section views render**, covering the above: the carousel opens
+  and closes exactly once whichever slide is switched off, the white text follows its switch, and
+  a text section saved under `dark_background` still comes out white.
 
 ### Fixed
+
+- **The breadcrumb starter test is installed.** It was listed among the template's files but not
+  among the tests the installer copies, so a fresh project never got it — and `--diff` reported
+  it as missing from then on.
+
+- **The `BreadcrumbList` no longer writes a step a crawler cannot follow.** An ancestor with no
+  slug in the active locale — a page that only groups its children — has no URL, and it was
+  written into the structured data without one. Every step but the last needs an `item`, so such
+  an ancestor is left out of the JSON-LD and the steps behind it close up. The visible trail
+  still names it: a visitor is helped by the name, a crawler only by a list it can follow.
+
+- **A title holding `</script>` can no longer break out of the JSON-LD block.** Both structured
+  data blocks encode with `JSON_HEX_TAG` now. Editor input, so nothing was open to the outside,
+  but it took one flag.
 
 - **A detail page starts at the same height as the overview it came from.** Every section opens
   at `--space-xl`, but an item's header opened at `--space-l`, so stepping from an events
@@ -109,37 +174,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gradient and were only white through the placeholder's own default — which the option can now
   override. Saying it outright keeps them readable, and keeps them so once a real image is put
   behind them.
-
-### Added
-
-- **A breadcrumb on every page but the homepage.** A detail page carried a lone link to the
-  overview it hangs under, and an ordinary page had nothing at all: a visitor on
-  `/over-ons/diensten` was told neither where they were nor how to step back up. The trail —
-  the homepage as a house icon, every ancestor, then the current page — comes from
-  `PageController::breadcrumbs()` and is rendered by `components/breadcrumbs.blade.php`, which
-  the layout drops above the content. It shows itself whenever the trail is longer than a single
-  step, so the homepage keeps quiet without a rule of its own.
-
-  The page you are on is named but never linked, since it is a position rather than a
-  destination, and neither is an ancestor whose slug is untranslated in the active locale — the
-  same pages the router already refuses to serve there. In front of the trail sits a **back
-  link** to the page above: a plain `<a>`, so it survives a visitor arriving from a search
-  result and a crawler follows it, upgraded by Alpine to the browser's own back when the
-  referrer *is* that page — which returns a filtered, scrolled overview exactly as they left it,
-  for no request.
-
-  Editors get a **"Toon kruimelpad" switch per page** (new `breadcrumb` column, on by default);
-  a content item follows the overview page it lives under. Existing sites need the column added
-  by hand — the migration stub only runs on a fresh install.
-
-- **The `BreadcrumbList` structured data now describes the whole trail**, on ordinary pages too.
-  It used to be written by the item schema partial, listing two steps and skipping the homepage,
-  and it was the only place a page's position was recorded. It is emitted from the same trail the
-  visitor sees, so the two cannot drift apart.
-
-- **A starter test for what the section views render**, covering the above: the carousel opens
-  and closes exactly once whichever slide is switched off, the white text follows its switch, and
-  a text section saved under `dark_background` still comes out white.
 
 ## [0.10.12] — 2026-07-20
 

@@ -8,6 +8,7 @@ use App\Models\Page;
 use Database\Seeders\NewsSeeder;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Tests\Concerns\ResolvesContentPaths;
 use Tests\TestCase;
 
@@ -120,6 +121,65 @@ class BreadcrumbTest extends TestCase
             array_column($schema['itemListElement'], 'name')
         );
         $this->assertSame(url($this->pathTo($page)), $schema['itemListElement'][2]['item']);
+
+        // Every step but the last has a URL of its own, and the last one names the page
+        // being looked at: a ListItem without an item is not a step a crawler can follow.
+        foreach ($schema['itemListElement'] as $step) {
+            $this->assertArrayHasKey('item', $step);
+        }
+    }
+
+    /**
+     * An ancestor with no slug in this locale — a page that only groups its children —
+     * is worth naming and not worth linking. It has to leave the structured data
+     * altogether though, since a ListItem without an item is one a crawler cannot
+     * follow, and the steps behind it close up.
+     *
+     * Rendered rather than requested: the router refuses the whole branch under a
+     * slugless page, while the trail is still built wherever such a page is shown.
+     */
+    public function test_an_ancestor_without_a_slug_is_named_but_left_out_of_the_structured_data(): void
+    {
+        [$page, $parent] = $this->nestedPage();
+        $home = Page::findOrFail(1);
+
+        // Without the events: HasSlug would fill the slug back in on save.
+        Page::withoutEvents(function () use ($parent): void {
+            $parent->setTranslation('slug', app()->getLocale(), '');
+            $parent->save();
+        });
+
+        $html = Blade::render('<x-breadcrumbs :page="$page" />', ['page' => $page->fresh()]);
+
+        $this->assertStringContainsString('<span>'.$parent->title.'</span>', $html);
+        $this->assertStringNotContainsString('>'.$parent->title.'</a>', $html);
+
+        $schema = collect($this->jsonLd($html))->firstWhere('@type', 'BreadcrumbList');
+        $this->assertSame([$home->title, $page->title], array_column($schema['itemListElement'], 'name'));
+        $this->assertSame([1, 2], array_column($schema['itemListElement'], 'position'));
+    }
+
+    /**
+     * A title is editor input and lands in a <script> block. Holding </script> it would
+     * close that block early and put the rest of the page's own markup inside it.
+     */
+    public function test_a_title_cannot_break_out_of_the_structured_data(): void
+    {
+        [$page] = $this->nestedPage();
+
+        // Without the events, so the slug this page is requested at stays what it was.
+        Page::withoutEvents(function () use ($page): void {
+            $page->title = 'Bre</script><script>alert(1)</script>ak';
+            $page->save();
+        });
+
+        $html = $this->get($this->pathTo($page))->assertOk()->getContent();
+
+        $this->assertStringContainsString('</script>', $html);
+
+        $schema = collect($this->jsonLd($html))->firstWhere('@type', 'BreadcrumbList');
+        $this->assertNotNull($schema, 'The block has to stay parsable with a title like that in it');
+        $this->assertSame($page->fresh()->title, end($schema['itemListElement'])['name']);
     }
 
     /**

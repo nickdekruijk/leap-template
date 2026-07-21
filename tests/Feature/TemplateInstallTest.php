@@ -8,75 +8,26 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use NickDeKruijk\Leap\Commands\UserCommand;
 use NickDeKruijk\Leap\ServiceProvider;
+use NickDeKruijk\LeapTemplate\Tests\Concerns\BuildsTempApp;
 use NickDeKruijk\LeapTemplate\Tests\Fixtures\User;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
 
 class TemplateInstallTest extends TestCase
 {
-    private string $temp;
-
-    private string $originalCwd;
+    use BuildsTempApp;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->originalCwd = getcwd();
-        $this->temp = sys_get_temp_dir().'/leap-template-'.uniqid();
-
-        // Minimal Laravel-app skeleton: the directories a bare app already ships with,
-        // plus the files the patch steps expect to edit. Deliberately not app/Leap,
-        // app/Livewire, app/Support, lang, public/css or tests/Feature — those are the
-        // ones copyOrReplace has to create on its own.
-        foreach ([
-            'app/Http/Controllers', 'app/Models', 'database/migrations',
-            'database/seeders', 'config', 'public', 'tests', 'routes',
-        ] as $dir) {
-            mkdir($this->temp.'/'.$dir, 0777, true);
-        }
-
-        // leap's shipped config lives in the leap package, not this one — locate it by
-        // reflecting on its ServiceProvider (works via vendor or the local path repo).
-        $leapConfig = dirname((new \ReflectionClass(ServiceProvider::class))->getFileName(), 2).'/config/leap.php';
-        copy($leapConfig, $this->temp.'/config/leap.php');
-        file_put_contents($this->temp.'/routes/web.php', "<?php\n\nRoute::get('/', function () {\n    return view('welcome');\n});\n");
-        file_put_contents($this->temp.'/database/seeders/DatabaseSeeder.php', "<?php\n\nnamespace Database\\Seeders;\n\nuse Illuminate\\Database\\Seeder;\n\nclass DatabaseSeeder extends Seeder\n{\n    public function run(): void\n    {\n    }\n}\n");
-        file_put_contents($this->temp.'/app/Models/User.php', "<?php\n\nnamespace App\\Models;\n\nclass User {}\n");
-        file_put_contents($this->temp.'/.env', "APP_LOCALE=en\nAPP_FALLBACK_LOCALE=en\n");
-
-        // One of the two compiled-asset rules is already here, so a re-run has to
-        // add the missing one without duplicating the other
-        file_put_contents($this->temp.'/.gitignore', "/vendor\n/public/css/builds\n");
-
-        $this->app->setBasePath($this->temp);
-        chdir($this->temp);
-
-        // storage:link reads filesystems.links, which was resolved against the real
-        // application path before the base path moved here
-        mkdir($this->temp.'/storage/app/public', 0777, true);
-        config(['filesystems.links' => [
-            $this->temp.'/public/storage' => $this->temp.'/storage/app/public',
-        ]]);
+        $this->buildTempApp();
     }
 
     protected function tearDown(): void
     {
-        chdir($this->originalCwd);
-        $this->deleteDir($this->temp);
+        $this->removeTempApp();
 
         parent::tearDown();
-    }
-
-    private function deleteDir(string $dir): void
-    {
-        if (! is_dir($dir)) {
-            return;
-        }
-        foreach (array_diff(scandir($dir), ['.', '..']) as $entry) {
-            $path = $dir.'/'.$entry;
-            is_dir($path) ? $this->deleteDir($path) : @unlink($path);
-        }
-        @rmdir($dir);
     }
 
     /**

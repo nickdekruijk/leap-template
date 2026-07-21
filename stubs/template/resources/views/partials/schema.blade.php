@@ -19,4 +19,6 @@
         'endDate' => ($isEvent && ! empty($item->ends_at)) ? $item->ends_at->toIso8601String() : null,
     ]);
 @endphp
-<script type="application/ld+json">{!! json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+{{-- JSON_HEX_TAG: a title or intro holding </script> would otherwise close this block
+     early. Every parser reads < back as <. --}}
+<script type="application/ld+json">{!! json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>

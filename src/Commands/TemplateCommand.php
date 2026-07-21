@@ -379,35 +379,50 @@ class TemplateCommand extends Command
     protected function ignoreCompiledAssets(): void
     {
         $file = base_path('.gitignore');
-        if (! file_exists($file)) {
+        $missing = $this->missingGitignoreRules();
+
+        if (! $missing || ! file_exists($file)) {
             return;
         }
 
-        // Read the route from the config file on disk, not from config(): this runs
-        // after the template drops its own config/imageresize.php in, and the booted
-        // config still holds whatever was loaded at startup — the package default on
-        // a fresh install. Ignoring the wrong directory means the cache lands in git
-        // and nobody notices.
+        $contents = file_get_contents($file);
+        file_put_contents($file, rtrim($contents, "\n")."\n".implode("\n", $missing)."\n");
+        $this->info('Added '.implode(' and ', $missing).' to .gitignore (compiled on request, not source)');
+    }
+
+    /**
+     * The rules ignoreCompiledAssets() would add: the ones not in .gitignore yet. Empty
+     * when they are all there, and when there is no .gitignore at all — a project without
+     * one is not being told what is missing from it.
+     *
+     * Separate from the step above because --diff reports what it would do without doing
+     * it.
+     *
+     * @return array<int, string>
+     */
+    protected function missingGitignoreRules(): array
+    {
+        $file = base_path('.gitignore');
+        if (! file_exists($file)) {
+            return [];
+        }
+
+        // Read the route from the config file on disk, not from config(): the install
+        // drops its own config/imageresize.php in first, and the booted config still
+        // holds whatever was loaded at startup — the package default on a fresh install.
+        // Ignoring the wrong directory means the cache lands in git and nobody notices.
         $route = 'media/resized';
         $config = base_path('config/imageresize.php');
         if (file_exists($config)) {
             $route = (include $config)['route'] ?? $route;
         }
 
-        $cache = '/'.trim($route, '/');
-
         $contents = file_get_contents($file);
-        $missing = array_values(array_filter(
-            ['/public/css/builds', '/public/js/builds', '/public'.$cache],
+
+        return array_values(array_filter(
+            ['/public/css/builds', '/public/js/builds', '/public/'.trim($route, '/')],
             fn (string $rule): bool => ! preg_match('#^\s*'.preg_quote($rule, '#').'/?\s*$#m', $contents),
         ));
-
-        if (! $missing) {
-            return;
-        }
-
-        file_put_contents($file, rtrim($contents, "\n")."\n".implode("\n", $missing)."\n");
-        $this->info('Added '.implode(' and ', $missing).' to .gitignore (compiled on request, not source)');
     }
 
     /**
@@ -420,7 +435,11 @@ class TemplateCommand extends Command
      */
     protected function routeExists(string $needle): bool
     {
-        return str_contains(file_get_contents(base_path('routes/web.php')), $needle);
+        $file = base_path('routes/web.php');
+
+        // No routes file at all counts as "not there": --diff asks this of any project it
+        // is pointed at, and the installer only ever asks inside a Laravel app.
+        return file_exists($file) && str_contains((string) file_get_contents($file), $needle);
     }
 
     /**
@@ -513,22 +532,31 @@ class TemplateCommand extends Command
     }
 
     /**
-     * Report how the project's template files differ from the current stubs,
-     * without changing anything. Shows a unified diff per changed file when the
-     * `diff` binary is available, and lists files that are new or unchanged.
+     * Report how this project stands next to the current template, without changing
+     * anything: which files drifted, which strings and columns an upgrade added, and
+     * which install steps are not (or no longer) in place.
+     *
+     * The files are only half the story. A release that adds a column or a translation
+     * key touches nothing a sha1 can see — the project's own database and lang file are
+     * simply behind, and the failure shows up as an admin that will not save or a Dutch
+     * page in English. Those are the two upgrades this reports on top of the diff.
+     *
+     * Reads only, and always returns 0: a report is not a check, and something has to be
+     * safe to run in a project that is deliberately customised.
      */
     public function showDiff(): int
     {
         $stubBase = realpath(__DIR__.'/../../stubs/template');
         $changed = $new = $unchanged = [];
+        $issues = 0;
+        $diffBinaryMissing = false;
 
         foreach ($this->templateFiles() as $relative) {
-            $stub = $stubBase.'/'.$relative;
             $project = base_path($relative);
 
             if (! file_exists($project)) {
                 $new[] = $relative;
-            } elseif (sha1_file($stub) === sha1_file($project)) {
+            } elseif (sha1_file($stubBase.'/'.$relative) === sha1_file($project)) {
                 $unchanged[] = $relative;
             } else {
                 $changed[] = $relative;
@@ -538,8 +566,25 @@ class TemplateCommand extends Command
         foreach ($changed as $relative) {
             $this->newLine();
             $this->line('<fg=yellow>changed:</> '.$relative);
+
+            // A translation file is not a copy of the stub and is not meant to become one:
+            // the site has its own strings, and `lang:add` merges Laravel's whole
+            // vocabulary into it. Only one direction is drift — a key the template added
+            // that this project never got — so that is all this reports. A unified diff
+            // here is hundreds of lines of the project's own translations.
+            if (str_starts_with($relative, 'lang/') && str_ends_with($relative, '.json')) {
+                $issues += $this->reportMissingTranslationKeys($stubBase.'/'.$relative, $project);
+
+                continue;
+            }
+
             $output = [];
-            exec('diff -u '.escapeshellarg(base_path($relative)).' '.escapeshellarg($stubBase.'/'.$relative).' 2>/dev/null', $output);
+            exec('diff -u '.escapeshellarg($project).' '.escapeshellarg($stubBase.'/'.$relative).' 2>/dev/null', $output);
+
+            if (! $output) {
+                $diffBinaryMissing = true;
+            }
+
             foreach ($output as $line) {
                 if (str_starts_with($line, '+')) {
                     $this->line('<fg=green>'.$line.'</>');
@@ -551,14 +596,231 @@ class TemplateCommand extends Command
             }
         }
 
+        if ($diffBinaryMissing) {
+            $this->newLine();
+            $this->line('  (no line-by-line diff: the `diff` binary is not on this PATH)');
+        }
+
+        if ($new) {
+            $this->newLine();
+        }
         foreach ($new as $relative) {
             $this->line('<fg=blue>new:</>     '.$relative.' (not in this project yet)');
         }
 
+        $issues += $this->reportMissingColumns($stubBase);
+        $issues += $this->reportInstallSteps();
+
         $this->newLine();
-        $this->info(count($changed).' changed, '.count($new).' new, '.count($unchanged).' unchanged.');
+        $this->info(count($changed).' changed, '.count($new).' new, '.count($unchanged).' unchanged, '.$issues.' to fix.');
 
         return 0;
+    }
+
+    /**
+     * List the keys the stub translation has and the project's copy does not, with the
+     * stub's translation, so adopting one is copy and paste. Returns how many there are.
+     */
+    protected function reportMissingTranslationKeys(string $stub, string $project): int
+    {
+        $stubKeys = json_decode((string) file_get_contents($stub), true);
+        $projectKeys = json_decode((string) file_get_contents($project), true);
+
+        // Not JSON we can read: fall back to saying nothing rather than guessing.
+        if (! is_array($stubKeys) || ! is_array($projectKeys)) {
+            $this->line('  (not valid JSON — compare it by hand)');
+
+            return 0;
+        }
+
+        $missing = array_diff_key($stubKeys, $projectKeys);
+
+        if (! $missing) {
+            $this->line('  all '.count($stubKeys).' template strings are there (the rest is yours)');
+
+            return 0;
+        }
+
+        $this->line('  <fg=red>'.count($missing).' of '.count($stubKeys).' template strings missing:</>');
+        foreach ($missing as $key => $translation) {
+            $this->line('    '.json_encode([$key => $translation], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        }
+
+        return count($missing);
+    }
+
+    /**
+     * Report columns the stub migrations declare and the project's tables do not have.
+     *
+     * A create-table migration only runs on a fresh install, so every column a release
+     * adds is invisible to an existing project until its admin refuses to save. Reading
+     * the stub rather than listing known columns means the next one is caught too.
+     *
+     * Implicit columns — id(), timestamps(), softDeletes() — are left out: they are not
+     * what drifts, and matching them would take a Blueprint rather than a regex.
+     */
+    protected function reportMissingColumns(string $stubBase): int
+    {
+        $reported = 0;
+
+        foreach ($this->templateFiles() as $relative) {
+            if (! str_starts_with($relative, 'database/migrations/')) {
+                continue;
+            }
+
+            $stub = (string) file_get_contents($stubBase.'/'.$relative);
+
+            if (! preg_match("/Schema::create\('([a-z0-9_]+)'/", $stub, $table)) {
+                continue;
+            }
+
+            // No table is not drift but an unanswered question: a project that never
+            // migrated, or a --diff run without a database behind it.
+            if (! $this->tableExists($table[1])) {
+                continue;
+            }
+
+            $expected = $this->expectedColumns($stub);
+            $missing = array_diff(array_keys($expected), Schema::getColumnListing($table[1]));
+
+            foreach ($missing as $column) {
+                if ($reported === 0) {
+                    $this->newLine();
+                    $this->line('<fg=yellow>schema:</>');
+                }
+                $reported++;
+
+                $this->line('  <fg=red>'.$table[1].' has no '.$column.' column</> — added by a later template release');
+                // The stub's own line, so the migration that adds it can be copied out.
+                $this->line('    '.$expected[$column]);
+                $this->line('    php artisan make:migration add_'.$column.'_to_'.$table[1].'_table');
+            }
+        }
+
+        return $reported;
+    }
+
+    /**
+     * The columns a create-table migration declares, as column => the line that declares
+     * it. Line by line, so the declaration comes along for free and can be printed next
+     * to a column that is missing.
+     *
+     * A method whose first argument is not a column of that name is either expanded
+     * (morphs('taggable') is taggable_type + taggable_id) or dropped (an index is not a
+     * column). Everything else — boolean, json, foreignId, foreignIdFor(Model::class,
+     * 'parent') — names its column first, which is what the pattern reads.
+     *
+     * @return array<string, string>
+     */
+    protected function expectedColumns(string $stub): array
+    {
+        $columns = [];
+
+        foreach (explode("\n", $stub) as $line) {
+            if (! preg_match("/\\\$table->(\w+)\(\s*(?:[A-Za-z0-9_\\\\]+::class,\s*)?'([a-z0-9_]+)'/", $line, $call)) {
+                continue;
+            }
+
+            [, $method, $name] = $call;
+
+            if (in_array($method, ['index', 'unique', 'primary', 'fullText', 'spatialIndex', 'foreign', 'rename', 'comment'], true)) {
+                continue;
+            }
+
+            $names = str_ends_with(strtolower($method), 'morphs') ? [$name.'_type', $name.'_id'] : [$name];
+
+            foreach ($names as $column) {
+                $columns[$column] = trim($line);
+            }
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Check the steps the installer takes that leave no trace in a template file: the
+     * routes, the storage link, the .gitignore rules, the seeder and the User model.
+     * Each of them can be absent in a project whose files are perfectly up to date —
+     * a step that was skipped once, or undone later — and each one fails quietly.
+     *
+     * A step that does not apply (no config/leap.php, no DatabaseSeeder) is left out
+     * rather than reported as wrong.
+     */
+    protected function reportInstallSteps(): int
+    {
+        $checks = [
+            ['the catch-all route', $this->routeExists("PageController::class, 'route'"), 'without it / is a 404'],
+            ['the sitemap route', $this->routeExists("PageController::class, 'sitemap'"), '/sitemap.xml is not served'],
+            ['public/storage', file_exists(public_path('storage')), 'php artisan storage:link — no uploaded image resolves'],
+        ];
+
+        if ($missing = $this->missingGitignoreRules()) {
+            $checks[] = ['.gitignore', false, 'add '.implode(' and ', $missing).' — compiled on request, not source'];
+        } else {
+            $checks[] = ['.gitignore', true, ''];
+        }
+
+        if (file_exists($config = base_path('config/leap.php'))) {
+            $checks[] = [
+                'tinymce content_css',
+                ! str_contains((string) file_get_contents($config), "// 'content_css' => '/css/tinymce.css',"),
+                'uncomment leap.tinymce.options.content_css — rich text in the admin does not match the site',
+            ];
+        }
+
+        if (file_exists($seeder = base_path('database/seeders/DatabaseSeeder.php'))) {
+            $contents = (string) file_get_contents($seeder);
+
+            if (file_exists(base_path('database/seeders/PageSeeder.php'))) {
+                $checks[] = ['PageSeeder registered', str_contains($contents, 'PageSeeder'), 'php artisan db:seed skips the sample pages'];
+            }
+
+            $checks[] = [
+                'model events during seeding',
+                ! str_contains($contents, 'WithoutModelEvents'),
+                'remove the trait — leap generates slugs on a model event, so seeded items get none',
+            ];
+        }
+
+        if (file_exists($user = base_path('app/Models/User.php'))) {
+            $contents = (string) file_get_contents($user);
+            $patched = $this->patchedUserModel($contents);
+
+            $checks[] = [
+                'Leap traits on User',
+                $patched === $contents,
+                $patched === null
+                    ? 'app/Models/User.php is not a shape this can read — add the traits by hand'
+                    : 'php artisan leap:template adds them — /admin has no roles and no passkey login without them',
+            ];
+        }
+
+        if ($missing = $this->missingFrontendPackages()) {
+            $checks[] = ['frontend packages', false, 'composer require '.implode(' ', $missing)];
+        } else {
+            $checks[] = ['frontend packages', true, ''];
+        }
+
+        foreach ($this->localesMissingFrameworkTranslations() as $code) {
+            $checks[] = ["Laravel's own strings in {$code}", false, 'php artisan lang:add '.$code.' — validation errors and password mails stay English'];
+        }
+
+        $this->newLine();
+        $this->line('<fg=yellow>install:</>');
+
+        $failed = 0;
+        foreach ($checks as [$label, $ok, $fix]) {
+            if ($ok) {
+                $this->line('  <fg=green>✓</> <fg=gray>'.$label.'</>');
+
+                continue;
+            }
+
+            $failed++;
+            $this->line('  <fg=red>✗ '.$label.'</> — '.$fix);
+        }
+
+        return $failed;
     }
 
     /**
@@ -633,9 +895,10 @@ class TemplateCommand extends Command
         // three of five is not a choice anyone means to make.
         $this->copyGroup(
             'the starter tests',
-            'Cover the code just copied — routing, slugs, locales, search and the SEO tags. They run in your own suite.',
+            'Cover the code just copied — routing, slugs, locales, search, the breadcrumb and the SEO tags. They run in your own suite.',
             [
                 'tests/Concerns/ResolvesContentPaths.php' => 'Content path helper',
+                'tests/Feature/BreadcrumbTest.php' => 'Breadcrumb test',
                 'tests/Feature/PageRoutingTest.php' => 'PageRouting test',
                 'tests/Feature/SectionAttributeTest.php' => 'Section attribute test',
                 'tests/Feature/HasSlugTest.php' => 'HasSlug test',
@@ -1475,26 +1738,48 @@ class TemplateCommand extends Command
     }
 
     /**
-     * Suggest installing the composer packages the frontend template relies on.
-     * They are kept out of leap's own "require" so existing projects are never
-     * forced to pull them; the template opts in here.
+     * The composer packages the frontend template relies on, as constraint => why.
+     * They are kept out of leap's own "require" so existing projects are never forced
+     * to pull them; the template opts in.
      *
      * minify carries a version constraint: from 4.0 its default import paths are
      * absolute and it compiles during tests, which is what the template relies on
      * instead of shipping a config of its own. On 3.x the suite would silently read
      * whatever build an earlier browser request left behind.
+     *
+     * @return array<string, string>
      */
-    public function suggestFrontendPackages(): void
+    protected function frontendPackages(): array
     {
-        $packages = [
+        return [
             'nickdekruijk/minify:^4.0' => 'SCSS compilation and JS bundling',
             'nickdekruijk/settings' => 'admin-editable settings + footer',
             'nickdekruijk/imageresize' => 'responsive asset_resized() images',
             'nickdekruijk/vanilla-slider' => 'carousel',
             'nickdekruijk/horizontal-scroller' => 'horizontal-scroll sections',
         ];
+    }
 
-        $missing = array_filter(array_keys($packages), fn (string $package): bool => ! is_dir(base_path('vendor/'.Str::before($package, ':'))));
+    /**
+     * Which of those are not in vendor/, as the constraints `composer require` takes.
+     *
+     * @return array<int, string>
+     */
+    protected function missingFrontendPackages(): array
+    {
+        return array_values(array_filter(
+            array_keys($this->frontendPackages()),
+            fn (string $package): bool => ! is_dir(base_path('vendor/'.Str::before($package, ':'))),
+        ));
+    }
+
+    /**
+     * Suggest installing the packages above.
+     */
+    public function suggestFrontendPackages(): void
+    {
+        $packages = $this->frontendPackages();
+        $missing = $this->missingFrontendPackages();
 
         if (empty($missing)) {
             return;
@@ -1556,7 +1841,7 @@ class TemplateCommand extends Command
         // English needs nothing: Laravel's own strings are already English. A locale whose
         // directory is there was published before — this is a re-run, not a second install.
         $candidates = array_values(array_filter($this->locales, fn (string $code): bool => $code !== 'en'));
-        $missing = array_values(array_filter($candidates, fn (string $code): bool => ! is_dir(base_path('lang/'.$code))));
+        $missing = $this->localesMissingFrameworkTranslations($candidates);
 
         // …unless installTranslations() just put the bare stub back over a lang/<code>.json
         // that laravel-lang had merged its own keys into, which a re-run does whenever you
@@ -1630,6 +1915,45 @@ class TemplateCommand extends Command
         // laravel-lang does not know throws, and artisan() prints that without failing the run,
         // so the language simply stays English.
         $this->artisan(array_merge(['lang:add'], $missing, $repair));
+    }
+
+    /**
+     * Which locales have no lang/<code>/ — so Laravel's own strings are still English there.
+     * English is never among them: those strings already are English.
+     *
+     * Defaults to the locales the project is configured for, which is what --diff has to go
+     * on; an install passes the ones it just picked, since leap.locales is written in the
+     * same run and the booted config may still hold the old value.
+     *
+     * @param  array<int, string>|null  $locales
+     * @return array<int, string>
+     */
+    protected function localesMissingFrameworkTranslations(?array $locales = null): array
+    {
+        $locales ??= $this->configuredLocales();
+
+        return array_values(array_filter(
+            $locales,
+            fn (string $code): bool => $code !== 'en' && ! is_dir(base_path('lang/'.$code)),
+        ));
+    }
+
+    /**
+     * The locale codes this project serves: the keys of leap.locales, or the app locale on
+     * its own when the site is monolingual (leap.locales is null then).
+     *
+     * @return array<int, string>
+     */
+    protected function configuredLocales(): array
+    {
+        // From the file on disk rather than config(), like every other step that reads a
+        // config the install may have rewritten in this very run — see missingGitignoreRules().
+        $config = base_path('config/leap.php');
+        $locales = file_exists($config) ? (include $config)['locales'] ?? null : config('leap.locales');
+
+        return is_array($locales) && $locales !== []
+            ? array_map('strval', array_keys($locales))
+            : [config('app.locale', 'en')];
     }
 
     /**
