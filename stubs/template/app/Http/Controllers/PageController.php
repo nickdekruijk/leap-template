@@ -181,6 +181,44 @@ class PageController extends Controller
     }
 
     /**
+     * Which section carries the page's h1: the first one that renders a heading and has
+     * it filled in. A quote is skipped — it renders a blockquote, not a heading — and so
+     * is a video, whose head is a screen-reader label on the play button. A slide only
+     * counts when it stands alone in its run: a carousel swaps its content, so no single
+     * slide holds a heading a visitor can rely on finding, but one slide is a static hero
+     * rather than a carousel.
+     *
+     * Returns the index in the given collection, so pass it values()'d — sections() sorts
+     * and filters, which leaves the original keys behind. Null when no section qualifies;
+     * the page then has no h1, which beats an empty one.
+     *
+     * @param  Collection<int, mixed>  $sections
+     */
+    public static function headingSectionIndex(Collection $sections): ?int
+    {
+        $index = $sections->search(function (mixed $section): bool {
+            if (blank($section['head'] ?? null)) {
+                return false;
+            }
+
+            $name = $section['_name'] ?? null;
+            $view = $section['_view'] ?? 'sections.'.$name;
+
+            if ($name === 'quote' || $view === 'sections.video') {
+                return false;
+            }
+
+            if ($view === 'sections.slide') {
+                return ! empty($section['_first']) && ! empty($section['_last']);
+            }
+
+            return true;
+        });
+
+        return $index === false ? null : $index;
+    }
+
+    /**
      * Load the active pages grouped by parent id (segment-independent). getPages()
      * memoizes this per request via once(); pages are few, so there is no persistent
      * cache to invalidate.

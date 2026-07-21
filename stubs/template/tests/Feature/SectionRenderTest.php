@@ -136,4 +136,86 @@ class SectionRenderTest extends TestCase
         $this->assertSame(1, substr_count($html, '<section class="slider"'));
         $this->assertSame(1, substr_count($html, 'slider-dots'));
     }
+
+    /**
+     * A carousel swaps its content every few seconds, so the heading a visitor happens to
+     * land on is not the one the page is about. The h1 goes to the first section below it
+     * that renders a heading of its own.
+     */
+    public function test_a_carousel_carries_no_h1(): void
+    {
+        $this->page([$this->slide(1), $this->slide(2), $this->text(3)]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'), 'The page has exactly one h1.');
+        $this->assertStringContainsString('<h1>After the carousel</h1>', $html);
+        $this->assertSame(2, substr_count($html, '<p class="head">'), 'Both slide headings are paragraphs.');
+    }
+
+    /**
+     * One slide is a static hero rather than a carousel: nothing swaps it out, so its
+     * heading is the one the page is about.
+     */
+    public function test_a_lone_slide_carries_the_h1(): void
+    {
+        $this->page([$this->slide(1), $this->text(2)]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1 class="head">Slide 1</h1>', $html);
+        $this->assertStringContainsString('<h2>After the carousel</h2>', $html);
+    }
+
+    /**
+     * Which is decided on what is actually shown: switch a slide off and the one left over
+     * is a hero, so it takes the h1 the pair of them could not have.
+     */
+    public function test_the_only_active_slide_of_a_run_carries_the_h1(): void
+    {
+        $this->page([$this->slide(1), $this->slide(2, active: false), $this->text(3)]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1 class="head">Slide 1</h1>', $html);
+    }
+
+    /**
+     * A quote renders a blockquote and a video's head is a screen-reader label on the play
+     * button — neither is a heading, so neither can be the page's h1.
+     */
+    public function test_a_quote_or_a_video_hands_the_h1_on(): void
+    {
+        $this->page([
+            ['_name' => 'quote', '_view' => 'sections.default', '_sort' => 1, 'active' => true, 'head' => 'Quoted'],
+            ['_name' => 'video', '_sort' => 2, 'active' => true, 'head' => 'Watch this', 'video_id' => 'dQw4w9WgXcQ'],
+            $this->text(3),
+        ]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1>After the carousel</h1>', $html);
+    }
+
+    /**
+     * An empty <h1></h1> is worse than no heading at all, and it would leave the section
+     * that does have one below an h2 with nothing above it.
+     */
+    public function test_an_empty_heading_renders_no_tag_and_hands_the_h1_on(): void
+    {
+        $this->page([
+            ['_name' => 'default', '_sort' => 1, 'active' => true, 'head' => '', 'body' => '<p>No heading here</p>'],
+            $this->text(2),
+        ]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('<h1></h1>', $html);
+        $this->assertStringNotContainsString('<h2></h2>', $html);
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1>After the carousel</h1>', $html);
+    }
 }

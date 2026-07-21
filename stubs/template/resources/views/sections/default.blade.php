@@ -16,10 +16,15 @@
                     <p class="quote-source">&mdash; {!! $section['body'] !!}</p>
                 @endisset
             @else
-                {{-- The first section carries the page's h1 — except on an item, whose
-                     header already has one; a second h1 there would compete with it. --}}
-                @php($level = $loop->first && empty($hasHeading) ? 'h1' : 'h2')
-                <{{ $level }}>{!! $section['head'] !!}</{{ $level }}>
+                {{-- The heading level is decided by the page (see page.blade.php), which is
+                     the only place that can see whether an earlier section already held a
+                     heading. An empty head renders no tag at all: a bare <h1></h1> is worse
+                     for search engines and screen readers than no heading. A missing
+                     translation is an empty string rather than null, hence filled(). --}}
+                @php($headLevel = $headLevel ?? 'h2')
+                @if (filled($section['head'] ?? null))
+                    <{{ $headLevel }}>{!! $section['head'] !!}</{{ $headLevel }}>
+                @endif
                 {!! $section['body'] ?? '' !!}
             @endif
         </article>

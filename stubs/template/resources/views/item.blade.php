@@ -63,8 +63,10 @@
             </div>
         </header>
 
+        {{-- Always h2: the header above already carries this page's h1, and a second one
+             would compete with it. --}}
         @foreach ($page->sections() as $section)
-            @include($section->_view ?? 'sections.' . $section->_name, ['hasHeading' => true])
+            @include($section->_view ?? 'sections.' . $section->_name, ['headLevel' => 'h2'])
         @endforeach
     </main>
 @endsection

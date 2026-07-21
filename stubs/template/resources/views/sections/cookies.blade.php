@@ -11,7 +11,8 @@
     <div class="main-width">
         <article class="article">
             @isset($section->head)
-                <h2>{{ $section->head }}</h2>
+                @php($headLevel = $headLevel ?? 'h2')
+                <{{ $headLevel }}>{{ $section->head }}</{{ $headLevel }}>
             @endisset
 
             {!! $section->body ?? '' !!}

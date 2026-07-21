@@ -12,6 +12,7 @@
     'layout' => 'items-grid',
     'columns' => null,
     'head' => null,
+    'headLevel' => 'h2',
     'link' => null,
     'linkLabel' => null,
     'tags' => null,
@@ -34,7 +35,7 @@
     <div class="main-width">
         <div class="items-header">
             @isset($head)
-                <h2 id="{{ Str::slug($head) }}">{{ $head }}</h2>
+                <{{ $headLevel }} id="{{ Str::slug($head) }}">{{ $head }}</{{ $headLevel }}>
             @endisset
             @isset($link, $linkLabel)
                 <a class="items-link" href="{{ $link }}">{{ $linkLabel }}</a>

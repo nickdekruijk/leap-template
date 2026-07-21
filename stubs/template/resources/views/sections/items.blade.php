@@ -42,6 +42,7 @@
     layout="items-{{ $layout }}"
     :columns="$section['columns'] ?? null"
     :head="$section->head ?? null"
+    :head-level="$headLevel ?? 'h2'"
     :link="$link"
     :link-label="$linkLabel"
     :items="$items"

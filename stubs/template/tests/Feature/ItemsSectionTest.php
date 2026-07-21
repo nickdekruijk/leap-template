@@ -129,6 +129,66 @@ class ItemsSectionTest extends TestCase
     }
 
     /**
+     * An overview page is a page with one card row on it, so that row's heading is the
+     * only thing on it that can be the page's h1 — it used to be hard-coded to h2, which
+     * left news and events without one.
+     */
+    public function test_the_heading_of_a_full_overview_is_the_pages_h1(): void
+    {
+        $this->seedNews(4);
+        $page = $this->makePage(
+            array_fill_keys($this->locales(), 'Nieuwsoverzicht'),
+            [['_name' => 'news', '_view' => 'sections.items', '_sort' => 0, 'active' => true, 'head' => array_fill_keys($this->locales(), 'Al het nieuws')]],
+        );
+
+        $html = $this->get('/'.$page->slug)->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1 id="al-het-nieuws">Al het nieuws</h1>', $html);
+    }
+
+    /**
+     * A teaser sits below a section that already holds the h1, so it steps down to h2.
+     */
+    public function test_a_card_row_below_a_text_section_is_an_h2(): void
+    {
+        $this->seedNews(4);
+        $page = $this->makePage(
+            array_fill_keys($this->locales(), 'Home'),
+            [
+                ['_name' => 'default', '_view' => 'sections.default', '_sort' => 0, 'active' => true, 'head' => array_fill_keys($this->locales(), 'Welkom')],
+                ['_name' => 'news', '_view' => 'sections.items', '_sort' => 1, 'active' => true, 'limit' => 2, 'head' => array_fill_keys($this->locales(), 'Laatste nieuws')],
+            ],
+        );
+
+        $html = $this->get('/'.$page->slug)->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1>Welkom</h1>', $html);
+        $this->assertStringContainsString('<h2 id="laatste-nieuws">Laatste nieuws</h2>', $html);
+    }
+
+    /**
+     * A row without a heading renders none, so the h1 moves on to the section that has one.
+     */
+    public function test_a_card_row_without_a_heading_hands_the_h1_on(): void
+    {
+        $this->seedNews(4);
+        $page = $this->makePage(
+            array_fill_keys($this->locales(), 'Home'),
+            [
+                ['_name' => 'news', '_view' => 'sections.items', '_sort' => 0, 'active' => true, 'limit' => 2],
+                ['_name' => 'default', '_view' => 'sections.default', '_sort' => 1, 'active' => true, 'head' => array_fill_keys($this->locales(), 'Over ons')],
+            ],
+        );
+
+        $html = $this->get('/'.$page->slug)->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, '<h1'));
+        $this->assertStringContainsString('<h1>Over ons</h1>', $html);
+    }
+
+    /**
      * The overview page the teasers point at, plus enough items to be limited.
      */
     private function seedNews(int $count): void

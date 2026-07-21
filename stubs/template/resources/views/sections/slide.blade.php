@@ -15,12 +15,15 @@
             @endif
             <div class="main-width">
                 <div class="slide-content article{{ $whiteText === null ? '' : ($whiteText ? ' white-text' : ' dark-text') }}">
+                    {{-- A carousel carries no h1: its content is swapped every few seconds,
+                         so the heading a visitor lands on is not the one the page is about.
+                         A lone slide is a static hero rather than a carousel, and the page
+                         hands it the h1 then (see PageController::headingSectionIndex()).
+                         Anything else is a p — a run of slides must not build a heading
+                         structure of its own either. --}}
                     @isset($section->head)
-                        @if ($loop->first)
-                            <h1 class="head">{{ $section->head }}</h1>
-                        @else
-                            <p class="head">{{ $section->head }}</p>
-                        @endif
+                        @php($headTag = ($headLevel ?? 'h2') === 'h1' ? 'h1' : 'p')
+                        <{{ $headTag }} class="head">{{ $section->head }}</{{ $headTag }}>
                     @endisset
                     {!! $section->body ?? '' !!}
                 </div>
