@@ -23,6 +23,13 @@ composer require --dev nickdekruijk/leap-template  # scaffolding — dev only
 On production (`composer install --no-dev`) `leap-template` is not installed, so
 `leap:template`/`leap:content` don't exist there — zero footprint.
 
+## Live demo
+
+[leap.nickdekruijk.nl](https://leap.nickdekruijk.nl) is a stock `leap:template` install —
+that site is what these stubs produce. Log in on
+[/admin](https://leap.nickdekruijk.nl/admin) with `info@example.com` / `leapdemo` and
+change anything; the site resets to its seeded state 15 minutes after the last change.
+
 ## Commands
 
 ```bash
