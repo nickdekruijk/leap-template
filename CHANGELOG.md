@@ -21,6 +21,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `item.blade.php` is gone with it — `sections()` filters now, and doing it in the template
   was what broke the carousel.
 
+- **An overview page has an h1 again.** A news or events overview is a page with one card row on
+  it, and that row's heading was hard-coded to `h2` — so the page had no h1 at all, and the
+  heading rendered at body size on top of it, since `.article` (which restores heading sizes
+  after the reset) sits on the cards rather than on the row's header.
+
+  Which section carries the h1 is decided by the page now, in
+  `PageController::headingSectionIndex()`, and handed to each section as `headLevel`. It is the
+  first section that renders a heading *and* has it filled in — a rule the text section could not
+  apply on its own, because a section cannot see whether an earlier one already held a heading.
+  A quote and a video are skipped: neither renders a heading, and the h1 used to land on them and
+  disappear. `item.blade.php` hands out `h2` throughout, its header having the h1 already, which
+  is what the `hasHeading` flag used to say.
+
+- **A carousel no longer carries the h1.** It swaps its content every few seconds, so the heading
+  a visitor happens to land on — or that a screen reader reaches — is not the one the page is
+  about. Slide headings are `<p class="head">`, sized as before. A single slide is a static hero
+  rather than a carousel and does take the h1, which leans on leap 0.10.15 dropping inactive
+  sections before a run is marked: switch one of two slides off and the one left over is a hero.
+  A slide on an item detail page used to render a second h1 next to the item's title; it no
+  longer can.
+
+- **An empty heading renders no tag.** The text section wrote its tag unconditionally, so a
+  section with no heading left a bare `<h1></h1>` on the page — worse for search engines and
+  screen readers than no heading, and it took the h1 away from the section that did have one.
+
 ### Changed
 
 - **A background photo is shown as it was uploaded.** A text section with white text laid a 45%

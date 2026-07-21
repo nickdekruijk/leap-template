@@ -754,6 +754,9 @@ a[role="button"],
         // A row of cards is headed like any other section, but .article — which is what
         // restores a heading size after the reset — sits on the cards here, not on this
         // header. Without this the title of a news or events row rendered at body size.
+        // An overview page is a single card row, so its heading is the page's h1 and is
+        // sized like one; a row further down a page is an h2.
+        h1 { font-size: var(--fs-h1); }
         h2 { font-size: var(--fs-h2); }
     }
     .items-link:hover { color: var(--accent); }
