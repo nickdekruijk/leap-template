@@ -23,7 +23,11 @@ trait ContentSections
         return [
             Section::make('slide')->label(['nl' => 'Slide (carousel)', 'en' => 'Slide (carousel)'])->attributes(
                 Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
-                Attribute::make('white_text')->switch()->label(['nl' => 'Witte tekst (voor op donkere achtergrond)', 'en' => 'White text (for dark backgrounds)'])->default(false),
+                Attribute::make('white_text')->switch()->label(['nl' => 'Witte tekst', 'en' => 'White text'])->default(true)
+                    ->hint([
+                        'nl' => 'Staat standaard aan: een slide zonder afbeelding krijgt een donker verloop, en een slide-afbeelding is meestal donker. Zet uit bij een lichte afbeelding.',
+                        'en' => 'On by default: a slide without an image gets a dark gradient, and a slide image is usually dark. Switch off for a light image.',
+                    ]),
                 Attribute::make('head')->label(['nl' => 'Kop', 'en' => 'Heading'])->sectionTitle()->translatable(),
                 Attribute::make('image')->media(multiple: false)->required()->label(['nl' => 'Afbeelding of video (.mp4)', 'en' => 'Image or video (.mp4)']),
                 Attribute::make('body')->richtext()->label(['nl' => 'Tekst', 'en' => 'Text'])->translatable(),
@@ -34,27 +38,39 @@ trait ContentSections
                 Attribute::make('head')->required()->label(['nl' => 'Kop', 'en' => 'Heading'])->sectionTitle()->translatable(),
                 Attribute::make('image_position')->default('right')->label(['nl' => 'Positie afbeelding', 'en' => 'Image position'])->select()->values([
                     'none' => 'Geen afbeelding',
-                    'left' => 'Links vierkant',
-                    'right' => 'Rechts vierkant',
+                    'left' => 'Links',
+                    'right' => 'Rechts',
                     'bottom wide' => 'Breedbeeld (onder tekst)',
                 ]),
                 Attribute::make('image')->media()->label(['nl' => 'Afbeelding(en)', 'en' => 'Image(s)']),
                 Attribute::make('body')->richtext()->label(['nl' => 'Tekst', 'en' => 'Text'])->translatable(),
-                Attribute::make('dark_background')->switch()->label(['nl' => 'Donkere achtergrond (witte tekst)', 'en' => 'Dark background (white text)'])->default(false),
+                Attribute::make('white_text')->switch()->label(['nl' => 'Witte tekst', 'en' => 'White text'])->default(false)
+                    ->hint([
+                        'nl' => 'Voor een sectie met een donkere achtergrondfoto. Zonder achtergrondfoto krijgt de sectie een donker verloop. Links worden ook wit.',
+                        'en' => 'For a section with a dark background photo. Without a background photo the section gets a dark gradient. Links turn white too.',
+                    ]),
                 Attribute::make('background')->media(multiple: false)->label(['nl' => 'Achtergrondfoto (optioneel)', 'en' => 'Background photo (optional)']),
             ),
             Section::make('cta')->view('sections.default')->label(['nl' => 'Call to action', 'en' => 'Call to action'])->attributes(
                 Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
                 Attribute::make('head')->required()->label(['nl' => 'Kop', 'en' => 'Heading'])->sectionTitle()->translatable(),
                 Attribute::make('body')->richtext()->label(['nl' => 'Tekst', 'en' => 'Text'])->translatable(),
-                Attribute::make('dark_background')->switch()->label(['nl' => 'Donkere achtergrond (witte tekst)', 'en' => 'Dark background (white text)'])->default(false),
+                Attribute::make('white_text')->switch()->label(['nl' => 'Witte tekst', 'en' => 'White text'])->default(false)
+                    ->hint([
+                        'nl' => 'Voor een sectie met een donkere achtergrondfoto. Zonder achtergrondfoto krijgt de sectie een donker verloop. Links worden ook wit.',
+                        'en' => 'For a section with a dark background photo. Without a background photo the section gets a dark gradient. Links turn white too.',
+                    ]),
                 Attribute::make('background')->media(multiple: false)->label(['nl' => 'Achtergrondfoto (optioneel)', 'en' => 'Background photo (optional)']),
             ),
             Section::make('quote')->view('sections.default')->label(['nl' => 'Quote', 'en' => 'Quote'])->attributes(
                 Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
                 Attribute::make('head')->required()->label(['nl' => 'Quote', 'en' => 'Quote'])->sectionTitle()->translatable(),
                 Attribute::make('body')->label(['nl' => 'Van', 'en' => 'From'])->sectionTitle()->translatable(),
-                Attribute::make('dark_background')->switch()->label(['nl' => 'Donkere achtergrond (witte tekst)', 'en' => 'Dark background (white text)'])->default(false),
+                Attribute::make('white_text')->switch()->label(['nl' => 'Witte tekst', 'en' => 'White text'])->default(false)
+                    ->hint([
+                        'nl' => 'Voor een sectie met een donkere achtergrondfoto. Zonder achtergrondfoto krijgt de sectie een donker verloop. Links worden ook wit.',
+                        'en' => 'For a section with a dark background photo. Without a background photo the section gets a dark gradient. Links turn white too.',
+                    ]),
                 Attribute::make('background')->media(multiple: false)->label(['nl' => 'Achtergrondfoto (optioneel)', 'en' => 'Background photo (optional)']),
             ),
             Section::make('video')->label(['nl' => 'Video (breedbeeld)', 'en' => 'Video (full width)'])->attributes(

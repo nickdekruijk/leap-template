@@ -463,6 +463,7 @@ class TemplateCommand extends Command
             'tests/Feature/MultilingualTest.php',
             'tests/Feature/SearchTest.php',
             'tests/Feature/SeoTest.php',
+            'tests/Feature/SectionRenderTest.php',
         ];
 
         $stubBase = __DIR__.'/../../stubs/template';
@@ -633,6 +634,7 @@ class TemplateCommand extends Command
                 'tests/Feature/MultilingualTest.php' => 'Multilingual test',
                 'tests/Feature/SearchTest.php' => 'Search test',
                 'tests/Feature/SeoTest.php' => 'SEO test',
+                'tests/Feature/SectionRenderTest.php' => 'Section render test',
             ],
         );
 

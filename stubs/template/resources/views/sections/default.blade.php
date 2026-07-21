@@ -1,11 +1,12 @@
 @php($bg = ($section['background'] ?? null)?->first())
+{{-- dark_background is what this option was called before it was named after what an
+     editor picks it for, the same as on a slide. A section saved under the old name keeps
+     working; the editor writes the new one from the first save. --}}
+@php($whiteText = ! empty($section['white_text'] ?? $section['dark_background'] ?? null))
 <section
-    class="default {{ $section['image_position'] ?? 'right' }} {{ $section->_name }} @if (! empty($section['dark_background'])) dark @endif">
+    class="default {{ $section['image_position'] ?? 'right' }} {{ $section->_name }}{{ $whiteText ? ' white-text' : '' }}">
     @if ($bg)
         <x-responsive-image class="section-bg" :media="$bg" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" decorative />
-    @endif
-    @if ($bg && ! empty($section['dark_background']))
-        <div class="section-overlay" aria-hidden="true"></div>
     @endif
     <div class="main-width">
         <article class="article">

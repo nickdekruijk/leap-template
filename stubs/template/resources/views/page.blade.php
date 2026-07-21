@@ -2,7 +2,7 @@
 
 @section('content')
     <main id="main">
-        @foreach ($page->sections()->where('active', true) as $section)
+        @foreach ($page->sections() as $section)
             @include($section->_view ?? 'sections.' . $section->_name)
         @endforeach
     </main>

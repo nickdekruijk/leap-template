@@ -97,6 +97,9 @@ class PageSeeder extends Seeder
                     '_name' => 'slide',
                     '_sort' => 0,
                     'active' => true,
+                    // The slides ship without an image and fall back to a dark gradient, so
+                    // they say white rather than leaning on the placeholder's own default.
+                    'white_text' => true,
                     'head' => ['nl' => 'Welkom', 'en' => 'Welcome'],
                     'body' => ['nl' => '<p>Een frisse start voor je nieuwe website.</p>', 'en' => '<p>A fresh start for your new website.</p>'],
                 ],
@@ -104,6 +107,7 @@ class PageSeeder extends Seeder
                     '_name' => 'slide',
                     '_sort' => 1,
                     'active' => true,
+                    'white_text' => true,
                     'head' => ['nl' => 'Volledig zelf te beheren', 'en' => 'Fully self-manageable'],
                     'body' => ['nl' => '<p>Beheer pagina\'s en secties in het adminpaneel.</p>', 'en' => '<p>Manage pages and sections in the admin panel.</p>'],
                 ],
@@ -111,6 +115,7 @@ class PageSeeder extends Seeder
                     '_name' => 'slide',
                     '_sort' => 2,
                     'active' => true,
+                    'white_text' => true,
                     'head' => ['nl' => 'Toegankelijk & snel', 'en' => 'Accessible & fast'],
                     'body' => ['nl' => '<p>Semantische HTML, responsive en zonder zware buildstap.</p>', 'en' => '<p>Semantic HTML, responsive and without a heavy build step.</p>'],
                 ],

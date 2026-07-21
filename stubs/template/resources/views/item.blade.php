@@ -63,7 +63,7 @@
             </div>
         </header>
 
-        @foreach ($page->sections()->where('active', true) as $section)
+        @foreach ($page->sections() as $section)
             @include($section->_view ?? 'sections.' . $section->_name, ['hasHeading' => true])
         @endforeach
     </main>

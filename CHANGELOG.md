@@ -5,6 +5,67 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.13] — 2026-07-21
+
+### Fixed
+
+- **"Witte tekst" on a slide does something in both positions.** The view asked `@isset()`, but a
+  switch that is off stores `false` rather than dropping the key — so every slide was white and
+  the option was decoration. And a slide with no image draws a dark gradient and is styled white
+  for contrast, which an *absent* class cannot override: switching the option off has to say so.
+  The slide content now carries `white` or `dark-text`, and the placeholder rule stands down for
+  `dark-text`. A slide saved before the option existed has neither and keeps the old default.
+
+- **Deactivating a slide no longer lets the next section slide over the carousel.** The cause is
+  in leap 0.10.15, which this release requires. The `->where('active', true)` in `page.blade.php`
+  and `item.blade.php` is gone with it — `sections()` filters now, and doing it in the template
+  was what broke the carousel.
+
+### Changed
+
+- **A background photo is shown as it was uploaded.** A text section with white text laid a 45%
+  black wash over its background photo, so every photo behind one came out muddier than the
+  editor picked it — and there was no way to say no. Choosing a photo that carries white text is
+  their call. The wash is gone, and with it `.section-overlay`. A section with no photo still
+  gets the gradient, so the text has something to sit on either way.
+
+- **"Witte tekst" now means the same thing in every section, and says the rest in a hint.** A
+  slide read "Witte tekst (voor op donkere achtergrond)" and a text section "Donkere achtergrond
+  (witte tekst)" — near-mirrors, each naming what the other one's label left out. Neither was
+  right for long: "donkere achtergrond" is not what happens when the section already has a
+  background photo, where the switch only lays a wash over it.
+
+  Both are "Witte tekst" now, because that is the thing an editor is after either way — the
+  backdrop is dark and the text has to hold up against it. How each section gets there differs,
+  and that is what the hint under the switch is for. It has room for all of it, which the label
+  never had: a text section with white text also turns its links white, and stands a gradient in
+  when there is no photo behind it.
+
+  The field and its CSS class followed the label. `dark_background` is `white_text`, the same
+  name the slide already used, and the class on the section is `white-text` rather than `dark`
+  — on a slide, `white` as well. A page saved under the old key still renders white:
+  `sections/default.blade.php` reads `white_text` and falls back to `dark_background`, and the
+  editor writes the new name from the next save. A project that styled `.dark` in its own
+  `project.scss` has to rename that rule.
+
+- **A new slide starts with white text on.** It was off, which read as a considered default and
+  was not one: `Attribute::default()` is only written when it is truthy, so the option was simply
+  absent on a new slide and the answer came from the placeholder styling instead. Touch the
+  switch twice and the same slide turned dark, because now the `false` was really there. A slide
+  is a photo with text over it and is nearly always dark enough to want white, so that is what it
+  starts as — and it is the switch that decides either way, not the history of the section.
+
+- **The seeded slides say white text.** They ship without an image, so they draw the dark
+  gradient and were only white through the placeholder's own default — which the option can now
+  override. Saying it outright keeps them readable, and keeps them so once a real image is put
+  behind them.
+
+### Added
+
+- **A starter test for what the section views render**, covering the above: the carousel opens
+  and closes exactly once whichever slide is switched off, the white text follows its switch, and
+  a text section saved under `dark_background` still comes out white.
+
 ## [0.10.12] — 2026-07-20
 
 ### Added

@@ -4,7 +4,7 @@
 $bp-mobile: 768px;
 $bp-tablet: 1024px;
 
-// Reused for missing-image placeholders and for the "dark background" section variant
+// Reused for missing-image placeholders and for the "white text" section variant
 $placeholder-gradient: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, #fff), color-mix(in srgb, var(--accent) 75%, #000));
 
 // ── Base ────────────────────────────────────────────────────────────────────
@@ -619,12 +619,13 @@ a[role="button"],
             inset: auto 0 var(--space-l) 0;
             padding-inline: var(--space);
             max-width: calc(42rem + var(--space) * 2);
-            &.white { color: #fff; }
+            &.white-text { color: #fff; }
             .head { font-size: var(--fs-h1); font-weight: 800; line-height: 1; }
         }
 
-        // Placeholder slides have a dark gradient → white text for contrast
-        &.slide-placeholder .slide-content { color: #fff; }
+        // Placeholder slides have a dark gradient → white text for contrast, unless the
+        // editor switched the white text off on that slide.
+        &.slide-placeholder .slide-content:not(.dark-text) { color: #fff; }
     }
 
     .slider-dots {
@@ -657,8 +658,8 @@ a[role="button"],
 }
 
 // ── Sections: text + image (default / cta / quote) ────────────────────────────
-// Full-bleed section background image (behind the content + any dark overlay).
-// The section itself is position:relative, so this covers it.
+// Full-bleed section background image, behind the content. The section itself is
+// position:relative, so this covers it.
 .section-bg {
     position: absolute;
     inset: 0;
@@ -676,7 +677,7 @@ a[role="button"],
         display: flex;
         gap: var(--space-xl);
         align-items: center;
-        // Above the full-bleed .section-bg image and any dark overlay
+        // Above the full-bleed .section-bg image
         position: relative;
         z-index: 1;
     }
@@ -713,26 +714,22 @@ a[role="button"],
         .images { order: -1; }
     }
 
-    // Dark background (editor toggle): white text. Without a background photo
-    // (no .section-bg image) the placeholder gradient stands in; with a photo a
-    // legibility overlay darkens it.
-    &.dark {
+    // White text (editor toggle). A background photo is shown as it is — picking a photo
+    // dark enough to carry white text is the editor's call, not something the template
+    // takes out of their hands. Without one the placeholder gradient stands in, so the
+    // text has something to sit on either way.
+    &.white-text {
         color: #fff;
         .article a:not(.button) { color: #fff; }
 
-        // Same reason as the link above: the accent is picked to sit on the page's
-        // own background, not on a photo darkened to 45% black.
+        // Same reason as the link above: the accent is picked to sit on the page's own
+        // background, not on whichever photo is behind this section.
         .article details {
             border-color: #fff;
             > summary::after { border-color: #fff; }
         }
 
         &:not(:has(> .section-bg)) { background: $placeholder-gradient; }
-        .section-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-        }
     }
 }
 
@@ -741,7 +738,7 @@ a[role="button"],
     position: relative;
     padding-block: var(--space-xl);
 
-    // z-index keeps the cards above the full-bleed .section-bg image and dark overlay
+    // z-index keeps the cards above the full-bleed .section-bg image
     .items-scroller { position: relative; z-index: 1; }
 
     // Heading on the left, the optional "view all" link on the right — until they no
@@ -931,16 +928,14 @@ a[role="button"],
         p:has(.button) { margin-top: auto; }
     }
 
-    // Dark background (editor toggle): white text. Without a background photo
-    // (no .section-bg image) the placeholder gradient stands in; with a photo a
-    // legibility overlay darkens it.
-    &.dark {
+    // White text (editor toggle): as on a text section, except no card row offers the
+    // option yet — the rule is here so one reads the same as the other the day it does.
+    &.white-text {
         color: #fff;
         &:not(:has(> .section-bg)) { background: $placeholder-gradient; }
-        .section-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); }
 
-        // An accent heading is picked to read on the page background, not on a dark
-        // photo, so on this variant the title stays white like the rest of the card.
+        // An accent heading is picked to read on the page background, not on a photo,
+        // so on this variant the title stays white like the rest of the card.
         .item h3,
         .item > a:hover h3,
         .item > a:focus-visible h3 { color: inherit; }
