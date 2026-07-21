@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A detail page starts at the same height as the overview it came from.** Every section opens
+  at `--space-xl`, but an item's header opened at `--space-l`, so stepping from an events
+  overview into an event pulled the title up by a step. Nobody could see it while the two pages
+  began with different things; now that both start with a breadcrumb, the gap under it jumped.
+
 - **"Witte tekst" on a slide does something in both positions.** The view asked `@isset()`, but a
   switch that is off stores `false` rather than dropping the key — so every slide was white and
   the option was decoration. And a slide with no image draws a dark gradient and is styled white

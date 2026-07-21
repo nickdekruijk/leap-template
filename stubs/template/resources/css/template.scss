@@ -1087,7 +1087,9 @@ a[role="button"],
 
 // ── Content detail page (news/event/… item) ──────────────────────────────────
 .item-header {
-    padding-block: var(--space-l) var(--space);
+    // Opens at the same height as any section does, so the title of a detail page
+    // lands where the title of the overview it came from was.
+    padding-block: var(--space-xl) var(--space);
 
     .item-intro { font-size: var(--fs-lead, 1.15rem); }
 
