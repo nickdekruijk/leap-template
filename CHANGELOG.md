@@ -5,7 +5,7 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.14] — 2026-07-22
 
 ### Added
 
@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `leap:template` install showing what the stubs produce; log in on
   [/admin](https://leap.nickdekruijk.nl/admin) with `info@example.com` / `leapdemo`.
   It resets to its seeded state 15 minutes after the last change.
+
+### Fixed
+
+- **A slide with an image no longer swallows its own text.** The image sat in the flow at
+  `height: 100%`, so the container holding the heading and body was laid out underneath it and
+  the slider's `overflow: hidden` cut it off. Only slides without an image — the placeholders
+  every seeded site starts with — showed their text, which is why this survived until the first
+  real photo was uploaded. The image is taken out of the flow and the content sits above it.
+
+- **White slide text is legible over a photo.** The white default was written for the placeholder
+  gradient, which is dark by construction; a photograph is not, and the text washed out over its
+  lighter areas. A slide carrying an image and white text now gets a gradient scrim behind the
+  content. Slides with dark text and the placeholders are untouched.
 
 ## [0.10.13] — 2026-07-21
 
