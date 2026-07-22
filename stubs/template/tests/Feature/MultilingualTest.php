@@ -139,8 +139,10 @@ class MultilingualTest extends TestCase
         $this->promoteHeadingToMenuItem();
 
         // The heading becomes an in-page anchor under its page in the menu, which the layout
-        // renders on every request — so the homepage is enough to prove it.
-        $this->get('/')->assertOk()->assertSee('Onze werkwijze');
+        // renders on every request — so the homepage is enough to prove it. The Dutch
+        // header keeps the root from offering this English-preferring client its own
+        // language, which is what the root does for a first-time visitor.
+        $this->get('/', ['Accept-Language' => 'nl'])->assertOk()->assertSee('Onze werkwijze');
     }
 
     /**

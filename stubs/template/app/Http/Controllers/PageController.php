@@ -6,6 +6,7 @@ use App\Models\Page;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
@@ -409,12 +410,24 @@ class PageController extends Controller
     /**
      * Frontend catch-all route.
      */
-    public function route(?string $uri = null): View
+    public function route(?string $uri = null): View|RedirectResponse|Response
     {
         $segments = explode('/', $uri ?: '');
 
+        // Only the bare root asks the browser what language it wants; every other URL
+        // says so itself, in its prefix
+        $root = $segments === [''];
+
+        if ($root && $redirect = static::preferredLocaleRedirect()) {
+            return $redirect;
+        }
+
         // When multilingual, strip and apply a leading locale prefix (gated on leap.locales)
         Leap::detectLocale($segments);
+
+        // Remember what the visitor is actually reading, so the redirect above happens
+        // once and a language picked by hand afterwards is the one that sticks
+        session(['leap_locale' => app()->getLocale()]);
 
         // A bare locale prefix ("/en") leaves no segments; the homepage matches an empty one
         if (empty($segments)) {
@@ -433,7 +446,45 @@ class PageController extends Controller
 
         $page = Page::find($pages['current']['id']);
 
-        return view('page', compact('page'));
+        $view = view('page', compact('page'));
+
+        // What the root answers depends on a request header, so a shared cache has to
+        // key on it as well — without this one proxy serves one language to everyone
+        return $root ? response($view)->header('Vary', 'Accept-Language') : $view;
+    }
+
+    /**
+     * A first-time visitor on the bare root, sent to the language their browser asks
+     * for. Every condition has to hold, or the visitor stays where they are:
+     *
+     * - the site is multilingual;
+     * - they have not read a page yet, so nothing is stored about their language;
+     * - the request actually carries an Accept-Language header. Crawlers usually send
+     *   none, which is why they keep seeing the default locale on the unprefixed URLs
+     *   the sitemap and the hreflang alternates point them at;
+     * - and that header names a locale other than the default one.
+     *
+     * A 302, never a 301: a language preference is not a move, and the same URL
+     * answers differently for the next visitor.
+     */
+    protected static function preferredLocaleRedirect(): ?RedirectResponse
+    {
+        $locales = config('leap.locales');
+        $request = request();
+
+        if (! $locales || session()->has('leap_locale') || ! $request->hasHeader('Accept-Language')) {
+            return null;
+        }
+
+        // With nothing in common Symfony falls back to the first of the list, which is
+        // the default locale — so an unknown language quietly stays put
+        $preferred = $request->getPreferredLanguage(array_keys($locales));
+
+        if (! $preferred || $preferred === Leap::localeDefault()) {
+            return null;
+        }
+
+        return redirect(Leap::localePrefix($preferred) ?: '/', 302)->header('Vary', 'Accept-Language');
     }
 
     /**

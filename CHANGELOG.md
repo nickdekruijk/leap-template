@@ -5,6 +5,36 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.15] — 2026-07-22
+
+### Added
+
+- **A first-time visitor on `/` is offered the language their browser asks for.** A multilingual
+  site served its default language to everyone who typed the bare domain, however loudly their
+  browser said otherwise — a Dutch visitor landed on the English homepage and had to find the
+  switcher. `PageController::route()` now reads `Accept-Language` on the root and redirects to
+  `Leap::localePrefix($preferred)` when it names one of the site's own locales other than the
+  default.
+
+  Everything about it is deliberately narrow. **Only the bare root**: every other URL already
+  says which language it is in, in its prefix. **Only once**: each frontend request records the
+  locale being read in the session, so the redirect fires before the first page and never again
+  — a visitor who then picks the other language by hand keeps it. **Only with a header**: a
+  crawler sends none and keeps seeing the default locale on the unprefixed URLs that the sitemap
+  and the hreflang alternates point it at. And **only a 302**, because a language preference is
+  not a move: the same URL answers differently for the next visitor.
+
+  The root's response carries `Vary: Accept-Language`, without which a proxy or CDN would hand
+  one visitor's language to everyone behind it.
+
+  A language the site does not speak changes nothing: `getPreferredLanguage()` falls back to the
+  first of the list, which is the default locale, so an unmatched browser stays put.
+
+  Note for existing projects: a test that asserts the root renders the default language while the
+  test client asks for another one now meets the redirect. The template's own `MultilingualTest`
+  sends `Accept-Language: nl` on the one request where that mattered — Symfony's test client
+  always sends a header of its own, asking for English.
+
 ## [0.10.14] — 2026-07-22
 
 ### Added
