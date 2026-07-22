@@ -86,6 +86,61 @@ class SearchTest extends TestCase
     /**
      * @return array<int, string> matched page titles in the active locale
      */
+    /**
+     * Results are ordered by how well they match, not by the order the sources are read
+     * in. Without it a page that mentions the word once in a section body outranks the
+     * record that is named after it, purely because pages are fetched first.
+     */
+    public function test_a_title_match_outranks_a_body_match(): void
+    {
+        [$default] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Mentions cookies somewhere'],
+            [['_name' => 'default', 'body' => [$default => '<p>Halfway down this text it says cookies.</p>']]],
+        );
+
+        $this->makePage([$default => 'Cookies']);
+
+        $this->assertSame('Cookies', $this->search('cookies', $default)[0]);
+    }
+
+    /**
+     * A page result is built from slugs, and those are per locale — so the URL needs
+     * the locale's prefix as well, or every hit on a prefixed URL sends the visitor to
+     * the default language's copy of the page. Item results come from
+     * PageController::itemUrl(), which has carried the prefix all along.
+     */
+    public function test_a_page_result_links_into_the_locale_being_read(): void
+    {
+        [$default, $secondary] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Diensten', $secondary => 'Services'],
+            [['_name' => 'default', 'body' => [$default => '<p>Onze missie</p>', $secondary => '<p>Our mission</p>']]],
+            [$default => 'diensten', $secondary => 'services'],
+        );
+
+        // The prefixed locale carries its prefix, the unprefixed one carries none
+        $this->assertContains('/'.$secondary.'/services', $this->urls('mission', $secondary));
+        $this->assertContains('/diensten', $this->urls('missie', $default));
+    }
+
+    /**
+     * @return array<int, string> matched URLs in the active locale
+     */
+    private function urls(string $term, string $locale): array
+    {
+        app()->setLocale($locale);
+
+        return Livewire::test(Search::class)
+            ->set('query', $term)
+            ->instance()
+            ->results()
+            ->pluck('url')
+            ->all();
+    }
+
     private function search(string $term, string $locale): array
     {
         app()->setLocale($locale);
@@ -130,8 +185,10 @@ class SearchTest extends TestCase
      */
     public function test_an_items_intro_is_searchable(): void
     {
-        [$default] = $this->locales();
-        $this->makeNews([$default => 'Onze zomeractie begint', 'en' => 'Our summer campaign starts']);
+        // $secondary rather than a hardcoded 'en': on a site whose default locale is
+        // English the two keys would be the same one, and the second would win
+        [$default, $secondary] = $this->locales();
+        $this->makeNews([$default => 'Onze zomeractie begint', $secondary => 'Our summer campaign starts']);
 
         $this->assertContains('Persbericht', $this->search('zomeractie', $default));
     }

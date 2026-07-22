@@ -2,6 +2,7 @@
     "All": "Tutto",
     "Always allow": "Consenti sempre",
     "Back": "Indietro",
+    "Back to the homepage": "Torna alla homepage",
     "Breadcrumb": "Percorso di navigazione",
     "Client": "Cliente",
     "Close search": "Chiudi la ricerca",
@@ -27,6 +28,7 @@
     "Search": "Cerca",
     "Search…": "Cerca…",
     "Skip to content": "Vai al contenuto",
+    "slide": "diapositiva",
     "Slide :n": "Diapositiva :n",
     "Slider": "Slider",
     "Slides": "Diapositive",
@@ -37,6 +39,5 @@
     "Upcoming": "In arrivo",
     "Video": "Video",
     "View all": "Vedi tutto",
-    "Year": "Anno",
-    "slide": "diapositiva"
+    "Year": "Anno"
 }

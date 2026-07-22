@@ -105,7 +105,8 @@
 
         <nav class="nav" role="navigation" aria-label="@lang('Main menu')" :class="{ 'scrolling': scrolling }">
             <div class="nav-container main-width">
-                <a class="nav-logo" href="/" aria-label="@lang('To the homepage')">
+                {{-- The homepage of the language being read: the prefix is empty for the default locale --}}
+                <a class="nav-logo" href="{{ \NickDeKruijk\Leap\Leap::localePrefix() ?: '/' }}" aria-label="@lang('To the homepage')">
                     <strong>{{ config('app.name') }}</strong>
                 </a>
                 <button class="nav-toggle" :aria-expanded="navExpanded.toString()" aria-controls="nav-main" x-on:click="navExpanded = !navExpanded" aria-label="@lang('Open or close the menu')">

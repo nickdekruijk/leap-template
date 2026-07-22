@@ -2,6 +2,7 @@
     "All": "Wszystko",
     "Always allow": "Zawsze zezwalaj",
     "Back": "Wstecz",
+    "Back to the homepage": "Powrót na stronę główną",
     "Breadcrumb": "Ścieżka nawigacji",
     "Client": "Klient",
     "Close search": "Zamknij wyszukiwanie",
@@ -27,6 +28,7 @@
     "Search": "Szukaj",
     "Search…": "Szukaj…",
     "Skip to content": "Przejdź do treści",
+    "slide": "slajd",
     "Slide :n": "Slajd :n",
     "Slider": "Slider",
     "Slides": "Slajdy",
@@ -37,6 +39,5 @@
     "Upcoming": "Nadchodzące",
     "Video": "Wideo",
     "View all": "Zobacz wszystkie",
-    "Year": "Rok",
-    "slide": "slajd"
+    "Year": "Rok"
 }

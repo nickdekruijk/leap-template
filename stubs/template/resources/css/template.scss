@@ -532,6 +532,12 @@ a[role="button"],
         background: var(--bg);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
+        // The overlay opens 10vh from the top, so this is the rest of the viewport.
+        // A column with only the list scrolling keeps the field you are typing in
+        // where it is, however many results come back.
+        display: flex;
+        flex-direction: column;
+        max-height: calc(90vh - var(--space) * 2);
     }
 
     .search-input-row {
@@ -571,6 +577,9 @@ a[role="button"],
         list-style: none;
         margin-top: var(--space-s);
         border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+        overflow-y: auto;
+        // Keeps a flick at the end of the list from scrolling the page behind it
+        overscroll-behavior: contain;
 
         li + li { border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
 

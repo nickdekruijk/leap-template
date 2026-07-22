@@ -8,7 +8,7 @@
                 <br><br><br>
                 <h1>4 oh 4</h1>
                 <p>Helaas, deze pagina bestaat niet (meer).</p>
-                <a href="/" role="button">Terug naar homepage</a>
+                <a href="{{ \NickDeKruijk\Leap\Leap::localePrefix() ?: '/' }}" role="button">@lang('Back to the homepage')</a>
             </article>
         </div>
     </main>

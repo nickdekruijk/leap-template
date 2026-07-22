@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use NickDeKruijk\Leap\Leap;
 
 /**
  * Live site search over the pages and every registered content type
@@ -29,6 +30,20 @@ use Livewire\Component;
 class Search extends Component
 {
     public string $query = '';
+
+    /**
+     * Per-request memos. Instance properties rather than method statics: a static
+     * outlives the request in a long-running worker, and would then hand out the path
+     * a page had before its slug was edited.
+     *
+     * @var array<string, array<int, string>>
+     */
+    private array $urlCache = [];
+
+    /**
+     * @var array<string, array<string, bool>>
+     */
+    private array $columnCache = [];
 
     /**
      * How many candidate rows to pull per source before the per-locale PHP refinement.
@@ -51,9 +66,10 @@ class Search extends Component
         $results = $this->matches(Page::active(), $term, $locale)
             ->map(fn (Page $page): array => [
                 'title' => $page->getTranslation('title', $locale, false),
-                'url' => $this->resolvePageUrl($page->id),
+                'url' => $this->pageUrl($page->id),
                 'excerpt' => Str::limit($page->metaDescription(), 120),
                 'label' => null,
+                'score' => $this->relevance($page, $term, $locale),
             ]);
 
         // Every registered content type
@@ -67,12 +83,53 @@ class Search extends Component
                         'url' => PageController::itemUrl($item),
                         'excerpt' => Str::limit($item->metaDescription(), 120),
                         'label' => $label,
+                        'score' => $this->relevance($item, $term, $locale),
                     ])
                     ->filter(fn (array $row): bool => $row['url'] !== null)
             );
         }
 
-        return $results->take(self::RESULT_LIMIT)->values();
+        // Sorted by how well each row matches, not by the order the sources happen to
+        // be read in — a card actually called "Consent" belongs above three pages that
+        // mention the word somewhere in a section. Ties keep the order they came in,
+        // which is each source's own: pages by their menu order, releases by date.
+        return $results->sortByDesc('score')->take(self::RESULT_LIMIT)->values();
+    }
+
+    /**
+     * How well a record answers the term. A title beats prose, and an exact title beats
+     * a title that merely contains it; matching only somewhere in a section body is the
+     * weakest claim a result can make.
+     */
+    private function relevance(Model $item, string $term, string $locale): int
+    {
+        $title = mb_strtolower((string) $item->getTranslation('title', $locale, false));
+
+        if ($title === $term) {
+            return 100;
+        }
+
+        if (str_starts_with($title, $term)) {
+            return 80;
+        }
+
+        if (str_contains($title, $term)) {
+            return 60;
+        }
+
+        foreach (['intro', 'description'] as $field) {
+            if (! $this->hasColumn($item, $field)) {
+                continue;
+            }
+
+            $value = mb_strtolower(strip_tags((string) $item->getTranslation($field, $locale, false)));
+
+            if ($value !== '' && str_contains($value, $term)) {
+                return 40;
+            }
+        }
+
+        return 20;
     }
 
     /**
@@ -105,7 +162,6 @@ class Search extends Component
             ->limit(self::CANDIDATE_LIMIT)
             ->get()
             ->filter(fn (Model $item): bool => $this->matchesLocale($item, $term, $locale))
-            ->take(self::RESULT_LIMIT)
             ->values();
     }
 
@@ -116,9 +172,7 @@ class Search extends Component
      */
     private function hasColumn(Model $model, string $column): bool
     {
-        static $cache = [];
-
-        return $cache[$model->getTable()][$column] ??= Schema::hasColumn($model->getTable(), $column);
+        return $this->columnCache[$model->getTable()][$column] ??= Schema::hasColumn($model->getTable(), $column);
     }
 
     /**
@@ -173,12 +227,27 @@ class Search extends Component
         return str_contains($text, $term);
     }
 
+    /**
+     * A page result's URL, prefixed for the locale being read. Item results get theirs
+     * from PageController::itemUrl(), which already carries the prefix; the page path
+     * is built here and needs the same treatment, or every result on /nl points at the
+     * default locale's copy of the page.
+     */
+    private function pageUrl(int $pageId): string
+    {
+        $path = $this->resolvePageUrl($pageId);
+
+        return $path === '/' ? (Leap::localePrefix() ?: '/') : Leap::localePrefix().$path;
+    }
+
     private function resolvePageUrl(int $pageId): string
     {
-        static $cache = [];
+        // Keyed by locale as well: the slugs differ per language, and a cache that
+        // forgets that would hand one language's paths to another
+        $locale = app()->getLocale();
 
-        if (isset($cache[$pageId])) {
-            return $cache[$pageId];
+        if (isset($this->urlCache[$locale][$pageId])) {
+            return $this->urlCache[$locale][$pageId];
         }
 
         $page = Page::find($pageId, ['id', 'slug', 'parent']);
@@ -186,12 +255,12 @@ class Search extends Component
             return '/';
         }
 
-        $slug = $page->getTranslation('slug', app()->getLocale(), false);
+        $slug = $page->getTranslation('slug', $locale, false);
         $url = $slug === '/'
             ? '/'
             : ($page->parent ? rtrim($this->resolvePageUrl($page->parent), '/').'/'.$slug : '/'.$slug);
 
-        return $cache[$pageId] = $url;
+        return $this->urlCache[$locale][$pageId] = $url;
     }
 
     public function render(): View

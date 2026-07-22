@@ -2,6 +2,7 @@
     "All": "Tout",
     "Always allow": "Toujours autoriser",
     "Back": "Retour",
+    "Back to the homepage": "Retour à la page d'accueil",
     "Breadcrumb": "Fil d'Ariane",
     "Client": "Client",
     "Close search": "Fermer la recherche",
@@ -27,6 +28,7 @@
     "Search": "Rechercher",
     "Search…": "Rechercher…",
     "Skip to content": "Aller au contenu",
+    "slide": "diapositive",
     "Slide :n": "Diapositive :n",
     "Slider": "Carrousel",
     "Slides": "Diapositives",
@@ -37,6 +39,5 @@
     "Upcoming": "À venir",
     "Video": "Vidéo",
     "View all": "Tout voir",
-    "Year": "Année",
-    "slide": "diapositive"
+    "Year": "Année"
 }

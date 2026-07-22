@@ -2,6 +2,7 @@
     "All": "Alles",
     "Always allow": "Altijd toestaan",
     "Back": "Terug",
+    "Back to the homepage": "Terug naar de homepage",
     "Breadcrumb": "Kruimelpad",
     "Client": "Opdrachtgever",
     "Close search": "Zoeken sluiten",
@@ -27,6 +28,7 @@
     "Search": "Zoeken",
     "Search…": "Zoeken…",
     "Skip to content": "Naar inhoud",
+    "slide": "slide",
     "Slide :n": "Slide :n",
     "Slider": "Slider",
     "Slides": "Slides",
@@ -37,6 +39,5 @@
     "Upcoming": "Aankomend",
     "Video": "Video",
     "View all": "Bekijk alles",
-    "Year": "Jaar",
-    "slide": "slide"
+    "Year": "Jaar"
 }

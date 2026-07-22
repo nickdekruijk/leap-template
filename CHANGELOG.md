@@ -5,6 +5,45 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.16] — 2026-07-22
+
+### Added
+
+- **Search results are ordered by how well they match.** They came back in the order the sources
+  happen to be read in — every page first, then each content type — so a card actually called
+  "Consent" sat below three pages that mention the word once in a section body, and ten page hits
+  pushed every content item off the list entirely. Each result is now scored: an exact title beats
+  a title that starts with the term, which beats a title that contains it, which beats a match in
+  an intro or description, which beats a match somewhere in a section. Ties keep the order they
+  arrived in, so equally good results still read in each source's own order — pages by their menu
+  position, releases by date.
+
+### Fixed
+
+- **A page in the search results now links into the language you are reading.** Item results have
+  always been built by `PageController::itemUrl()`, which carries the locale prefix; a page result
+  was built from its slugs alone, so every page hit on `/nl` sent the visitor to the default
+  language's copy of that page. It gets the same prefix now. The path cache behind it is keyed by
+  locale as well — slugs differ per language, and a cache that forgets that hands one language's
+  paths to another.
+
+- **The search overlay scrolls once the results outgrow it.** The panel had no height limit and
+  nothing to scroll, so with a screenful of hits the last ones sat below the fold with no way to
+  reach them. It is a column now, capped at the viewport minus the offset it opens at, with only
+  the result list scrolling — the field you are typing in stays where it is. `overscroll-behavior`
+  keeps a flick at the end of the list from scrolling the page behind it.
+
+- **The logo links to the homepage of the language you are reading.** It pointed at `/` from every
+  page, so one click on a prefixed page dropped the visitor into the default language. The 404
+  page's way back had the same hard-coded root, and its label was hard-coded Dutch on every site,
+  whatever language it was installed in — it is a translation key now, shipped in all seven
+  languages the template carries.
+
+- **Search no longer memoises page paths for the life of the process.** The path cache was a
+  `static` inside the method, which outlives the request in a long-running worker: after a slug was
+  edited, results kept pointing at the old address until the worker was replaced. It is an instance
+  property now — one request, one memo — and so is the column-exists cache beside it.
+
 ## [0.10.15] — 2026-07-22
 
 ### Added

@@ -2,6 +2,7 @@
     "All": "Tudo",
     "Always allow": "Permitir sempre",
     "Back": "Voltar",
+    "Back to the homepage": "Voltar à página inicial",
     "Breadcrumb": "Trilha de navegação",
     "Client": "Cliente",
     "Close search": "Fechar a pesquisa",
@@ -27,6 +28,7 @@
     "Search": "Pesquisar",
     "Search…": "Pesquisar…",
     "Skip to content": "Ir para o conteúdo",
+    "slide": "diapositivo",
     "Slide :n": "Diapositivo :n",
     "Slider": "Slider",
     "Slides": "Diapositivos",
@@ -37,6 +39,5 @@
     "Upcoming": "Próximos",
     "Video": "Vídeo",
     "View all": "Ver tudo",
-    "Year": "Ano",
-    "slide": "diapositivo"
+    "Year": "Ano"
 }
