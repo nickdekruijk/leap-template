@@ -27,6 +27,18 @@ same as under 0.10.18. Upgrading is a constraint bump.
   12/13 × prefer-lowest/prefer-stable, plus a Pint style job. The suite existed and was
   runnable with `composer test`, but nothing ran it on push.
 
+- **Releases are published from the changelog.** Pushing a tag now creates a GitHub
+  release with that version's `CHANGELOG.md` section as its notes. Packagist reads tags
+  and never needed them, which is why no tag so far produced one.
+
+### Fixed
+
+- **`laravel/pint` must be 1.18.1 or newer.** `UserModelPatchTest` shells out to
+  `vendor/bin/pint` to prove the patched User model is pint-clean, and the v1.18.0 phar is
+  broken on its own — every run dies with `Call to undefined method
+  PhpCsFixer\Config::setParallelConfig()`. Only a `--prefer-lowest` install picked it up,
+  which is why the brand-new CI found it and local runs never did.
+
 ### Tests
 
 163 cases, closing the three gaps `BACKLOG.md` recorded:
