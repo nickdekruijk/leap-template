@@ -54,6 +54,11 @@ breaking leap release is paired with a new `leap-template` release. Patch versio
 independent. From 1.0.0 the two packages release in lockstep at the same version number
 and the requirement moves to `^1.0`, so only a new major (2.0) is paired.
 
+Pushing a tag publishes a GitHub release automatically, with that version's
+[CHANGELOG.md](CHANGELOG.md) section as its notes — so the changelog stays the only place
+a release is written. A tag whose version has no changelog section fails the workflow
+rather than publishing an empty release.
+
 ## License
 
 MIT.
