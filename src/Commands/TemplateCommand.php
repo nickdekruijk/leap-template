@@ -564,6 +564,10 @@ class TemplateCommand extends Command
         }
 
         foreach ($changed as $relative) {
+            // Recomputed per file: the loop above leaves its own $project behind, and
+            // reusing that compared every file against whichever one it happened to end on.
+            $project = base_path($relative);
+
             $this->newLine();
             $this->line('<fg=yellow>changed:</> '.$relative);
 

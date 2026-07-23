@@ -197,6 +197,45 @@ class TemplateDiffTest extends TestCase
     }
 
     /**
+     * Every file is diffed against itself. The project path was computed in the loop that
+     * sorts the files and reused in the loop that prints them, so it had long since become
+     * whichever file that first loop ended on — `lang/nl.json`, since the conditional
+     * files are appended last. Every "changed:" heading was then followed by a diff of
+     * that one file against the stub being reported, which reads as the whole file being
+     * rewritten and buries the real change.
+     */
+    public function test_each_changed_file_is_diffed_against_itself(): void
+    {
+        // Two changed files, so a leftover path cannot coincide with the right one, plus
+        // the lang file that made it the last one standing.
+        file_put_contents($this->temp.'/app/Models/Page.php', "<?php\n\n// PROJECT MARKER: models page\n");
+        file_put_contents($this->temp.'/app/Http/Controllers/PageController.php', "<?php\n\n// PROJECT MARKER: controller\n");
+        mkdir($this->temp.'/lang', 0777, true);
+        file_put_contents($this->temp.'/lang/nl.json', json_encode(['Search' => 'Zoeken']));
+
+        $output = $this->diff();
+
+        // Each heading must be followed by a unified diff naming that same file.
+        preg_match_all('/^changed: (\S+)$/m', $output, $matches);
+        $this->assertNotEmpty($matches[1], 'Expected changed files to report.');
+
+        foreach ($matches[1] as $relative) {
+            if (str_starts_with($relative, 'lang/')) {
+                continue; // Reported as missing keys, not as a diff.
+            }
+
+            $block = substr($output, strpos($output, 'changed: '.$relative));
+            $header = strtok(substr($block, strpos($block, '--- ')), "\n");
+
+            $this->assertStringContainsString(
+                $relative,
+                $header,
+                "The diff under \"changed: {$relative}\" is of another file: {$header}",
+            );
+        }
+    }
+
+    /**
      * A report that changed the project would be a trap: this is what you run to decide
      * whether to upgrade, in a project that is deliberately customised.
      */

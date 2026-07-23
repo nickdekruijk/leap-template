@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`--diff` shows each changed file's own diff.** The project path was computed in the loop that
+  sorts the files into changed/new/unchanged and then reused in the loop that prints them, where it
+  had long since become whichever file the first loop ended on — `lang/nl.json`, since the
+  conditional files are appended last. Every "changed:" heading was therefore followed by a diff of
+  that one file against the stub being reported: hundreds of lines reading as though the whole file
+  were being rewritten, with the actual change nowhere in it. Reported from a project where the
+  first heading was `PageController.php` and the diff under it was the Dutch translations.
+
 - **A stray "/" deeper in the page tree can no longer hijack the homepage.** `homePage()` took the
   first active page carrying the reserved "/" slug, wherever it sat in the tree — but "/" only
   means "the homepage" at the root; deeper down it resolves to its parent's own path. It now only
