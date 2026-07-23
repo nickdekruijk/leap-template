@@ -161,13 +161,15 @@ class TemplateCommand extends Command
      */
     protected function copyFile(string $file): void
     {
-        if (! is_dir($directory = dirname($file)) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
+        $target = base_path($file);
+
+        if (! is_dir($directory = dirname($target)) && ! mkdir($directory, 0755, true) && ! is_dir($directory)) {
             $this->error('Could not create '.$directory.', skipping '.$file);
 
             return;
         }
 
-        if (! copy(__DIR__.'/../../stubs/template/'.$file, $file)) {
+        if (! copy(__DIR__.'/../../stubs/template/'.$file, $target)) {
             $this->error('Could not copy '.$file);
 
             return;
@@ -191,10 +193,10 @@ class TemplateCommand extends Command
      */
     public function copyOrReplace(string $file, string $description, string $hint)
     {
-        $exists = file_exists($file);
+        $exists = file_exists(base_path($file));
 
         // Skip if file exists and sha1 hashes match
-        if ($exists && sha1_file(__DIR__.'/../../stubs/template/'.$file) == sha1_file($file)) {
+        if ($exists && sha1_file(__DIR__.'/../../stubs/template/'.$file) == sha1_file(base_path($file))) {
             return;
         }
 
@@ -227,10 +229,11 @@ class TemplateCommand extends Command
         foreach ($filesystem->allFiles($stubBase.$directory) as $file) {
             $relative = $directory.'/'.$file->getRelativePathname();
             $stub = $stubBase.$relative;
+            $target = base_path($relative);
 
-            if (file_exists($relative)) {
+            if (file_exists($target)) {
                 // Identical — nothing to do
-                if (sha1_file($stub) === sha1_file($relative)) {
+                if (sha1_file($stub) === sha1_file($target)) {
                     continue;
                 }
                 // Changed — do not clobber a local edit without asking
@@ -243,10 +246,10 @@ class TemplateCommand extends Command
                 }
             }
 
-            if (! is_dir($dir = dirname($relative))) {
+            if (! is_dir($dir = dirname($target))) {
                 mkdir($dir, 0755, true);
             }
-            copy($stub, $relative);
+            copy($stub, $target);
             $this->info('Copied '.$relative);
         }
     }
@@ -263,12 +266,12 @@ class TemplateCommand extends Command
      */
     public function deleteFile(string $file)
     {
-        if (file_exists($file) && $this->auto(
+        if (file_exists(base_path($file)) && $this->auto(
             "Delete $file? (Laravel default, replaced by the template)",
             true,
             'The template does not use it. It is in git in a fresh project, so you can get it back.',
         )) {
-            unlink($file);
+            unlink(base_path($file));
             $this->info('Deleted '.$file);
         }
     }
@@ -286,12 +289,16 @@ class TemplateCommand extends Command
      */
     protected function serveFromThePageTree(): void
     {
-        $welcome = "Route::get('/', function () {\n    return view('welcome');\n});\n";
+        // Match the welcome route tolerantly: any Route::get('/', …) closure that returns
+        // view('welcome'). A byte-exact match on the default block would miss a reformatted
+        // or one-line version (Pint, an arrow fn, different indent) and leave it in place
+        // while the catch-all is added anyway, so / would silently keep the welcome view.
+        $welcomePattern = "#Route::get\(\s*'/'.*?view\('welcome'\).*?;\n?#s";
         $catchAll = "Route::get('{any}', [PageController::class, 'route'])->where('any', '(.*)');\n";
         $routes = base_path('routes/web.php');
 
-        $hasWelcomeRoute = file_exists($routes) && str_contains((string) file_get_contents($routes), $welcome);
-        $hasWelcomeView = file_exists($view = 'resources/views/welcome.blade.php');
+        $hasWelcomeRoute = file_exists($routes) && preg_match($welcomePattern, (string) file_get_contents($routes));
+        $hasWelcomeView = file_exists($view = base_path('resources/views/welcome.blade.php'));
         $needsCatchAll = ! $this->routeExists("PageController::class, 'route'");
 
         if (! $hasWelcomeRoute && ! $hasWelcomeView && ! $needsCatchAll) {
@@ -309,7 +316,7 @@ class TemplateCommand extends Command
         }
 
         if ($hasWelcomeRoute) {
-            self::updateFile($routes, fn (string $file): string => str_replace($welcome, '', $file));
+            self::updateFile($routes, fn (string $file): string => preg_replace($welcomePattern, '', $file));
             $this->info('Removed the welcome route from routes/web.php');
         }
 
@@ -1179,7 +1186,8 @@ class TemplateCommand extends Command
 
         // The real array only — anchored so the doc-comment example ("| 'content' => [")
         // is never matched. Entries carry no brackets, so the first ] closes the array.
-        if (! preg_match("/^([ \t]*)'content'\s*=>\s*\[(.*?)\n?[ \t]*\]/ms", $contents, $m)) {
+        // Reuse ContentCommand's canonical expression so the two never drift.
+        if (! preg_match(ContentCommand::CONTENT_ARRAY, $contents, $m)) {
             return;
         }
 
@@ -1210,7 +1218,7 @@ class TemplateCommand extends Command
         $indent = $m[1];
         $body = implode("\n", array_map(fn (string $line): string => $indent.'    '.$line, $ordered));
         $patched = preg_replace(
-            "/^[ \t]*'content'\s*=>\s*\[.*?\n?[ \t]*\]/ms",
+            ContentCommand::CONTENT_ARRAY,
             $indent."'content' => [\n".$body."\n".$indent.']',
             $contents,
             1
@@ -1331,11 +1339,26 @@ class TemplateCommand extends Command
         $env = base_path('.env');
         if (file_exists($env)) {
             $envContents = file_get_contents($env);
-            $envContents = preg_replace('/^APP_LOCALE=.*/m', 'APP_LOCALE='.$default, $envContents);
-            $envContents = preg_replace('/^APP_FALLBACK_LOCALE=.*/m', 'APP_FALLBACK_LOCALE='.$default, $envContents);
+            $envContents = $this->setEnvValue($envContents, 'APP_LOCALE', $default);
+            $envContents = $this->setEnvValue($envContents, 'APP_FALLBACK_LOCALE', $default);
             file_put_contents($env, $envContents);
             $this->info('Set APP_LOCALE / APP_FALLBACK_LOCALE to '.$default);
         }
+    }
+
+    /**
+     * Set (or append) a KEY=value line in .env contents. A preg_replace alone only
+     * updates a key that is already there; a project whose .env omits APP_LOCALE
+     * would otherwise get leap.locales set while APP_LOCALE stayed at its default —
+     * the exact mismatch Leap::detectLocale is built to avoid.
+     */
+    protected function setEnvValue(string $contents, string $key, string $value): string
+    {
+        if (preg_match('/^'.preg_quote($key, '/').'=.*/m', $contents)) {
+            return preg_replace('/^'.preg_quote($key, '/').'=.*/m', $key.'='.$value, $contents);
+        }
+
+        return rtrim($contents, "\n")."\n".$key.'='.$value."\n";
     }
 
     /**
@@ -1387,6 +1410,16 @@ class TemplateCommand extends Command
     protected function normaliseLocales(array $codes): array
     {
         $codes = collect($codes)->map(fn (string $c): string => strtolower(trim($c)))->filter()->unique()->values()->all();
+
+        // A locale code becomes a lang/ directory and a URL prefix, so reject free-text
+        // typos ("english") before they turn into lang/english/ and /english. ISO 639-1,
+        // optionally with a region (e.g. pt-br).
+        foreach ($codes as $code) {
+            if (! preg_match('/^[a-z]{2}(-[a-z]{2})?$/', $code)) {
+                $this->warn("Locale [{$code}] is not a valid ISO code (e.g. nl, en, pt-br) — skipped.");
+            }
+        }
+        $codes = array_values(array_filter($codes, fn (string $c): bool => (bool) preg_match('/^[a-z]{2}(-[a-z]{2})?$/', $c)));
 
         foreach (array_intersect($codes, ['ar', 'he', 'fa', 'ur']) as $rtl) {
             $this->warn("Locale [{$rtl}] is right-to-left; the template CSS has no RTL support yet.");

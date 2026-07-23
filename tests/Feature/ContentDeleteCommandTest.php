@@ -165,4 +165,21 @@ class ContentDeleteCommandTest extends TestCase
     {
         $this->artisan('leap:content-delete', ['name' => 'Nonexistent', '--force' => true, '--no-interaction' => true])->assertExitCode(0);
     }
+
+    /**
+     * A non-interactive run without --force must not treat "no TTY" as consent: the delete
+     * is destructive (files removed, pages force-deleted), so it has to refuse and keep
+     * the generated files in place.
+     */
+    public function test_a_non_interactive_run_without_force_keeps_the_files(): void
+    {
+        $this->generate('Product');
+        $files = $this->filesFor('Product', 'products');
+
+        $this->artisan('leap:content-delete', ['name' => 'Product', '--no-interaction' => true]);
+
+        foreach ($files as $path) {
+            $this->assertFileExists($this->temp.'/'.$path, $path.' was deleted without --force');
+        }
+    }
 }

@@ -104,4 +104,36 @@ class ConfigureLocalesTest extends TestCase
 
         $this->assertSame($original, file_get_contents($this->temp.'/config/leap.php'));
     }
+
+    /**
+     * A .env without APP_LOCALE at all used to keep it absent: the preg_replace only
+     * updated an existing key. leap.locales would then be set while APP_LOCALE stayed at
+     * its framework default — the mismatch Leap::detectLocale is built to avoid.
+     */
+    public function test_app_locale_is_appended_when_the_env_lacks_it(): void
+    {
+        file_put_contents($this->temp.'/config/leap.php', "<?php\n\nreturn [\n    'locales' => null,\n];\n");
+        file_put_contents($this->temp.'/.env', "APP_NAME=Leap\n");
+
+        $this->configureLocales(['nl', 'en']);
+
+        $env = file_get_contents($this->temp.'/.env');
+        $this->assertStringContainsString('APP_LOCALE=nl', $env);
+        $this->assertStringContainsString('APP_FALLBACK_LOCALE=nl', $env);
+        $this->assertStringContainsString('APP_NAME=Leap', $env);
+    }
+
+    public function test_a_free_text_locale_typo_is_rejected(): void
+    {
+        file_put_contents($this->temp.'/config/leap.php', "<?php\n\nreturn [\n    'locales' => null,\n];\n");
+        file_put_contents($this->temp.'/.env', "APP_LOCALE=en\n");
+
+        // "english" is not an ISO code; it must not become a locale, lang/ dir or URL prefix.
+        $this->configureLocales(['nl', 'english', 'pt-br']);
+
+        $config = file_get_contents($this->temp.'/config/leap.php');
+        $this->assertStringContainsString("'nl' =>", $config);
+        $this->assertStringContainsString("'pt-br' =>", $config);
+        $this->assertStringNotContainsString('english', $config);
+    }
 }

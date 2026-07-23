@@ -182,6 +182,12 @@ class Search extends Component
      */
     private function localeColumnExpr(string $column, string $locale): string
     {
+        // $locale is interpolated into the SQL, so keep it to an ISO shape as
+        // defence-in-depth even though it currently comes from app()->getLocale().
+        if (! preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $locale)) {
+            $locale = app()->getLocale();
+        }
+
         if (DB::connection()->getDriverName() === 'sqlite') {
             $extract = "json_extract(`{$column}`, '$.".$locale."')";
 
@@ -240,7 +246,7 @@ class Search extends Component
         return $path === '/' ? (Leap::localePrefix() ?: '/') : Leap::localePrefix().$path;
     }
 
-    private function resolvePageUrl(int $pageId): string
+    private function resolvePageUrl(int $pageId, array $seen = []): string
     {
         // Keyed by locale as well: the slugs differ per language, and a cache that
         // forgets that would hand one language's paths to another
@@ -255,10 +261,12 @@ class Search extends Component
             return '/';
         }
 
+        // Guard against a corrupt parent chain that points back at itself.
+        $seen[$pageId] = true;
         $slug = $page->getTranslation('slug', $locale, false);
         $url = $slug === '/'
             ? '/'
-            : ($page->parent ? rtrim($this->resolvePageUrl($page->parent), '/').'/'.$slug : '/'.$slug);
+            : ($page->parent && ! isset($seen[$page->parent]) ? rtrim($this->resolvePageUrl($page->parent, $seen), '/').'/'.$slug : '/'.$slug);
 
         return $this->urlCache[$locale][$pageId] = $url;
     }

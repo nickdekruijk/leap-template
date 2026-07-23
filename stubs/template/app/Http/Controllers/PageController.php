@@ -379,9 +379,12 @@ class PageController extends Controller
         $locale = app()->getLocale();
         $prefix = Leap::localePrefix();
 
-        // Walk up the parent chain, root first.
+        // Walk up the parent chain, root first. $seen guards against a corrupt chain
+        // (an ancestor pointing back at a descendant), which would otherwise loop forever.
         $chain = collect();
-        for ($current = $owner; $current; $current = $current->parent ? Page::find($current->parent) : null) {
+        $seen = [];
+        for ($current = $owner; $current && ! isset($seen[$current->id]); $current = $current->parent ? Page::find($current->parent) : null) {
+            $seen[$current->id] = true;
             $chain->prepend($current);
         }
 
@@ -674,11 +677,15 @@ class PageController extends Controller
     /**
      * Build a page's path in a specific locale by walking the parent chain.
      */
-    protected static function localePath(Page $page, string $locale): string
+    protected static function localePath(Page $page, string $locale, array $seen = []): string
     {
         $slug = $page->getTranslation('slug', $locale, false) ?: '';
-        $path = $page->parent && ($parent = Page::find($page->parent))
-            ? static::localePath($parent, $locale).'/'.$slug
+
+        // Guard against a corrupt parent chain (a page whose ancestor points back at it):
+        // without this the walk would recurse until it exhausts memory.
+        $seen[$page->id] = true;
+        $path = $page->parent && ! isset($seen[$page->parent]) && ($parent = Page::find($page->parent))
+            ? static::localePath($parent, $locale, $seen).'/'.$slug
             : '/'.$slug;
 
         return rtrim($path, '/') ?: '/';

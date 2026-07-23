@@ -5,9 +5,42 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.18] — 2026-07-23
+
+### Security
+
+- **`leap:content-delete` no longer deletes without confirmation in a non-interactive shell.**
+  A run with no TTY (CI, a script) was treated as consent: the five generated files were removed
+  and the overview pages force-deleted without `--force` and without asking. A non-interactive
+  run now refuses unless `--force` is passed explicitly.
+
+- **Free-text locale codes are validated.** The "other…" locale entry accepted any string, so a
+  typo like `english` became a locale code, a `lang/english/` directory and an `/english` URL
+  prefix. Codes are now checked against an ISO-639 shape (`nl`, `en`, `pt-br`) and skipped with a
+  warning otherwise. The search component's locale-column SQL applies the same shape check to the
+  locale it interpolates, as defence-in-depth.
 
 ### Fixed
+
+- **The welcome route is matched tolerantly.** `serveFromThePageTree` compared `routes/web.php`
+  against the exact default multi-line block, so a reformatted route (Pint, an arrow function, a
+  one-liner) slipped past: the catch-all was added while the welcome route stayed, and `/` kept
+  showing the welcome view — the very failure the code warns about. It now matches any
+  `Route::get('/', …)` that returns `view('welcome')`.
+
+- **`APP_LOCALE` is added to `.env` when it is missing.** `configureLocales` only updated an
+  `APP_LOCALE` line that already existed, so a project whose `.env` omitted it got `leap.locales`
+  set while `APP_LOCALE` stayed at its default — the mismatch `Leap::detectLocale` avoids. The
+  keys are now appended when absent.
+
+- **File operations no longer depend on the current working directory.** `copyFile`,
+  `copyOrReplace`, `copyDir`, `deleteFile` and the welcome-view removal used paths relative to the
+  process CWD, which only happened to equal the project root. They now resolve through
+  `base_path()`, so a run from a subdirectory (or under Octane/queue) writes to the right place.
+
+- **Page-path builders can't hang on a corrupt parent chain.** `PageController::localePath`,
+  `breadcrumbs` and `Search::resolvePageUrl` walked the parent chain with no cycle guard, so a
+  page whose ancestor points back at it would recurse or loop forever. Each now tracks visited ids.
 
 - **`--diff` shows each changed file's own diff.** The project path was computed in the loop that
   sorts the files into changed/new/unchanged and then reused in the loop that prints them, where it
@@ -22,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   means "the homepage" at the root; deeper down it resolves to its parent's own path. It now only
   considers root pages, so old or hand-edited data cannot displace the real homepage. The slug
   hint on the Page module explains the "/" convention as well.
+
+### Changed
+
+- **The content-registry regex lives in one place.** `TemplateCommand::reorderContentRegistry`
+  inlined its own copy of the `'content' => [ … ]` expression twice; it now reuses
+  `ContentCommand::CONTENT_ARRAY`, so the match that registers and the match that reorders can no
+  longer drift apart.
 
 ## [0.10.17] — 2026-07-23
 

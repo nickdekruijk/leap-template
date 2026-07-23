@@ -353,6 +353,27 @@ PHP);
         );
     }
 
+    /**
+     * The welcome route was matched byte-for-byte against the default multi-line block, so
+     * a reformatted route (Pint, an arrow fn, a one-liner) slipped past: the catch-all got
+     * added while the welcome route stayed, and / kept the welcome view. The match is now
+     * tolerant of formatting.
+     */
+    public function test_a_reformatted_welcome_route_is_still_removed(): void
+    {
+        mkdir($this->temp.'/resources/views', 0777, true);
+        file_put_contents($this->temp.'/resources/views/welcome.blade.php', 'welcome');
+        // A one-line arrow-fn variant of the same route.
+        file_put_contents($this->temp.'/routes/web.php', "<?php\n\nRoute::get('/', fn () => view('welcome'));\n");
+
+        $this->artisan('leap:template', ['--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl'])
+            ->assertExitCode(0);
+
+        $routes = file_get_contents($this->temp.'/routes/web.php');
+        $this->assertStringNotContainsString("view('welcome')", $routes, 'The reformatted welcome route must be removed too.');
+        $this->assertStringContainsString("PageController::class, 'route'", $routes, 'The catch-all should replace it.');
+    }
+
     public function test_keeping_the_welcome_page_keeps_both_halves(): void
     {
         mkdir($this->temp.'/resources/views', 0777, true);

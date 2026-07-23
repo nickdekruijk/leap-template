@@ -172,8 +172,16 @@ class ContentDeleteCommand extends Command
             $this->components->twoColumnDetail("config/leap.php → leap.content['{$key}']", '<fg=yellow>unregister</>');
         }
 
-        if ($this->option('force') || ! $this->input->isInteractive()) {
+        if ($this->option('force')) {
             return true;
+        }
+
+        // Deletion is destructive (files removed, pages force-deleted): a non-interactive
+        // run must not treat "no TTY" as consent — it has to pass --force explicitly.
+        if (! $this->input->isInteractive()) {
+            $this->warn('Refusing to delete without confirmation. Re-run with --force in a non-interactive context.');
+
+            return false;
         }
 
         return confirm('Remove these?', default: false);
