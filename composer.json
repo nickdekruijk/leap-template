@@ -10,7 +10,7 @@
 	"require": {
 		"php": "^8.3",
 		"laravel/framework": "^12.0|^13.0",
-		"nickdekruijk/leap": "^1.0"
+		"nickdekruijk/leap": "^0.10.15"
 	},
 	"suggest": {
 		"nickdekruijk/minify": "^4.0 for SCSS/JS compilation and bundling used by the frontend template (php artisan leap:template)",

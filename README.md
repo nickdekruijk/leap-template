@@ -49,10 +49,10 @@ The template and content types are documented in the leap repo:
 
 ## Versioning
 
-Tracks leap's major line — this package requires `nickdekruijk/leap: ^1.0`, so a breaking
-leap release (2.0) is paired with a new `leap-template` major. Minor and patch versions
-are independent: the two packages are released in lockstep at the same version number,
-but you can update either on its own within the major.
+Tracks leap's major/minor line — this package requires `nickdekruijk/leap: ^0.10.15`, so a
+breaking leap release is paired with a new `leap-template` release. Patch versions are
+independent. From 1.0.0 the two packages release in lockstep at the same version number
+and the requirement moves to `^1.0`, so only a new major (2.0) is paired.
 
 ## License
 
