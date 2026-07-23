@@ -18,6 +18,8 @@ class {{ Model }} extends Resource
         return [
             Attribute::make('active')->switch()->default(true)->label(['nl' => 'Actief', 'en' => 'Active']),
             Attribute::make('title')->index(1)->searchable()->required()->label(['nl' => 'Titel', 'en' => 'Title']),
+            Attribute::make('slug')->searchable()->unique()->slugFrom('title')->label('Slug')
+                ->hint(['nl' => 'Het laatste deel van de URL, achter het pad van de overzichtspagina. Leeg laten leidt \'m automatisch van de titel af.', 'en' => 'The last part of the URL, appended after the overview page\'s path. Leave empty to derive it from the title automatically.']),
             Attribute::make('published_at')->index(2)->datetime()->sortable()->required()->default(now())
                 ->label(['nl' => 'Publicatiedatum', 'en' => 'Published at'])
                 ->hint(['nl' => 'Bepaalt de volgorde (nieuwste eerst). In de toekomst = nog niet zichtbaar op de site.', 'en' => 'Sets the order (newest first). In the future = not visible on the site yet.']),
@@ -38,7 +40,6 @@ class {{ Model }} extends Resource
                 ->label(['nl' => 'Omschrijving', 'en' => 'Description'])
                 ->hint(['nl' => 'Voor SEO: de meta-omschrijving voor Google en social media (±150 tekens).', 'en' => 'For SEO: the meta description for Google and social media (~150 characters).']),
             Attribute::make('id')->indexOnly(),
-            Attribute::make('slug')->searchable()->unique()->slugFrom('title')->label('Slug'),
             Attribute::make('sections')->label(['nl' => 'Secties', 'en' => 'Sections'])->sections(...$this->contentSections()),
         ];
     }

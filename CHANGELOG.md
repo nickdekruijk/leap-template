@@ -5,6 +5,16 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Slug fields sit directly under their title, with a hint on what they are.** The `Page` and
+  news `slug` fields moved to right after `title` (so the editor's new "title changed, update the
+  slug?" suggestion appears where you are looking) and gained a hint explaining the slug is the
+  last part of the URL, appended after any parent/overview path, and derived from the title when
+  left empty. Requires the matching leap release that adds the suggestion.
+
 ## [0.10.16] — 2026-07-22
 
 ### Added
