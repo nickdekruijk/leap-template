@@ -45,10 +45,10 @@ Move the engine into `nickdekruijk/leap` as a `PageTree` service and leave a thi
 project; needs its own PR with its own tests, mirroring the `HasSlug` package/stub split.
 
 ## Test gaps
-- `installFrameworkTranslations` repair path (`--no-install` on a stale bare-stub, and the
-  "package not installed + stale" union) — only the happy re-run merge is covered today.
-- The MySQL branch of `Search::localeColumnExpr` — the search test runs on sqlite only, so
-  the `JSON_UNQUOTE/JSON_EXTRACT` expression is never executed.
-- `ContentDeleteCommand` deeper destructive paths — `deleteOverviewPage`'s `forceDelete`,
-  the tag-link cleanup and the migrations-row removal are not asserted (the test stops at
-  files + registry).
+All three closed for 1.0.0, kept here as a pointer to where they went:
+
+- `installFrameworkTranslations` repair path → `FrameworkTranslationRepairTest`.
+- The MySQL branch of `Search::localeColumnExpr` → `SearchLocaleColumnTest` (both driver
+  branches asserted as strings, so no server is needed).
+- `ContentDeleteCommand` deeper destructive paths → `ContentDeleteDestructiveTest`
+  (`forceDelete` on the overview page, tag-link cleanup, migrations-row removal).

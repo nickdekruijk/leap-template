@@ -2,7 +2,6 @@
 
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
-use App\Models\Page;
 use App\Models\Tag;
 use Illuminate\Console\OutputStyle;
 use NickDeKruijk\LeapTemplate\Commands\TemplateCommand;
@@ -20,9 +19,9 @@ class ContentCommandTest extends TestCase
         parent::setUp();
 
         // leap:content builds on the template — it needs App\Models\Page to exist.
-        if (! class_exists(Page::class)) {
-            eval('namespace App\Models; class Page {}');
-        }
+        // Shared with the content-delete tests, which need a real Eloquent model:
+        // the first definition in the process wins, so they all load the same one.
+        require_once dirname(__DIR__).'/Fixtures/app-models-page.php';
 
         $this->temp = sys_get_temp_dir().'/leap-content-'.uniqid();
         foreach (['app/Models', 'app/Leap', 'database/migrations', 'database/factories', 'database/seeders', 'config'] as $dir) {

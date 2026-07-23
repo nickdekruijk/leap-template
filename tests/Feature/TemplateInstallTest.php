@@ -39,9 +39,7 @@ class TemplateInstallTest extends TestCase
      */
     public function test_the_plural_is_derived_without_asking(): void
     {
-        if (! class_exists(Page::class)) {
-            eval('namespace App\Models; class Page {}');
-        }
+        require_once dirname(__DIR__).'/Fixtures/app-models-page.php';
 
         // No expectsQuestion for a plural: one reaching the console fails this test.
         $this->artisan('leap:template', [

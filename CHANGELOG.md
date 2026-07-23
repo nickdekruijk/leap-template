@@ -5,6 +5,47 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] — 2026-07-23
+
+The stable release, tagged in lockstep with `nickdekruijk/leap` 1.0.0.
+
+Nothing here changes what the installer writes; a generated project is byte-for-byte the
+same as under 0.10.18. Upgrading is a constraint bump.
+
+### Changed
+
+- **Requires `nickdekruijk/leap: ^1.0`** (was `^0.10.15`). The two packages are released
+  in lockstep at the same version number, and a breaking leap release (2.0) will be
+  paired with a new major here. Within the major you can update either on its own.
+
+### Added
+
+- **A `LICENSE` file.** The package has always been MIT — `composer.json` and the README
+  both said so — but the licence text itself was missing from the repository.
+
+- **CI.** `.github/workflows/tests.yml` mirrors leap's matrix: PHP 8.3/8.4 × Laravel
+  12/13 × prefer-lowest/prefer-stable, plus a Pint style job. The suite existed and was
+  runnable with `composer test`, but nothing ran it on push.
+
+### Tests
+
+163 cases, closing the three gaps `BACKLOG.md` recorded:
+
+- `FrameworkTranslationRepairTest` covers the `installFrameworkTranslations` repair path
+  — a stale bare stub with and without `laravel-lang/common` present, the missing-and-stale
+  union in one `lang:add`, a published locale the template ships no stub for, and English
+  never being repaired.
+- `SearchLocaleColumnTest` asserts both driver branches of `Search::localeColumnExpr` as
+  strings, so the MySQL `JSON_UNQUOTE/JSON_EXTRACT` path is finally executed on a
+  sqlite-only suite — including the ISO-shape guard on the interpolated locale.
+- `ContentDeleteDestructiveTest` covers what `--drop-table` does to the database:
+  `forceDelete` on the overview page, tag-link cleanup scoped to the one type, the
+  migrations-row removal, and that none of it happens without the flag.
+
+`App\Models\Page` now comes from one shared fixture instead of an `eval()` per test file.
+The definitions had drifted — a bare class in one, an Eloquent model in another — and
+whichever ran first won, so a test could pass or fail on suite order alone.
+
 ## [0.10.18] — 2026-07-23
 
 ### Security
@@ -990,5 +1031,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the host app — it is the runtime admin panel).
 - Both commands refuse to run on production without `--force`.
 
-See the [leap docs](https://github.com/nickdekruijk/leap/blob/main/docs/content-types.md)
+See the [leap docs](https://github.com/nickdekruijk/leap/blob/master/docs/content-types.md)
 for the template and content-type documentation.

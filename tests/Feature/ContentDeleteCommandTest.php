@@ -2,7 +2,6 @@
 
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
-use App\Models\Page;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
 
 /**
@@ -19,9 +18,9 @@ class ContentDeleteCommandTest extends TestCase
     {
         parent::setUp();
 
-        if (! class_exists(Page::class)) {
-            eval('namespace App\Models; class Page {}');
-        }
+        // Shared with ContentDeleteDestructiveTest: the first definition in the
+        // process wins, so both tests have to load the same one.
+        require_once dirname(__DIR__).'/Fixtures/app-models-page.php';
 
         $this->temp = sys_get_temp_dir().'/leap-content-delete-'.uniqid();
         foreach (['app/Models', 'app/Leap', 'database/migrations', 'database/factories', 'database/seeders', 'config'] as $dir) {
