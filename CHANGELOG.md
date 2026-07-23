@@ -5,6 +5,15 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] — 2026-07-23
+
+### Added
+
+- **PHP 8.5 is tested and supported.** The CI matrix gains it as a third runtime, so it
+  now runs PHP 8.3/8.4/8.5 × Laravel 12/13 × prefer-lowest/prefer-stable. `composer.json`
+  already required `^8.3`, which allowed 8.5 all along — nothing changes for an existing
+  install, but the combination is verified now instead of merely permitted.
+
 ## [1.0.0] — 2026-07-23
 
 The stable release, tagged in lockstep with `nickdekruijk/leap` 1.0.0.
