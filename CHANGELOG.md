@@ -5,6 +5,16 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **A stray "/" deeper in the page tree can no longer hijack the homepage.** `homePage()` took the
+  first active page carrying the reserved "/" slug, wherever it sat in the tree — but "/" only
+  means "the homepage" at the root; deeper down it resolves to its parent's own path. It now only
+  considers root pages, so old or hand-edited data cannot displace the real homepage. The slug
+  hint on the Page module explains the "/" convention as well.
+
 ## [0.10.17] — 2026-07-23
 
 ### Changed

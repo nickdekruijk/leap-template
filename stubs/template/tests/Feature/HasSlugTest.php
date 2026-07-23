@@ -37,6 +37,21 @@ class HasSlugTest extends TestCase
     }
 
     /**
+     * "/" only means "the homepage" at the root: deeper in the tree it resolves to the
+     * parent's own path, so such a page is unreachable and must never be picked as the
+     * homepage. The editor refuses to save one, but hand-edited data must not hijack it.
+     */
+    public function test_a_subpage_with_the_reserved_slug_is_not_the_homepage(): void
+    {
+        // The subpage sorts first, so it is the one homePage() would hit without the root check.
+        $parent = Page::forceCreate(['title' => 'About', 'slug' => 'about', 'active' => true, 'sort' => 1]);
+        Page::forceCreate(['title' => 'Sneaky', 'slug' => '/', 'parent' => $parent->id, 'active' => true, 'sort' => 2]);
+        $home = Page::forceCreate(['title' => 'Home', 'slug' => '/', 'active' => true, 'sort' => 3]);
+
+        $this->assertTrue(PageController::homePage()?->is($home));
+    }
+
+    /**
      * Slugs are generated on the saving event, so a DatabaseSeeder using Laravel's
      * WithoutModelEvents seeded every content item with a null slug: its detail page was
      * unreachable, its card linked to "/news/", and it dropped out of the sitemap. Pages

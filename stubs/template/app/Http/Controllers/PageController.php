@@ -326,10 +326,14 @@ class PageController extends Controller
     }
 
     /**
-     * The homepage: the page carrying the reserved slug "/" in the active locale, which
+     * The homepage: the root page carrying the reserved slug "/" in the active locale, which
      * is how the router recognises it too (see the traverse in getPages()). Null when a
      * site has none. Memoized per locale — the closure's used variables are part of the
      * once() key — since a trail asks for it on every page.
+     *
+     * Root only: "/" deeper in the tree resolves to its parent's own path, so such a page is
+     * unreachable and is certainly not the homepage. The editor refuses to save one, but old
+     * or hand-edited data must not be able to hijack the homepage either.
      */
     public static function homePage(?string $locale = null): ?Page
     {
@@ -337,7 +341,7 @@ class PageController extends Controller
 
         return once(function () use ($locale): ?Page {
             foreach (Page::active()->get() as $page) {
-                if ($page->getTranslation('slug', $locale, false) === '/') {
+                if (! $page->parent && $page->getTranslation('slug', $locale, false) === '/') {
                     return $page;
                 }
             }

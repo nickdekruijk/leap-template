@@ -24,7 +24,7 @@ class Page extends Resource
                 ->hint(['nl' => 'Het pad naar deze pagina, met een terug-link. De homepage toont er nooit een: die is zelf de enige stap.', 'en' => 'The path to this page, with a back link. The homepage never shows one: it is the only step there is.']),
             Attribute::make('title')->index(1)->searchable()->required()->label(['nl' => 'Titel', 'en' => 'Title']),
             Attribute::make('slug')->index()->searchable()->unique()->slugFrom('title')->label('Slug')
-                ->hint(['nl' => 'Het laatste deel van de URL, achter het pad van eventuele bovenliggende pagina\'s. Leeg laten leidt \'m automatisch van de titel af.', 'en' => 'The last part of the URL, appended after the path of any parent pages. Leave empty to derive it from the title automatically.']),
+                ->hint(['nl' => 'Het laatste deel van de URL, achter het pad van eventuele bovenliggende pagina\'s. Leeg laten leidt \'m automatisch van de titel af. Gebruik / voor de homepage; dat kan alleen op een pagina zonder bovenliggende pagina.', 'en' => 'The last part of the URL, appended after the path of any parent pages. Leave empty to derive it from the title automatically. Use / for the homepage; only a page without a parent can.']),
             Attribute::make('parent')->tree($this)->label(['nl' => 'Subpagina van', 'en' => 'Subpage of']),
             Attribute::make('html_title')->searchable()
                 ->label(['nl' => 'HTML-titel', 'en' => 'HTML title'])
