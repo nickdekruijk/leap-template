@@ -359,6 +359,99 @@ PHP);
     }
 
     /**
+     * Which language is served on / used to be "whichever box you ticked first", which is
+     * nothing you can see: every selected line in the multiselect looks the same. Untick
+     * the current default and tick it back and it moves to the end of the list, taking /
+     * and APP_LOCALE with it. It is a question of its own now, with the language the
+     * project serves today marked as such.
+     */
+    public function test_the_default_language_is_asked_for_rather_than_inferred_from_the_ticks(): void
+    {
+        $this->artisan('leap:template', ['--models' => '', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
+            // Ticked English first, Dutch second — and then said Dutch is the default.
+            ->expectsQuestion('Which languages?', ['en', 'nl'])
+            ->expectsQuestion('Which language is the default?', 'nl')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->assertExitCode(0);
+
+        $config = file_get_contents($this->temp.'/config/leap.php');
+
+        $this->assertMatchesRegularExpression(
+            "/'locales' => \['nl' => 'Nederlands', 'en' => 'English'\]/",
+            $config,
+            'The language picked as the default has to lead leap.locales — it is the one served unprefixed.',
+        );
+        $this->assertStringContainsString('APP_LOCALE=nl', file_get_contents($this->temp.'/.env'));
+    }
+
+    /**
+     * A project that already has the whole filter has answered the question, and neither
+     * answer would change anything: no removes nothing, yes copies files that are already
+     * byte-for-byte the stub. So a re-run must not ask — the run below lists every other
+     * prompt, and an extra one fails the test.
+     */
+    public function test_a_project_that_already_has_the_tag_filter_is_not_asked_again(): void
+    {
+        foreach ($this->tagFilterFiles() as $file) {
+            @mkdir(dirname($this->temp.'/'.$file), 0777, true);
+            copy(__DIR__.'/../../stubs/template/'.$file, $this->temp.'/'.$file);
+        }
+
+        $this->artisan('leap:template', ['--models' => '', '--locales' => 'nl', '--no-install' => true])
+            ->expectsConfirmation('Copy the page tree?', 'no')
+            ->expectsConfirmation('Copy PageSeeder?', 'no')
+            ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
+            ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
+            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
+            ->expectsConfirmation('Copy the starter tests?', 'no')
+            ->expectsConfirmation('Add sitemap.xml route?', 'no')
+            ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Copy Nederlands translations?', 'no')
+            ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Run database migrations now?', 'no')
+            ->assertExitCode(0);
+
+        foreach ($this->tagFilterFiles() as $file) {
+            $this->assertFileExists($this->temp.'/'.$file, 'Nothing was asked, so nothing may have been removed either.');
+        }
+    }
+
+    /**
+     * …but --no-tags is someone saying it on purpose, so it still decides. The files stay
+     * where they are — the installer does not delete what it did not put there this run —
+     * while the content types generated below are left without the relation.
+     */
+    public function test_an_explicit_no_tags_still_wins_over_what_is_installed(): void
+    {
+        foreach ($this->tagFilterFiles() as $file) {
+            @mkdir(dirname($this->temp.'/'.$file), 0777, true);
+            copy(__DIR__.'/../../stubs/template/'.$file, $this->temp.'/'.$file);
+        }
+
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--no-tags' => true,
+            '--models' => 'News', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        $this->assertStringNotContainsString(
+            'HasTags',
+            file_get_contents($this->temp.'/app/Models/News.php'),
+            '--no-tags must leave the generated model without the relation.',
+        );
+    }
+
+    /**
      * @return array<int, string>
      */
     private function tagFilterFiles(): array

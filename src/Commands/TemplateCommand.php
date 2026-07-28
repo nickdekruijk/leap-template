@@ -12,6 +12,7 @@ use Symfony\Component\Console\Input\InputOption;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
+use function Laravel\Prompts\select;
 use function Laravel\Prompts\text;
 
 class TemplateCommand extends Command
@@ -1147,12 +1148,30 @@ class TemplateCommand extends Command
      */
     protected function installTagFilter(): bool
     {
-        $tags = $this->confirmStep(
-            'tags',
-            'Add the shared tag filter?',
-            true,
-            'One tag vocabulary across every content type, with filter chips above each overview. Applies to the types generated below and to any added later.',
-        );
+        $files = [
+            'app/Traits/HasTags.php' => 'HasTags trait',
+            'app/Models/Tag.php' => 'Tag model',
+            'app/Leap/Tag.php' => 'Tag Leap module',
+            'database/factories/TagFactory.php' => 'Tag factory',
+            'database/migrations/2025_01_03_094210_create_tags_table.php' => 'tags table migration',
+            'database/migrations/2025_01_03_094211_create_taggables_table.php' => 'taggables table migration',
+        ];
+
+        // A project that already has the whole filter has answered this: no removes nothing
+        // and yes copies what is already there, so a re-run asking again is a question with
+        // one meaningful answer. An explicit --tags/--no-tags still decides, because that is
+        // someone saying it on purpose. copyGroup runs either way, so a stub a later release
+        // changed is still offered per file, the way every other copy is.
+        $installed = collect($files)->keys()->every(fn (string $file): bool => file_exists(base_path($file)));
+
+        $tags = $installed && $this->option('tags') === null
+            ? true
+            : $this->confirmStep(
+                'tags',
+                'Add the shared tag filter?',
+                true,
+                'One tag vocabulary across every content type, with filter chips above each overview. Applies to the types generated below and to any added later.',
+            );
 
         if ($tags) {
             // The question above was the decision. The trait, the model, its admin module,
@@ -1162,14 +1181,7 @@ class TemplateCommand extends Command
             $this->copyGroup(
                 'the tag filter',
                 'One tag vocabulary across all content types, with filter chips above each overview.',
-                [
-                    'app/Traits/HasTags.php' => 'HasTags trait',
-                    'app/Models/Tag.php' => 'Tag model',
-                    'app/Leap/Tag.php' => 'Tag Leap module',
-                    'database/factories/TagFactory.php' => 'Tag factory',
-                    'database/migrations/2025_01_03_094210_create_tags_table.php' => 'tags table migration',
-                    'database/migrations/2025_01_03_094211_create_taggables_table.php' => 'taggables table migration',
-                ],
+                $files,
                 ask: false,
             );
         }
@@ -1456,10 +1468,10 @@ class TemplateCommand extends Command
         }
 
         $chosen = multiselect(
-            label: 'Which languages? (the first is the default)',
+            label: 'Which languages?',
             options: $options + ['other' => 'Anders…'],
             default: $current,
-            hint: 'The first one is served on / and the rest under /xx. Pick just one for a monolingual site.',
+            hint: 'One of them is served on / and the rest under /xx — which one is the next question. Pick just one for a monolingual site.',
         );
 
         if (in_array('other', $chosen, true)) {
@@ -1469,7 +1481,42 @@ class TemplateCommand extends Command
             }
         }
 
-        return $this->normaliseLocales($chosen);
+        return $this->promoteDefaultLocale($this->normaliseLocales($chosen), $current[0] ?? null);
+    }
+
+    /**
+     * Put the default locale first, asking which it is when there is a choice to make.
+     *
+     * The order used to be whatever the multiselect returned — the order the boxes were
+     * ticked, which is invisible on screen: every selected line looks the same, so the one
+     * that happens to be first is not the one you can see. Untick the current default and
+     * tick it again and it quietly moves to the back, taking / with it. Which language is
+     * served unprefixed, and ends up in APP_LOCALE, is worth its own question.
+     *
+     * @param  array<int, string>  $codes
+     * @param  string|null  $current  The locale the project serves today, if it has one
+     * @return array<int, string>
+     */
+    protected function promoteDefaultLocale(array $codes, ?string $current): array
+    {
+        if (count($codes) < 2) {
+            return $codes;
+        }
+
+        $default = in_array($current, $codes, true) ? $current : $codes[0];
+
+        $chosen = select(
+            label: 'Which language is the default?',
+            options: collect($codes)
+                ->mapWithKeys(fn (string $code): array => [
+                    $code => ($this->localeNames[$code] ?? $code).($code === $current ? ' (current default)' : ''),
+                ])
+                ->all(),
+            default: $default,
+            hint: 'Served on / without a prefix, while the others get /'.implode(', /', array_values(array_diff($codes, [$default]))).'. It becomes APP_LOCALE too.',
+        );
+
+        return array_merge([$chosen], array_values(array_diff($codes, [$chosen])));
     }
 
     /**

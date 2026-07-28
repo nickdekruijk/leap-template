@@ -5,6 +5,26 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] — 2026-07-28
+
+### Changed
+
+- **Which language is the default is its own question.** It used to be whichever box you
+  ticked first in the language multiselect — an order nothing on screen shows, since every
+  selected line looks the same. Unticking the current default and ticking it back moved it
+  to the end of the list, and `/` and `APP_LOCALE` went with it without a word. Picking two
+  or more languages now asks *"Which language is the default?"*, with the one the project
+  serves today marked `(current default)` and pre-selected, so pressing enter changes
+  nothing. `--locales` and `--fresh` are unaffected: the first code given still leads.
+
+### Fixed
+
+- **A project that already has the tag filter is no longer asked about it.** All six files
+  present meant the question had one meaningful answer — no removes nothing, yes copies
+  what is already byte-for-byte there — so a re-run asked for nothing. It is skipped now,
+  the way the sitemap and catch-all routes already skip themselves. An explicit `--tags` /
+  `--no-tags` still decides, and a stub a later release changed is still offered per file.
+
 ## [1.0.3] — 2026-07-28
 
 ### Fixed
