@@ -128,6 +128,7 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
@@ -178,6 +179,7 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
@@ -234,6 +236,7 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
             ->expectsConfirmation('Remove WithoutModelEvents from DatabaseSeeder?', 'yes')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
@@ -265,6 +268,7 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
@@ -277,14 +281,14 @@ PHP);
         );
     }
 
-    private function assertValidPhp(string $code): void
+    private function assertValidPhp(string $code, string $subject = 'DatabaseSeeder'): void
     {
-        $file = tempnam(sys_get_temp_dir(), 'seeder').'.php';
+        $file = tempnam(sys_get_temp_dir(), 'leap-template').'.php';
         file_put_contents($file, $code);
         exec('php -l '.escapeshellarg($file).' 2>&1', $output, $status);
         unlink($file);
 
-        $this->assertSame(0, $status, 'DatabaseSeeder is not valid PHP: '.implode("\n", $output));
+        $this->assertSame(0, $status, $subject.' is not valid PHP: '.implode("\n", $output));
     }
 
     /**
@@ -296,7 +300,7 @@ PHP);
     {
         $this->artisan('leap:template', [
             '--fresh' => true, '--no-install' => true, '--no-tags' => true,
-            // Tags live on content types, so there has to be one to leave them off.
+            // With a content type, so the generated model is checked for the relation too.
             '--models' => 'News', '--locales' => 'nl',
         ])->assertExitCode(0);
 
@@ -317,16 +321,56 @@ PHP);
             '--models' => 'News', '--locales' => 'nl',
         ])->assertExitCode(0);
 
-        foreach ([
+        foreach ($this->tagFilterFiles() as $file) {
+            $this->assertFileExists($this->temp.'/'.$file, "Choosing tags must install {$file}.");
+        }
+    }
+
+    /**
+     * The tag filter used to be asked for inside the content-type step, after the early
+     * return that fires when there are no content types — so a site that did not know its
+     * content types yet was never asked and silently got no tags, with nothing said about
+     * it. None of these six files needs a content type: the tags live in their own two
+     * tables and reach a model polymorphically, and leap:content picks up an existing
+     * App\Models\Tag on its own when the types are added later.
+     */
+    public function test_tags_are_installed_without_any_content_type(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--tags' => true,
+            '--models' => '', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        foreach ($this->tagFilterFiles() as $file) {
+            $this->assertFileExists($this->temp.'/'.$file, "Tags must not depend on a content type: {$file} is missing.");
+        }
+    }
+
+    public function test_no_tags_without_a_content_type_leaves_no_tag_files_behind(): void
+    {
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--no-tags' => true,
+            '--models' => '', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        foreach ($this->tagFilterFiles() as $file) {
+            $this->assertFileDoesNotExist($this->temp.'/'.$file, "--no-tags must not install {$file}.");
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function tagFilterFiles(): array
+    {
+        return [
             'app/Traits/HasTags.php',
             'app/Models/Tag.php',
             'app/Leap/Tag.php',
             'database/factories/TagFactory.php',
             'database/migrations/2025_01_03_094210_create_tags_table.php',
             'database/migrations/2025_01_03_094211_create_taggables_table.php',
-        ] as $file) {
-            $this->assertFileExists($this->temp.'/'.$file, "Choosing tags must install {$file}.");
-        }
+        ];
     }
 
     /**
@@ -372,6 +416,57 @@ PHP);
         $this->assertStringContainsString("PageController::class, 'route'", $routes, 'The catch-all should replace it.');
     }
 
+    /**
+     * The default welcome route is a closure over three lines, and the pattern that removed
+     * it ended in a lazy `.*?;` — which matched the `;` after view('welcome') and stopped
+     * there, leaving the closure's own `});` behind on its own line. That is a parse error
+     * in a file the installer had just written: artisan and the site both die on it, while
+     * every assertion here still passed because none of them parsed the result.
+     */
+    public function test_removing_the_welcome_route_leaves_valid_php_behind(): void
+    {
+        mkdir($this->temp.'/resources/views', 0777, true);
+        file_put_contents($this->temp.'/resources/views/welcome.blade.php', 'welcome');
+        // The stock multi-line closure, as `laravel new` writes it.
+        file_put_contents(
+            $this->temp.'/routes/web.php',
+            "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n\nRoute::get('/', function () {\n    return view('welcome');\n});\n",
+        );
+
+        $this->artisan('leap:template', ['--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl'])
+            ->assertExitCode(0);
+
+        $routes = file_get_contents($this->temp.'/routes/web.php');
+
+        $this->assertValidPhp($routes, 'routes/web.php');
+        $this->assertStringNotContainsString("view('welcome')", $routes);
+        $this->assertStringNotContainsString('});', $routes, 'The closure was removed, so its closing brace must go too.');
+        $this->assertStringContainsString("PageController::class, 'route'", $routes);
+    }
+
+    /**
+     * A route with a chained ->name() is one statement too, and its terminating `;` sits
+     * after the chain rather than after the closing paren.
+     */
+    public function test_a_named_welcome_route_is_removed_whole(): void
+    {
+        mkdir($this->temp.'/resources/views', 0777, true);
+        file_put_contents($this->temp.'/resources/views/welcome.blade.php', 'welcome');
+        file_put_contents(
+            $this->temp.'/routes/web.php',
+            "<?php\n\nRoute::get('/', fn () => view('welcome'))->name('home');\n",
+        );
+
+        $this->artisan('leap:template', ['--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl'])
+            ->assertExitCode(0);
+
+        $routes = file_get_contents($this->temp.'/routes/web.php');
+
+        $this->assertValidPhp($routes, 'routes/web.php');
+        $this->assertStringNotContainsString("view('welcome')", $routes);
+        $this->assertStringNotContainsString("->name('home')", $routes, 'The chain is part of the statement that went.');
+    }
+
     public function test_keeping_the_welcome_page_keeps_both_halves(): void
     {
         mkdir($this->temp.'/resources/views', 0777, true);
@@ -386,6 +481,7 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
@@ -458,6 +554,7 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
+            ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
@@ -489,6 +586,9 @@ PHP);
             ->expectsConfirmation('Copy the starter tests?', 'yes')
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
             ->expectsConfirmation('Serve / from the page tree?', 'yes')
+            // Asked even though --models='' generates no content type: the tag filter is
+            // its own two tables and a polymorphic relation, so it stands without one.
+            ->expectsConfirmation('Add the shared tag filter?', 'yes')
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
             // configureLocales() runs here, so this is asked only once the language is
             // known, and about the language actually chosen -- nl. English gets no file:

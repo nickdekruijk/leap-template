@@ -67,7 +67,7 @@ class TemplateCommand extends Command
     {
         parent::configure();
 
-        $this->getDefinition()->addOption(new InputOption('tags', null, InputOption::VALUE_NEGATABLE, 'Include the shared Tag filter on content types', null));
+        $this->getDefinition()->addOption(new InputOption('tags', null, InputOption::VALUE_NEGATABLE, 'Include the shared Tag filter, with or without content types', null));
         $this->getDefinition()->addOption(new InputOption('multilingual', null, InputOption::VALUE_NEGATABLE, 'Enable multiple languages', null));
     }
 
@@ -293,7 +293,14 @@ class TemplateCommand extends Command
         // view('welcome'). A byte-exact match on the default block would miss a reformatted
         // or one-line version (Pint, an arrow fn, different indent) and leave it in place
         // while the catch-all is added anyway, so / would silently keep the welcome view.
-        $welcomePattern = "#Route::get\(\s*'/'.*?view\('welcome'\).*?;\n?#s";
+        //
+        // The tail is spelled out rather than left to a lazy .*?; — in the default block
+        // the very next character after view('welcome') is already a ;, so a lazy match
+        // ended there and left the closure's own }); behind as an orphan, which is a parse
+        // error on a file the installer had just written. It covers both the closure form
+        // (…view('welcome');\n});), the arrow fn (…view('welcome'));) and a chained
+        // ->name('home') after either.
+        $welcomePattern = "#Route::get\(\s*'/'.*?view\('welcome'\)\s*;?\s*\}?\s*\)(?:\s*->[^;]*)?\s*;\n?#s";
         $catchAll = "Route::get('{any}', [PageController::class, 'route'])->where('any', '(.*)');\n";
         $routes = base_path('routes/web.php');
 
@@ -316,7 +323,7 @@ class TemplateCommand extends Command
         }
 
         if ($hasWelcomeRoute) {
-            self::updateFile($routes, fn (string $file): string => preg_replace($welcomePattern, '', $file));
+            $this->updateFile($routes, fn (string $file): string => preg_replace($welcomePattern, '', $file));
             $this->info('Removed the welcome route from routes/web.php');
         }
 
@@ -328,7 +335,7 @@ class TemplateCommand extends Command
         // Last, so anything added after it — the sitemap above — is matched first.
         if ($needsCatchAll) {
             $this->importPageController();
-            self::updateFile($routes, fn (string $file): string => $file.$catchAll);
+            $this->updateFile($routes, fn (string $file): string => $file.$catchAll);
             $this->info('Added the PageController route to routes/web.php');
         }
     }
@@ -336,15 +343,45 @@ class TemplateCommand extends Command
     /**
      * Update the contents of a file with the logic of a given callback
      *
+     * A .php file is parsed before it is written: every patch here is a regex or a string
+     * replacement on source code, and one that matches slightly wrong leaves the project
+     * unable to boot at all — routes/web.php with an unbalanced brace takes down artisan
+     * along with the site. Cheaper to refuse the write and say so than to hand back an app
+     * that no longer parses.
+     *
      * @param  string  $file  The file to update
      * @param  callable  $callback  The callback function to run
-     * @return void
+     * @return bool Whether the new contents were written
      */
-    public static function updateFile(string $file, callable $callback)
+    public function updateFile(string $file, callable $callback): bool
     {
         $originalFileContents = file_get_contents($file);
         $newFileContents = $callback($originalFileContents);
+
+        if (str_ends_with($file, '.php') && ! $this->isValidPhp($newFileContents)) {
+            $this->error('Patching '.$file.' would have left invalid PHP behind, so it was left untouched. Please report this.');
+
+            return false;
+        }
+
         file_put_contents($file, $newFileContents);
+
+        return true;
+    }
+
+    /**
+     * Does this string parse as PHP? Tokenized in-process rather than shelled out to
+     * `php -l`, so it costs nothing and works wherever the installer runs.
+     */
+    protected function isValidPhp(string $code): bool
+    {
+        try {
+            token_get_all($code, TOKEN_PARSE);
+
+            return true;
+        } catch (\ParseError) {
+            return false;
+        }
     }
 
     /**
@@ -464,7 +501,7 @@ class TemplateCommand extends Command
             return;
         }
 
-        self::updateFile(base_path('routes/web.php'), function (string $file) use ($import): string {
+        $this->updateFile(base_path('routes/web.php'), function (string $file) use ($import): string {
             // After the opening tag, ahead of any other import, and let Pint sort them
             return preg_replace('/^<\?php\s*\n/', "<?php\n\n".$import, $file, 1);
         });
@@ -930,7 +967,7 @@ class TemplateCommand extends Command
             'Publishes /sitemap.xml, built from the pages and content types. For search engines.',
         )) {
             $this->importPageController();
-            self::updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$sitemap);
+            $this->updateFile(base_path('routes/web.php'), fn (string $file): string => $file.$sitemap);
         }
 
         // Laravel's welcome page out and the catch-all in, as one decision.
@@ -950,8 +987,11 @@ class TemplateCommand extends Command
         $this->copyDir('resources/views', 'template views');
         $this->copyDir('resources/js', 'JavaScript files');
 
-        // Generate the chosen content types (before migrate/seed, so their migrations run)
-        $this->generateContentTypes();
+        // The tag filter, then the content types that carry it (both before migrate/seed,
+        // so their migrations run). Tags stand on their own, so they are asked for even
+        // when there is no content type yet.
+        $tags = $this->installTagFilter();
+        $this->generateContentTypes($tags);
 
         // Register the PageSeeder so `php artisan db:seed` seeds sample pages
         $this->registerPageSeeder();
@@ -1095,27 +1135,23 @@ class TemplateCommand extends Command
     }
 
     /**
-     * Generate the chosen content types (--models, or the News,Event default), each via
-     * `leap:content`. Runs before migrate/seed so the new migrations run. Copies the
-     * shared Tag stubs first when tags are on.
+     * Ask for the shared tag filter and copy what it is made of. Returns the answer, so
+     * the content types generated below know whether to carry the relation.
+     *
+     * Its own step rather than part of generateContentTypes(), because none of these six
+     * files needs a content type to exist: the tags live in their own two tables and reach
+     * a model through a polymorphic relation. Asking inside the content-type step meant a
+     * project that did not know its content types yet — the common case on a fresh site —
+     * was never asked, and silently got no tags. leap:content picks up an existing
+     * App\Models\Tag on its own, so tags first and content types later is a valid order.
      */
-    protected function generateContentTypes(): void
+    protected function installTagFilter(): bool
     {
-        $models = $this->resolveModels();
-        if (empty($models)) {
-            return;
-        }
-
-        // The registry lives in config/leap.php — leap:content appends to it.
-        if (! file_exists(base_path('config/leap.php'))) {
-            $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
-        }
-
         $tags = $this->confirmStep(
             'tags',
-            'Add the shared tag filter to content types?',
+            'Add the shared tag filter?',
             true,
-            'One tag vocabulary across all content types, with filter chips above each overview.',
+            'One tag vocabulary across every content type, with filter chips above each overview. Applies to the types generated below and to any added later.',
         );
 
         if ($tags) {
@@ -1136,6 +1172,27 @@ class TemplateCommand extends Command
                 ],
                 ask: false,
             );
+        }
+
+        return $tags;
+    }
+
+    /**
+     * Generate the chosen content types (--models, or the News,Event default), each via
+     * `leap:content`. Runs before migrate/seed so the new migrations run.
+     *
+     * @param  bool  $tags  The answer installTagFilter() already took
+     */
+    protected function generateContentTypes(bool $tags): void
+    {
+        $models = $this->resolveModels();
+        if (empty($models)) {
+            return;
+        }
+
+        // The registry lives in config/leap.php — leap:content appends to it.
+        if (! file_exists(base_path('config/leap.php'))) {
+            $this->call('vendor:publish', ['--provider' => 'NickDeKruijk\Leap\ServiceProvider', '--tag' => 'config']);
         }
 
         foreach ($models as [$name, $archetype, $plural]) {

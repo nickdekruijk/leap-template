@@ -5,6 +5,37 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] — 2026-07-28
+
+### Fixed
+
+- **Removing Laravel's welcome route left its closing `});` behind.** The pattern that
+  matched `Route::get('/', …view('welcome')…)` ended in a lazy `.*?;`, and in the default
+  multi-line block the very next character after `view('welcome')` is already a `;` — so
+  the match stopped there and the closure's own `});` survived on its own line. That is a
+  parse error in a file the installer had just written: `artisan` and the site both die
+  on it. The tail is now spelled out and covers the closure form, the arrow fn, and a
+  chained `->name()` after either. A project already hit by this can delete the stray
+  `});` by hand; nothing else was touched.
+
+- **The tag filter was never offered to a project without content types.** The question
+  sat inside the content-type step, after the early return that fires when `--models` is
+  empty — so a site that did not know its content types yet was never asked and silently
+  got no tags, with nothing said about it. It is its own step now, asked before the
+  content types are generated and phrased as *"Add the shared tag filter?"*. None of the
+  six files it installs needs a content type: the tags live in their own two tables and
+  reach a model polymorphically, and `leap:content` picks up an existing `App\Models\Tag`
+  on its own — so tags first and content types later is a valid order. `--tags` and
+  `--no-tags` are unchanged and now apply with or without `--models`.
+
+### Added
+
+- **Every `.php` file the installer patches is parsed before it is written.** All of the
+  route, seeder and config patches are regex or string replacements on source code, and
+  one that matches slightly wrong takes the whole project down. `updateFile()` now tokenizes
+  the result first, and on a parse error leaves the file untouched and says so instead of
+  writing it out.
+
 ## [1.0.1] — 2026-07-23
 
 ### Added
