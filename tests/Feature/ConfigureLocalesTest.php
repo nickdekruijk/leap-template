@@ -123,6 +123,66 @@ class ConfigureLocalesTest extends TestCase
         $this->assertStringContainsString('APP_NAME=Leap', $env);
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function configuredLocales(): array
+    {
+        $command = new TemplateCommand;
+        $command->setLaravel($this->app);
+
+        return (new ReflectionMethod($command, 'configuredLocales'))->invoke($command);
+    }
+
+    /**
+     * The language picker used to be seeded from APP_LOCALE alone, so re-running the
+     * installer on a multilingual site offered one language and dropped the rest from
+     * every step that reads the answer — the translations first of all.
+     */
+    public function test_the_configured_languages_are_read_back_in_order(): void
+    {
+        file_put_contents(
+            $this->temp.'/config/leap.php',
+            "<?php\n\nreturn [\n    'locales' => ['en' => 'English', 'nl' => 'Nederlands', 'pt-br' => 'Português'],\n];\n",
+        );
+
+        $this->assertSame(['en', 'nl', 'pt-br'], $this->configuredLocales());
+    }
+
+    /**
+     * The setting is documented right above itself, example array and all, and the comment
+     * comes first in the file — reading it as the setting would offer nl,en to a project
+     * that runs neither.
+     */
+    public function test_the_example_in_the_doc_comment_is_not_read_as_the_setting(): void
+    {
+        file_put_contents($this->temp.'/config/leap.php', <<<'PHP'
+            <?php
+
+            return [
+                /*
+                | Example:
+                | 'locales' => ['nl' => 'Nederlands', 'en' => 'English']
+                */
+                'locales' => ['de' => 'Deutsch'],
+            ];
+
+            PHP);
+
+        $this->assertSame(['de'], $this->configuredLocales());
+    }
+
+    /**
+     * A monolingual site names no locales, so the app locale is all there is to go on.
+     */
+    public function test_a_monolingual_config_falls_back_to_the_app_locale(): void
+    {
+        file_put_contents($this->temp.'/config/leap.php', "<?php\n\nreturn [\n    'locales' => null,\n];\n");
+        config(['app.locale' => 'de']);
+
+        $this->assertSame(['de'], $this->configuredLocales());
+    }
+
     public function test_a_free_text_locale_typo_is_rejected(): void
     {
         file_put_contents($this->temp.'/config/leap.php', "<?php\n\nreturn [\n    'locales' => null,\n];\n");

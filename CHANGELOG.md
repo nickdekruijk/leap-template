@@ -5,6 +5,19 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] — 2026-07-28
+
+### Fixed
+
+- **The language picker forgot the languages the site already has.** It was seeded from
+  `APP_LOCALE` alone, so re-running the installer on a multilingual project offered a
+  single pre-selected language and the rest had to be ticked back by hand — and anything
+  missed was dropped from every step that reads the answer, `lang/<code>.json` first of
+  all. It now pre-selects the keys of `leap.locales`, in the order the config declares
+  them, and falls back to the app locale only when the site is monolingual. A locale the
+  picker ships no display name for (`pt-br`, `sv`) is listed under its own code rather
+  than silently left off the list it is already on. `--locales` is unchanged.
+
 ## [1.0.2] — 2026-07-28
 
 ### Fixed

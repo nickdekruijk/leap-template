@@ -1433,18 +1433,32 @@ class TemplateCommand extends Command
             return ['nl'];
         }
 
-        // Pre-select whatever .env already says, so the picker agrees with the project you
-        // are standing in. It only seeds the suggestion: leap.locales decides which locale
-        // is unprefixed, and this writes APP_LOCALE back to match the choice.
-        $current = app()->getLocale();
-        if (! array_key_exists($current, $this->localeNames)) {
-            $current = 'nl';
+        // Pre-select the languages the project already has, so the picker agrees with the
+        // project you are standing in — leap.locales when it names them, the app locale
+        // when the site is monolingual. It used to be seeded from the app locale alone, so
+        // a re-run on a multilingual site offered one language and silently dropped the
+        // rest from every step that reads this answer, the translations first of all. It
+        // seeds the suggestion and nothing more: leap.locales decides which locale is
+        // served unprefixed, and this writes APP_LOCALE back to match the choice.
+        $current = $this->configuredLocales();
+
+        if ($current === []) {
+            $locale = app()->getLocale();
+            $current = [array_key_exists($locale, $this->localeNames) ? $locale : 'nl'];
+        }
+
+        // A locale the picker does not ship a name for (sv, pt-br, whatever the project
+        // chose) has to be listed before it can be pre-selected, or it silently drops off
+        // the very list it is already in.
+        $options = $this->localeNames;
+        foreach ($current as $code) {
+            $options[$code] ??= $code;
         }
 
         $chosen = multiselect(
             label: 'Which languages? (the first is the default)',
-            options: $this->localeNames + ['other' => 'Anders…'],
-            default: [$current],
+            options: $options + ['other' => 'Anders…'],
+            default: $current,
             hint: 'The first one is served on / and the rest under /xx. Pick just one for a monolingual site.',
         );
 
