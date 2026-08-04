@@ -5,6 +5,20 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] — 2026-08-04
+
+### Added
+
+- **`--email=` names the admin user the install ends with.** The closing step defaulted to
+  `test@example.com` and, under `--fresh`, used it without asking — so an unattended install
+  always left behind Laravel's seeded address, and giving the project its real account meant
+  a second `leap:user` run and a stray user to clean up afterwards. `--email=you@example.com`
+  now supplies that username, and because naming the account already answers *"Create an
+  admin user now?"*, the question is skipped. The value goes to `leap:user` under
+  `leap.credentials[0]`, so a project that logs in with something other than an e-mail
+  address is served too. Without the flag nothing changes: `--fresh` still falls back to
+  `test@example.com` and an interactive run still asks, with that address as the default.
+
 ## [1.0.4] — 2026-07-28
 
 ### Changed

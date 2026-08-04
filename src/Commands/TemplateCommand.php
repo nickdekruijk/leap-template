@@ -32,6 +32,7 @@ class TemplateCommand extends Command
         {--force : Skip the production confirmation}
         {--models= : Comma list of content types to generate, e.g. News,Event,Project or Story:generic (default News,Event)}
         {--locales= : Comma list of locale codes, e.g. nl,en (default: nl only)}
+        {--email= : Username for the admin user, e.g. you@example.com (implies yes to the admin user question, default test@example.com)}
         {--no-install : Do not run "composer require" for the packages the template needs; print the command instead}';
 
     /**
@@ -1748,7 +1749,8 @@ class TemplateCommand extends Command
             return;
         }
 
-        if (! $this->auto(
+        // Naming the user to create is an answer to the question, so --email skips it.
+        if ($this->option('email') === null && ! $this->auto(
             'Create an admin user now?',
             true,
             'Creates the user and gives it the superuser role. Without a role /admin answers 403, so a fresh install has no way in.',
@@ -1759,9 +1761,10 @@ class TemplateCommand extends Command
         // Laravel's own DatabaseSeeder uses this address, so defaulting to it reuses (and
         // gives a role to) an already seeded user instead of leaving a second one next to it.
         $column = config('leap.credentials')[0] ?? 'email';
-        $username = $this->option('fresh')
-            ? 'test@example.com'
-            : text(label: 'Which '.($column === 'email' ? 'e-mail address' : $column).'?', default: 'test@example.com', required: true);
+        $username = $this->option('email')
+            ?? ($this->option('fresh')
+                ? 'test@example.com'
+                : text(label: 'Which '.($column === 'email' ? 'e-mail address' : $column).'?', default: 'test@example.com', required: true));
 
         // $this->call(), not artisan(): a subprocess has no TTY, and leap:user asks for the
         // password. None of artisan()'s reasons apply here — leap is loaded in this process

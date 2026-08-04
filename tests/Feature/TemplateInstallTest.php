@@ -115,6 +115,27 @@ PHP);
         $this->assertSame([['_name' => 'all_modules', 'all_permissions' => true]], $role->permissions);
     }
 
+    /**
+     * Naming the account is an answer to "Create an admin user now?", so --email both skips
+     * that question and replaces the test@example.com default an unattended install falls
+     * back to.
+     */
+    public function test_email_names_the_admin_user_without_asking(): void
+    {
+        $this->prepareLeapDatabase();
+
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl',
+            '--email' => 'nick@example.com',
+        ])->assertExitCode(0);
+
+        $this->assertNull(User::where('email', 'test@example.com')->first());
+
+        $user = User::where('email', 'nick@example.com')->first();
+        $this->assertNotNull($user, 'The address from --email must be the account the install leaves behind.');
+        $this->assertNotNull($user->roles()->wherePivot('accepted', true)->first());
+    }
+
     public function test_declining_the_admin_user_leaves_the_hint_in_the_summary(): void
     {
         $this->prepareLeapDatabase();
