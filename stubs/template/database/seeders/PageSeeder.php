@@ -42,20 +42,27 @@ class PageSeeder extends Seeder
      * site, unreachable from the admin's language switcher, and there forever. A locale the
      * seeds have no text for falls back to English rather than seeding a blank.
      *
+     * Without leap.locales the site is monolingual, and a section field is then stored as
+     * a plain string rather than a per-locale array — see the locales block in
+     * config/leap.php. Seeding the array shape anyway is what put "[object Object]" in
+     * every section field of the editor: with no locales configured the editor binds the
+     * input straight to the stored value.
+     *
      * Recursive, because the translation sets are nested inside the sections.
      *
      * @param  array<mixed>  $data
-     * @return array<mixed>
      */
-    protected function forSite(array $data): array
+    protected function forSite(array $data): mixed
     {
-        $locales = config('leap.locales')
-            ? array_keys(config('leap.locales'))
-            : [app()->getLocale()];
+        $locales = config('leap.locales');
 
         if ($this->isTranslationSet($data)) {
+            if (! $locales) {
+                return $data[app()->getLocale()] ?? $data['en'] ?? reset($data);
+            }
+
             $kept = [];
-            foreach ($locales as $locale) {
+            foreach (array_keys($locales) as $locale) {
                 $kept[$locale] = $data[$locale] ?? $data['en'] ?? reset($data);
             }
 
