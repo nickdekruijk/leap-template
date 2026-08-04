@@ -5,6 +5,23 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] — 2026-08-04
+
+### Fixed
+
+- **The page seeder writes plain strings on a single-language install.** `forSite()` cut the
+  sample content down to the configured locales and always returned a per-locale array —
+  including when `leap.locales` is null. Without locales leap stores a section field as a
+  plain string, as the locales block in `config/leap.php` says in so many words, so every
+  such install seeded a shape its own editor could not read: the section fields showed
+  *"[object Object]"* in `/admin`. A fresh install is fixed by this release alone; a site
+  that was already seeded wants leap 1.2.1 alongside it, which resolves the shape that is
+  already in its database — so no site needs its content migrated by hand.
+  The Spatie columns are unaffected — `title`, `slug` and the rest stay per-locale JSON
+  whether a site serves one language or five, which is what keeps switching to a second
+  language a config change rather than a migration. Assigning a plain string to a
+  translatable attribute simply sets it for the current locale.
+
 ## [1.0.6] — 2026-08-04
 
 ### Fixed
