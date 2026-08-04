@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Leap\Page as PageResource;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use NickDeKruijk\Leap\Classes\Attribute;
 use Tests\TestCase;
 
@@ -19,6 +21,24 @@ use Tests\TestCase;
 class SectionRenderTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * A video section fetches its poster from YouTube or Vimeo once and stores it on the
+     * public disk, so rendering one in a test reached across the network and then left a
+     * file behind in the project's own media library — a stranger in the file manager
+     * that came back every time the suite ran.
+     *
+     * Both halves are needed. Faking the request alone still writes the reply to disk,
+     * and faking the disk alone still makes the call: a suite that fails on a train is
+     * not a suite anyone trusts.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('public');
+        Http::fake(['*' => Http::response('poster-bytes')]);
+    }
 
     private function page(array $sections): Page
     {
