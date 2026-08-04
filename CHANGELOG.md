@@ -5,6 +5,25 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] — 2026-08-04
+
+### Fixed
+
+- **The starter `SectionRenderTest` no longer reaches across the network or leaves a file
+  behind.** It renders a video section, and a video section fetches its poster from the
+  provider once and stores it on the public disk — so every suite run made two calls to
+  `img.youtube.com` (one to see whether the image exists, one to keep it) and wrote
+  `video-posters/youtube-….jpg` into the project's own media library. It turned up in the
+  file manager as a stranger nobody put there, and deleting it only lasted until the next
+  run.
+  The test now fakes both. Faking the request alone still writes the reply to disk, and
+  faking the disk alone still makes the call: a suite that fails on a train is not a suite
+  anyone trusts.
+  **Note for anyone hunting something similar:** `Http::preventStrayRequests()` proves
+  nothing here. `Video::get()` catches `Throwable` around its call, so the guard's own
+  exception is swallowed and the test passes as though nothing was sent. Asking
+  `Http::recorded()` what actually went out is the only reliable check.
+
 ## [1.0.7] — 2026-08-04
 
 ### Fixed
