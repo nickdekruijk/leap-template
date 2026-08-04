@@ -259,12 +259,10 @@ class ItemsSectionTest extends TestCase
      */
     private function seedNews(int $count): void
     {
-        [$default, $secondary] = $this->locales();
-
         $this->makePage(
-            [$default => 'Nieuws', $secondary => 'News'],
+            $this->perLocale('Nieuws', 'News'),
             [['_name' => 'news', '_view' => 'sections.items', '_sort' => 0, 'active' => true]],
-            [$default => Str::slug(__('News')), $secondary => 'news'],
+            $this->perLocale(Str::slug(__('News')), 'news'),
         );
 
         News::factory()->count($count)->create();
@@ -311,12 +309,10 @@ class ItemsSectionTest extends TestCase
      */
     private function makePage(array $title, array $sections = [], ?array $slug = null): Page
     {
-        [$default, $secondary] = $this->locales();
-
         $page = new Page;
         $page->setTranslations('title', $title);
-        $page->setTranslations('slug', $slug ?? [$default => 'p'.uniqid(), $secondary => 'p'.uniqid()]);
-        $page->setTranslations('description', [$default => '', $secondary => '']);
+        $page->setTranslations('slug', $slug ?? $this->uniqueSlugs());
+        $page->setTranslations('description', array_fill_keys($this->locales(), ''));
         $page->active = true;
         $page->sections = $sections;
         $page->sort = 1;
@@ -331,5 +327,40 @@ class ItemsSectionTest extends TestCase
     private function locales(): array
     {
         return array_keys(config('leap.locales') ?: [app()->getLocale() => null]);
+    }
+
+    /**
+     * A translations array for the locales this install actually has, one value per
+     * language in the order they are configured. Nothing here is about translation —
+     * card layout reads the same in every language — so a value beyond the last
+     * locale is dropped and a locale beyond the last value repeats the first. That
+     * keeps a caller free to write both languages out without a monolingual install
+     * erroring on the language it does not have.
+     *
+     * @return array<string, string>
+     */
+    private function perLocale(string ...$values): array
+    {
+        $translations = [];
+        foreach (array_values($this->locales()) as $index => $locale) {
+            $translations[$locale] = $values[$index] ?? $values[0];
+        }
+
+        return $translations;
+    }
+
+    /**
+     * A slug per locale that collides with no other page.
+     *
+     * @return array<string, string>
+     */
+    private function uniqueSlugs(): array
+    {
+        $slugs = [];
+        foreach ($this->locales() as $locale) {
+            $slugs[$locale] = 'p'.uniqid();
+        }
+
+        return $slugs;
     }
 }

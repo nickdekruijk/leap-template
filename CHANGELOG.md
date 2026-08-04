@@ -5,6 +5,21 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] — 2026-08-04
+
+### Fixed
+
+- **The starter `ItemsSectionTest` no longer errors on a single-language install.** Its
+  page helpers destructured two locales out of `leap.locales` — `[$default, $secondary] =
+  $this->locales()` — so a site installed with one language failed all fifteen of its
+  tests on `Undefined array key 1` before asserting anything. None of what the file covers
+  is language-specific (card layout, column counts, teaser links, tag filtering), so
+  skipping it the way `SearchTest` skips locale scoping would have cost real coverage on
+  exactly the installs the template defaults to. A `perLocale()` helper now builds the
+  translations array from the locales the install actually has: a value past the last
+  locale is dropped, a locale past the last value repeats the first, and callers still
+  write both languages out. Verified against a one-locale and a two-locale install.
+
 ## [1.0.5] — 2026-08-04
 
 ### Added
