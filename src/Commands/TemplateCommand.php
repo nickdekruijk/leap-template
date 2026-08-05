@@ -391,9 +391,9 @@ class TemplateCommand extends Command
      *
      * Leap stores media on the `public` disk (storage/app/public) and the template
      * serves it from /storage — both the originals and, through them, every resized
-     * variant. Without the link nothing an editor uploads renders, and the failure
-     * is opaque: the file is plainly there on disk, but asset_resized() reports the
-     * original as missing. Mentioning it in the closing notes was not enough.
+     * copy. Without the link nothing an editor uploads renders, and the failure is
+     * opaque: the file is plainly there on disk, and leap reports the original as
+     * missing. Mentioning it in the closing notes was not enough.
      */
     protected function linkStorage(): void
     {
@@ -414,13 +414,10 @@ class TemplateCommand extends Command
      * Keep generated assets out of version control.
      *
      * minify writes public/css/builds and public/js/builds on request from the
-     * sources under resources/; imageresize caches a resized copy of every image at
-     * every width under the imageresize route. All of it is derived, all of it
-     * regenerates on request, and committing it means every branch carries rebuilt
-     * artifacts that conflict on merge — while a stale copy can mask a broken source.
-     *
-     * Only the resize cache is ignored, not the whole public/media directory: that
-     * may well hold assets that are not generated.
+     * sources under resources/; leap writes a resized copy of every image at every
+     * width under leap.images.route. All of it is derived, all of it regenerates on
+     * request, and committing it means every branch carries rebuilt artifacts that
+     * conflict on merge — while a stale copy can mask a broken source.
      */
     protected function ignoreCompiledAssets(): void
     {
@@ -454,13 +451,13 @@ class TemplateCommand extends Command
         }
 
         // Read the route from the config file on disk, not from config(): the install
-        // drops its own config/imageresize.php in first, and the booted config still
-        // holds whatever was loaded at startup — the package default on a fresh install.
-        // Ignoring the wrong directory means the cache lands in git and nobody notices.
-        $route = 'media/resized';
-        $config = base_path('config/imageresize.php');
+        // publishes config/leap.php during this same run, and the booted config still
+        // holds whatever was loaded at startup. Ignoring the wrong directory means the
+        // resized copies land in git and nobody notices.
+        $route = 'img';
+        $config = base_path('config/leap.php');
         if (file_exists($config)) {
-            $route = (include $config)['route'] ?? $route;
+            $route = (include $config)['images']['route'] ?? $route;
         }
 
         $contents = file_get_contents($file);
@@ -526,7 +523,6 @@ class TemplateCommand extends Command
             'app/Leap/Page.php',
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
-            'config/imageresize.php',
             'public/css/tinymce.css',
             'tests/Concerns/ResolvesContentPaths.php',
             'tests/Feature/BreadcrumbTest.php',
@@ -816,6 +812,12 @@ class TemplateCommand extends Command
                 ! str_contains((string) file_get_contents($config), "// 'content_css' => '/css/tinymce.css',"),
                 'uncomment leap.tinymce.options.content_css — rich text in the admin does not match the site',
             ];
+
+            $checks[] = [
+                'leap.images',
+                $this->imagesDisabledAt() === null,
+                'set leap.images.enabled — every image the template renders is served at full size until it is on',
+            ];
         }
 
         if (file_exists($seeder = base_path('database/seeders/DatabaseSeeder.php'))) {
@@ -932,12 +934,12 @@ class TemplateCommand extends Command
         // Uploaded media lives on the public disk and is served from /storage
         $this->linkStorage();
 
-        // ImageResize width presets used by the template's srcset/backgrounds
-        // (overrides the vendor-published default, which lacks these templates)
-        $this->copyOrReplace('config/imageresize.php', 'ImageResize config (frontend resize templates)', 'Width presets for responsive images. The package default lacks the ones the template asks for.');
+        // The template's images are all <x-leap::responsive-image>, which needs the
+        // feature the component belongs to switched on.
+        $this->enableImages();
 
-        // Generated assets are not source. After the config above, because that is
-        // what decides where the resize cache lands.
+        // Generated assets are not source. After the step above, because that is what
+        // decides where the resized copies land.
         $this->ignoreCompiledAssets();
 
         // Starter feature tests for the copied template code, run under the host's suite.
@@ -1134,6 +1136,66 @@ class TemplateCommand extends Command
             file_put_contents($config, $contents);
             $this->info('Enabled leap.tinymce.content_css → /css/tinymce.css');
         }
+    }
+
+    /**
+     * Switch leap.images on.
+     *
+     * Every image the template renders goes through <x-leap::responsive-image>, and
+     * with the feature off that component emits a plain <img> of the original — a
+     * page of 8 megapixel photographs at full size. It ships off because a site
+     * still running nickdekruijk/imageresize would otherwise have two packages
+     * answering overlapping routes; a fresh install has no such thing.
+     *
+     * Only the master switch: the widths the template asks for are the shipped
+     * defaults. No-op when the leap config isn't published, or when it has already
+     * been answered either way.
+     */
+    protected function enableImages(): void
+    {
+        $config = base_path('config/leap.php');
+        $at = $this->imagesDisabledAt();
+
+        if ($at === null) {
+            return;
+        }
+
+        $contents = (string) file_get_contents($config);
+        file_put_contents($config, substr_replace($contents, "'enabled' => true,", $at, strlen(self::IMAGES_OFF)));
+
+        $this->info('Enabled leap.images — resized copies are served from /'.trim((string) config('leap.images.route', 'img'), '/'));
+    }
+
+    private const IMAGES_OFF = "'enabled' => false,";
+
+    /**
+     * Where leap.images turns itself off in the config on disk, or null when it does
+     * not — no config published, already on, or a file this cannot read with any
+     * confidence.
+     *
+     * Read from the file rather than from config(): this runs in the same process that
+     * published it, which loaded its configuration before that file existed. And
+     * bounded to what follows the section header, so a false somewhere else in a
+     * 700-line config is never mistaken for this one.
+     */
+    protected function imagesDisabledAt(): ?int
+    {
+        $config = base_path('config/leap.php');
+
+        if (! file_exists($config)) {
+            return null;
+        }
+
+        $contents = (string) file_get_contents($config);
+        $section = strpos($contents, "'images' => [");
+
+        if ($section === false) {
+            return null;
+        }
+
+        $at = strpos($contents, self::IMAGES_OFF, $section);
+
+        return $at !== false && $at - $section < 600 ? $at : null;
     }
 
     /**
@@ -1912,7 +1974,6 @@ class TemplateCommand extends Command
         return [
             'nickdekruijk/minify:^4.0' => 'SCSS compilation and JS bundling',
             'nickdekruijk/settings' => 'admin-editable settings + footer',
-            'nickdekruijk/imageresize' => 'responsive asset_resized() images',
             'nickdekruijk/vanilla-slider' => 'carousel',
             'nickdekruijk/horizontal-scroller' => 'horizontal-scroll sections',
         ];
@@ -1966,12 +2027,11 @@ class TemplateCommand extends Command
             $this->info('Running: '.$command);
             passthru($command, $status);
             if ($status === 0) {
-                $this->info('Publishing settings and imageresize config...');
+                $this->info('Publishing the settings config...');
                 // Subprocesses: the providers were just installed and are not loaded in
                 // this already-booted process, so an in-process vendor:publish finds
                 // nothing to publish. See artisan().
                 $this->artisan(['vendor:publish', '--provider=NickDeKruijk\Settings\ServiceProvider', '--no-interaction']);
-                $this->artisan(['vendor:publish', '--provider=NickDeKruijk\ImageResize\ServiceProvider', '--no-interaction']);
             }
         } else {
             $this->line('Install later with: composer require '.implode(' ', $missing));

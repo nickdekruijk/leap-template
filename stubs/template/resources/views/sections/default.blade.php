@@ -6,7 +6,7 @@
 <section
     class="default {{ $section['image_position'] ?? 'right' }} {{ $section->_name }}{{ $whiteText ? ' white-text' : '' }}">
     @if ($bg)
-        <x-responsive-image class="section-bg" :media="$bg" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" decorative />
+        <x-leap::responsive-image class="section-bg" :media="$bg" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" decorative />
     @endif
     <div class="main-width">
         <article class="article">
@@ -31,7 +31,7 @@
         @isset($section->image)
             <div class="images">
                 @foreach ($section->image as $image)
-                    <x-responsive-image :media="$image" sizes="(max-width: 550px) 100vw, 50vw" :widths="[600, 900, 1200, 1600]" fallback="900" />
+                    <x-leap::responsive-image :media="$image" sizes="(max-width: 550px) 100vw, 50vw" :widths="[600, 900, 1200, 1600]" fallback="900" />
                 @endforeach
             </div>
         @elseif (isset($section['image_position']))

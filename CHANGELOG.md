@@ -5,9 +5,29 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] — 2026-08-05
 
 ### Changed
+
+- **Images come from leap now, not from nickdekruijk/imageresize.** The template's own
+  `responsive-image` component is gone, and every section renders
+  `<x-leap::responsive-image>` instead; the video poster, which has no Media row, calls
+  `Leap::image($path, 1600)`. `config/imageresize.php` is no longer copied, the package is
+  no longer installed or suggested, and the install switches `leap.images.enabled` on
+  instead — without it the component serves every original at full size. `.gitignore`
+  learns the resize directory from `leap.images.route` rather than from the imageresize
+  config.
+  The reason for the move is what imageresize could not do: its cache path came from the
+  file's name alone, so replacing an image kept serving the old one until someone deleted
+  the directory by hand. Leap puts the file's hash in the URL. See
+  [leap's images.md](https://github.com/nickdekruijk/leap/blob/master/docs/images.md).
+  **Existing projects are not touched by `composer update`** — the stubs only move when
+  you run `leap:template` and accept them. Migrate at your own pace; the order that works
+  is in [leap's upgrading.md](https://github.com/nickdekruijk/leap/blob/master/docs/upgrading.md#13--resized-images),
+  and the short of it is that every `asset_resized()` has to be gone before
+  `composer remove nickdekruijk/imageresize`.
+- **Requires `nickdekruijk/leap` ^1.3**, which is where the component and `Leap::image()`
+  come from.
 
 - **A card row no longer asks the database what its columns are over and over.**
   `PageController::items()` skips the heavy `sections` and `meta` blobs by listing the

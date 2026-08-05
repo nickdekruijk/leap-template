@@ -4,7 +4,7 @@
     @php($image = $item->media->first())
     @if ($image)
         {{-- draggable=false: a native image drag would hijack the horizontal scroller's own drag --}}
-        <x-responsive-image :media="$image" sizes="(max-width: 550px) 80vw, 360px" :widths="[600, 900, 1200]" fallback="600" draggable="false" />
+        <x-leap::responsive-image :media="$image" sizes="(max-width: 550px) 80vw, 360px" :widths="[600, 900, 1200]" fallback="600" draggable="false" />
     @else
         <span class="image-placeholder" aria-hidden="true"></span>
     @endif

@@ -11,7 +11,7 @@
             @if ($image && str_ends_with($image->file_name, '.mp4'))
                 <video src="{{ asset('storage/' . $image->file_name) }}" loop muted playsinline autoplay aria-hidden="true"></video>
             @elseif ($image)
-                <x-responsive-image :media="$image" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" :eager="$loop->first" decorative />
+                <x-leap::responsive-image :media="$image" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" :eager="$loop->first" decorative />
             @endif
             <div class="main-width">
                 <div class="slide-content article{{ $whiteText === null ? '' : ($whiteText ? ' white-text' : ' dark-text') }}">

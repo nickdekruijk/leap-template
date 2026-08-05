@@ -28,9 +28,9 @@
         data-video-title="{{ $section['head'] ?? __('Video') }}"
         aria-label="{{ __('Play video') }}">
         @if ($uploaded)
-            <x-responsive-image :media="$uploaded" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" decorative />
+            <x-leap::responsive-image :media="$uploaded" sizes="100vw" :widths="[900, 1200, 1600, 1920, 2560]" fallback="1600" decorative />
         @elseif ($poster)
-            <img src="{{ asset_resized('1600', $poster) }}" alt="" loading="lazy">
+            <img src="{{ Leap::image($poster, 1600) }}" alt="" loading="lazy">
         @else
             <span class="image-placeholder" aria-hidden="true"></span>
         @endif

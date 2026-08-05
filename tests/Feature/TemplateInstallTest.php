@@ -145,7 +145,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -196,7 +195,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -253,7 +251,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -285,7 +282,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -393,7 +389,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -434,7 +429,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -591,7 +585,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -664,7 +657,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'no')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'no')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'no')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'no')
             ->expectsConfirmation('Copy the starter tests?', 'no')
             ->expectsConfirmation('Add sitemap.xml route?', 'no')
             ->expectsConfirmation('Serve / from the page tree?', 'no')
@@ -696,7 +688,6 @@ PHP);
             ->expectsConfirmation('Copy PageSeeder?', 'yes')
             ->expectsConfirmation('Copy TinyMCE editor stylesheet?', 'yes')
             ->expectsConfirmation('Link public/storage to storage/app/public?', 'yes')
-            ->expectsConfirmation('Copy ImageResize config (frontend resize templates)?', 'yes')
             ->expectsConfirmation('Copy the starter tests?', 'yes')
             ->expectsConfirmation('Add sitemap.xml route?', 'yes')
             ->expectsConfirmation('Serve / from the page tree?', 'yes')
@@ -726,7 +717,6 @@ PHP);
             // template does ship: the live search and the SEO tags.
             'tests/Feature/SearchTest.php',
             'tests/Feature/SeoTest.php',
-            'config/imageresize.php',
             'public/css/tinymce.css',
             'resources/views/sections/default.blade.php',
             'resources/views/sections/video.blade.php',
@@ -745,7 +735,7 @@ PHP);
 
         // Media lives on the public disk and is served from /storage. Without the
         // link nothing an editor uploads renders, and the failure is opaque: the
-        // file is plainly on disk, but asset_resized() calls the original missing.
+        // file is plainly on disk, and leap calls the original missing.
         $this->assertTrue(
             is_link($this->temp.'/public/storage'),
             'leap:template must link public/storage, or no uploaded image resolves.',
@@ -755,13 +745,12 @@ PHP);
         // is kept out of version control rather than committed as a stale artifact
         $gitignore = file_get_contents($this->temp.'/.gitignore');
         $this->assertStringContainsString('/public/js/builds', $gitignore);
-        // The ignored directory has to be the one the config it just installed writes
-        // to — not the package default that was loaded at boot. Get that wrong and the
-        // resize cache quietly lands in git.
-        $route = (include $this->temp.'/config/imageresize.php')['route'];
-        $this->assertSame('resized', $route);
+        // The ignored directory has to be the one the config it just published writes
+        // to — not whatever was loaded at boot, which was before that file existed.
+        // Get that wrong and the resized copies quietly land in git.
+        $route = (include $this->temp.'/config/leap.php')['images']['route'];
+        $this->assertSame('img', $route);
         $this->assertStringContainsString('/public/'.$route, $gitignore);
-        $this->assertStringNotContainsString('/public/media', $gitignore);
         $this->assertSame(1, substr_count($gitignore, '/public/css/builds'), 'The rule was already there and must not be added twice.');
 
         // Route + config patches applied
@@ -779,6 +768,13 @@ PHP);
         $leapConfig = file_get_contents($this->temp.'/config/leap.php');
         $this->assertStringContainsString("'content_css' => '/css/tinymce.css'", $leapConfig);
         $this->assertStringContainsString("'nl' => 'Nederlands'", $leapConfig);
+
+        // Every image the template renders goes through <x-leap::responsive-image>,
+        // which serves the original at full size while leap.images is off — a page of
+        // 8 megapixel photographs. Read from the section rather than the whole file:
+        // there is more than one 'enabled' in a leap config.
+        $images = substr($leapConfig, strpos($leapConfig, "'images' => ["), 600);
+        $this->assertStringContainsString("'enabled' => true,", $images);
 
         $seeder = file_get_contents($this->temp.'/database/seeders/DatabaseSeeder.php');
         $this->assertStringContainsString('PageSeeder::class', $seeder);
