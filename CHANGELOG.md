@@ -5,6 +5,22 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **A card row no longer asks the database what its columns are over and over.**
+  `PageController::items()` skips the heavy `sections` and `meta` blobs by listing the
+  table's columns and subtracting them — and that listing is a query against
+  `information_schema`. It ran once per section and once more per tag in a teaser, so a
+  home page with a work row, a photo row and a four-tag teaser paid for it five times:
+  measured at 11,5 ms of a 42 ms query budget. The list is memoized per table for the
+  request now (5 queries → 2, 11,5 ms → 2,6 ms on that page).
+  The memo is keyed by the table name, not by the call site — `once()` folds a closure's
+  `use`d variables into its hash, which is the only reason this is safe. Passing the table
+  in through a plain `fn () =>` with nothing captured would serve the first table's columns
+  to every other one.
+
 ## [1.0.8] — 2026-08-04
 
 ### Fixed

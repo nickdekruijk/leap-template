@@ -106,9 +106,7 @@ class PageController extends Controller
             return collect();
         }
 
-        // A card is a picture, a title and an intro. Skip the heavy sections blob so an
-        // overview of hundreds of items does not drag every item's body HTML along.
-        $columns = array_values(array_diff(Schema::getColumnListing((new $model)->getTable()), ['sections', 'meta']));
+        $columns = static::cardColumns((new $model)->getTable());
 
         $base = static::itemsQuery($model, $columns, $tag, $withTags);
 
@@ -135,6 +133,24 @@ class PageController extends Controller
 
         return $items->each(function (Model $item) use ($prefix): void {
             $item->url = $prefix ? rtrim($prefix, '/').'/'.$item->slug : null;
+        });
+    }
+
+    /**
+     * The columns a card needs: a picture, a title and an intro, so everything the table
+     * has except the heavy blobs — an overview of hundreds of items must not drag every
+     * item's body HTML along.
+     *
+     * Memoized per table for the request: reading the column list is a DESCRIBE against
+     * information_schema, and a home page asks once per section plus once per tag teaser,
+     * while the answer only changes with a migration.
+     *
+     * @return array<int, string>
+     */
+    protected static function cardColumns(string $table): array
+    {
+        return once(function () use ($table): array {
+            return array_values(array_diff(Schema::getColumnListing($table), ['sections', 'meta']));
         });
     }
 
