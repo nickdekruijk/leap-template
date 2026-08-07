@@ -5,7 +5,35 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.1] — 2026-08-05
+## [1.1.1] — 2026-08-07
+
+### Changed
+
+- **No Alpine expression in the stubs names a global any more.** `<body>` carried
+  `x-on:scroll.window="scrolling = window.pageYOffset > 0"`; that behaviour is now a
+  scroll listener inside `navigation()`, where it is ordinary JavaScript.
+
+  It matters for a site that wants to keep `'unsafe-eval'` out of its
+  Content-Security-Policy, which means loading [Alpine's CSP
+  build](https://alpinejs.dev/advanced/csp). That build parses directive expressions
+  itself, and refuses any value sitting on `globalThis` — so an expression naming `window`
+  simply never evaluates. Quietly: a bar that does not change on scroll looks like a bar
+  that was styled that way.
+
+  Two things came along with the move. The listener is `{ passive: true }`, which the
+  inline directive was not, and `scrolling` is answered once at init — a reload halfway
+  down a page starts scrolled, and no scroll event is coming to say so.
+
+  A new test walks every `.blade.php` in the stubs and fails on an Alpine expression that
+  names `window`, `document`, `console`, `Math`, `JSON`, `localStorage`, `sessionStorage`,
+  `navigator` or `location`.
+
+  **This does not make a generated site CSP-ready.** The template renders
+  `<livewire:search />` and takes Alpine from Livewire's bundle, which is the standard
+  build; `livewire.csp_safe` would swap it for the CSP one at roughly 120KB. What this
+  does is remove the one obstacle the template itself was putting in the way.
+
+  Existing projects keep their own copies. Run `leap:template --diff` to see the change.
 
 ### Fixed
 

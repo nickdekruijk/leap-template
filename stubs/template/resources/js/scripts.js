@@ -20,6 +20,15 @@ document.addEventListener('alpine:init', function () {
             init() {
                 mobile.addEventListener('change', (e) => (this.isMobile = e.matches));
 
+                // Not an x-on:scroll.window in the layout: that names `window`, and
+                // Alpine's CSP build refuses anything on globalThis. Here it is plain
+                // JavaScript. Called once as well — a reload halfway down a page starts
+                // scrolled, and no scroll event is coming to say so.
+                const track = () => (this.scrolling = window.scrollY > 0);
+
+                track();
+                window.addEventListener('scroll', track, { passive: true });
+
                 this.$watch('searchOpen', (value) => {
                     if (value) {
                         this.$nextTick(() => document.getElementById('search-input')?.focus());

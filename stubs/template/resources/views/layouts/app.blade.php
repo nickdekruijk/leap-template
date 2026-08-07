@@ -104,7 +104,7 @@
         @endif
     </head>
 
-    <body x-data="navigation()" x-on:scroll.window="scrolling = window.pageYOffset > 0" :class="{ 'nav-expanded': navExpanded, 'search-open': searchOpen }">
+    <body x-data="navigation()" :class="{ 'nav-expanded': navExpanded, 'search-open': searchOpen }">
         <a href="#main" role="button" class="skip-link">@lang('Skip to content')</a>
 
         <nav class="nav" role="navigation" aria-label="@lang('Main menu')" :class="{ 'scrolling': scrolling }">
