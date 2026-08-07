@@ -63,6 +63,10 @@
 
             Anything that cannot run cookieless — GA4, Meta, Hotjar — belongs in the
             "scripts_<category>" setting below, not here.
+
+            Both the script and the tracking requests go to "js/", not matomo.js and
+            matomo.php: js/index.php serves either, it ships with Matomo, and adblockers
+            filter paths with "matomo" in them far more often.
         --}}
         @if (config('leap.consent.matomo.url') && config('leap.consent.matomo.site_id'))
             <script>
@@ -73,10 +77,10 @@
                 _paq.push(['enableLinkTracking']);
                 (function () {
                     var u = @json(rtrim(config('leap.consent.matomo.url'), '/') . '/');
-                    _paq.push(['setTrackerUrl', u + 'matomo.php']);
+                    _paq.push(['setTrackerUrl', u + 'js/']);
                     _paq.push(['setSiteId', @json((string) config('leap.consent.matomo.site_id'))]);
                     var d = document, g = d.createElement('script'), s = d.getElementsByTagName('script')[0];
-                    g.async = true; g.src = u + 'matomo.js'; s.parentNode.insertBefore(g, s);
+                    g.async = true; g.src = u + 'js/'; s.parentNode.insertBefore(g, s);
                 })();
 
                 // Consent only turns Matomo's cookies on or off — it keeps measuring

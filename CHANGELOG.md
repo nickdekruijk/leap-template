@@ -5,6 +5,19 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] — 2026-08-05
+
+### Fixed
+
+- **Matomo tracked nothing on installs that do not expose `matomo.php`.** The layout
+  posted its hits to `{url}/matomo.php` and loaded `{url}/matomo.js`; both now point at
+  `{url}/js/`. `js/index.php` ships with Matomo and serves either job — the tracker
+  JavaScript and the tracking requests — so this works on a stock installation as well,
+  and it survives adblockers far more often, because the filter lists key on "matomo" in
+  the path.
+  **Existing projects keep their own copy of `layouts/app.blade.php`**; run
+  `leap:template --diff` to see the change and `leap:template` to take it.
+
 ## [1.1.0] — 2026-08-05
 
 ### Changed
