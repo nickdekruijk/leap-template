@@ -1,13 +1,12 @@
-@extends('layouts.app', ['hideNavigation' => true])
+@extends('layouts.app', ['hideNavigation' => true, 'noindex' => true])
 
 @section('content')
-    <main>
-        <a name="main"></a>
+    <main id="main">
         <div class="main-width">
             <article class="article">
                 <br><br><br>
-                <h1>Onderhoud</h1>
-                <p>We zijn tijdelijk niet bereikbaar vanwege werkzaamheden aan de website. Probeer het later nog eens.</p>
+                <h1>@lang('Maintenance')</h1>
+                <p>@lang('We are briefly unreachable while the site is being worked on. Please try again later.')</p>
             </article>
         </div>
     </main>

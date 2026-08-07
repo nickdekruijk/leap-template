@@ -17,6 +17,12 @@
         @if ($metaDescription)
             <meta name="description" content="{{ $metaDescription }}">
         @endif
+        {{-- An error page answers on whatever URL was asked for, so its canonical points
+             at itself and invites indexing of a page that says nothing — once per URL a
+             scanner invents. The pages that set this pass it through @extends. --}}
+        @if (! empty($noindex))
+            <meta name="robots" content="noindex, follow">
+        @endif
         <link rel="canonical" href="{{ url()->current() }}">
         @foreach (App\Http\Controllers\PageController::localeUrls($page ?? null) as $hrefLocale => $alt)
             <link rel="alternate" hreflang="{{ $hrefLocale }}" href="{{ url($alt['url']) }}">

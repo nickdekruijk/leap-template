@@ -1,4 +1,5 @@
 {
+    "4 oh 4": "4 oh 4",
     "All": "Alles",
     "Always allow": "Altijd toestaan",
     "Back": "Terug",
@@ -15,6 +16,7 @@
     "Including past": "Ook afgelopen",
     "Load video": "Video laden",
     "Main menu": "Hoofdmenu",
+    "Maintenance": "Onderhoud",
     "Material": "Materiaal",
     "News": "Nieuws",
     "No results found.": "Geen resultaten gevonden.",
@@ -33,11 +35,13 @@
     "Slider": "Slider",
     "Slides": "Slides",
     "Social media": "Social media",
+    "Sorry, this page does not exist (any more).": "Helaas, deze pagina bestaat niet (meer).",
     "Tags": "Tags",
     "This video is loaded from :provider. That sends your data, including your IP address, to them.": "Deze video wordt geladen van :provider. Daarbij worden je gegevens, waaronder je IP-adres, naar de aanbieder gestuurd.",
     "To the homepage": "Naar de homepage",
     "Upcoming": "Aankomend",
     "Video": "Video",
     "View all": "Bekijk alles",
+    "We are briefly unreachable while the site is being worked on. Please try again later.": "We zijn tijdelijk niet bereikbaar vanwege werkzaamheden aan de website. Probeer het later nog eens.",
     "Year": "Jaar"
 }

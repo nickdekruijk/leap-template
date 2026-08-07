@@ -5,6 +5,44 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] — 2026-08-07
+
+### Removed
+
+- **The 404 page no longer writes a line about the visitor.** It ended in a
+  `Log::warning` after `@endsection` recording the IP address, the user agent, the referer
+  and `url()->previous()` on every miss — personal data with no retention, one line per
+  guess a scanner made, shipped to every generated site and switched on for all of them.
+
+  Logging a missing page is leap's job now: `leap.not_found_log`, off by default,
+  throttled per path, with the address anonymized. It lives there because this package is
+  a **dev** dependency — its service provider is absent on the server, which is the only
+  place a 404 log is worth anything.
+
+  Available from `nickdekruijk/leap` 1.5, and not required: on an older leap these pages
+  simply log nothing, which is what they should have been doing all along. The requirement
+  in `composer.json` is unchanged.
+
+### Fixed
+
+- **The skip link on the error pages landed nowhere.** `<main>` had no `id`; the target
+  was an anchor with a `name` attribute, which browsers stopped honouring as a link target
+  a very long time ago. So the one link a keyboard user has on those pages pointed at
+  nothing — on the two pages where finding your way out matters most.
+
+- **The error pages invited indexing.** They answer on whatever URL was asked for and the
+  layout gives them a canonical pointing at themselves, so a scanner could have one empty
+  page indexed per URL it invented. Both now pass `'noindex' => true` through `@extends`,
+  and the layout renders `<meta name="robots" content="noindex, follow">` for it.
+
+- **The error page copy was hardcoded Dutch** in a template that ships seven languages,
+  while the button beside it went through `@lang` all along. Both headings and both
+  sentences are translated now, in all seven.
+
+  Existing projects keep their own copies of these views. Run `leap:template --diff` to
+  see the changes and `leap:template` to take them — **the `Log::warning` line is the one
+  to take**; a project that keeps its copy keeps logging IP addresses.
+
 ## [1.1.1] — 2026-08-07
 
 ### Changed

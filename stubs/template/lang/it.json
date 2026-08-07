@@ -1,4 +1,5 @@
 {
+    "4 oh 4": "4 oh 4",
     "All": "Tutto",
     "Always allow": "Consenti sempre",
     "Back": "Indietro",
@@ -15,6 +16,7 @@
     "Including past": "Anche passati",
     "Load video": "Carica il video",
     "Main menu": "Menu principale",
+    "Maintenance": "Manutenzione",
     "Material": "Materiale",
     "News": "Notizie",
     "No results found.": "Nessun risultato trovato.",
@@ -33,11 +35,13 @@
     "Slider": "Slider",
     "Slides": "Diapositive",
     "Social media": "Social media",
+    "Sorry, this page does not exist (any more).": "Spiacenti, questa pagina non esiste (più).",
     "Tags": "Etichette",
     "This video is loaded from :provider. That sends your data, including your IP address, to them.": "Questo video viene caricato da :provider. In questo modo i tuoi dati, incluso il tuo indirizzo IP, vengono inviati al fornitore.",
     "To the homepage": "Alla home page",
     "Upcoming": "In arrivo",
     "Video": "Video",
     "View all": "Vedi tutto",
+    "We are briefly unreachable while the site is being worked on. Please try again later.": "Siamo momentaneamente irraggiungibili per lavori sul sito. Riprova più tardi.",
     "Year": "Anno"
 }
