@@ -517,6 +517,7 @@ class TemplateCommand extends Command
     {
         $files = [
             'app/Http/Controllers/PageController.php',
+            'app/Providers/HeadServiceProvider.php',
             'database/migrations/2025_01_03_094203_create_pages_table.php',
             'database/seeders/PageSeeder.php',
             'app/Models/Page.php',
@@ -524,6 +525,7 @@ class TemplateCommand extends Command
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
             'public/css/tinymce.css',
+            'tests/Concerns/ReadsTheSiteLanguage.php',
             'tests/Concerns/ResolvesContentPaths.php',
             'tests/Feature/BreadcrumbTest.php',
             'tests/Feature/PageRoutingTest.php',
@@ -910,10 +912,12 @@ class TemplateCommand extends Command
         // controller routes what the model holds, the model needs its table, the module
         // is built from the concern, and the layout renders <livewire:search /> whether
         // or not the component is there. Any one of them missing is a broken install
-        // rather than a smaller one.
+        // rather than a smaller one. HeadServiceProvider belongs to the same group: the
+        // layout renders nothing but `@head` between <head> and </head>, so without it
+        // every page ships without a title.
         $this->copyGroup(
             'the page tree',
-            'Routing, the Page model and its table, the /admin editor and the live search. They only work together.',
+            'Routing, the Page model and its table, the /admin editor, the live search and the document head. They only work together.',
             [
                 'app/Http/Controllers/PageController.php' => 'PageController',
                 'app/Models/Page.php' => 'Page model',
@@ -921,8 +925,11 @@ class TemplateCommand extends Command
                 'app/Leap/Page.php' => 'Page model Leap module',
                 'app/Leap/Concerns/ContentSections.php' => 'ContentSections concern',
                 'app/Livewire/Search.php' => 'Search Livewire component',
+                'app/Providers/HeadServiceProvider.php' => 'HeadServiceProvider',
             ],
         );
+
+        $this->registerHeadServiceProvider();
 
         // The rest is genuinely optional: the site stands without it.
         $this->copyOrReplace('database/seeders/PageSeeder.php', 'PageSeeder', 'Sample content: a home page and a few children, in every locale. Delete once the site has its own.');
@@ -949,6 +956,7 @@ class TemplateCommand extends Command
             'the starter tests',
             'Cover the code just copied — routing, slugs, locales, search, the breadcrumb and the SEO tags. They run in your own suite.',
             [
+                'tests/Concerns/ReadsTheSiteLanguage.php' => 'Site language helper',
                 'tests/Concerns/ResolvesContentPaths.php' => 'Content path helper',
                 'tests/Feature/BreadcrumbTest.php' => 'Breadcrumb test',
                 'tests/Feature/PageRoutingTest.php' => 'PageRouting test',
@@ -1069,6 +1077,52 @@ class TemplateCommand extends Command
         )) {
             file_put_contents($path, $patched);
             $this->info('Registered PageSeeder in DatabaseSeeder');
+        }
+    }
+
+    /**
+     * Register the copied HeadServiceProvider in bootstrap/providers.php. Without it the
+     * provider is never booted, `@head` resolves to nothing, and every page ships with no
+     * title, no description and no Open Graph at all.
+     *
+     * No-op when the provider was not copied, when the file is missing (a pre-Laravel-11
+     * layout keeps its providers in config/app.php), or when it is already listed.
+     */
+    protected function registerHeadServiceProvider(): void
+    {
+        if (! file_exists(base_path('app/Providers/HeadServiceProvider.php'))) {
+            return;
+        }
+
+        $path = base_path('bootstrap/providers.php');
+        if (! file_exists($path)) {
+            $this->warn('bootstrap/providers.php not found — register App\Providers\HeadServiceProvider yourself, or the site renders no <head>.');
+
+            return;
+        }
+
+        $contents = file_get_contents($path);
+        if (str_contains($contents, 'HeadServiceProvider')) {
+            return;
+        }
+
+        // Appended to the returned array, before its closing bracket. Anchored on the
+        // last "];" in the file so a provider list spanning several lines is matched
+        // whatever is in it.
+        $patched = preg_replace(
+            '/\n(\s*)\];(\s*)$/',
+            "\n$1    App\\Providers\\HeadServiceProvider::class,\n$1];$2",
+            $contents,
+            1
+        );
+
+        if ($patched && $patched !== $contents && $this->auto(
+            'Register HeadServiceProvider in bootstrap/providers.php?',
+            true,
+            'Without it every page renders an empty <head> — no title, no description, no Open Graph.',
+        )) {
+            file_put_contents($path, $patched);
+            $this->info('Registered HeadServiceProvider in bootstrap/providers.php');
         }
     }
 
@@ -1967,11 +2021,18 @@ class TemplateCommand extends Command
      * instead of shipping a config of its own. On 3.x the suite would silently read
      * whatever build an earlier browser request left behind.
      *
+     * laravel/head is pinned to ^0.1.0 rather than left open: it is a pre-1.0 package,
+     * so a 0.2 is free to rename the fluent methods the copied HeadServiceProvider and
+     * PageController call. A generated project keeps the files it was given, so the bump
+     * is a deliberate one that comes with a stub update, never a surprise on composer
+     * update.
+     *
      * @return array<string, string>
      */
     protected function frontendPackages(): array
     {
         return [
+            'laravel/head:^0.1.0' => 'the document <head>, Open Graph and JSON-LD',
             'nickdekruijk/minify:^4.0' => 'SCSS compilation and JS bundling',
             'nickdekruijk/settings' => 'admin-editable settings + footer',
             'nickdekruijk/vanilla-slider' => 'carousel',

@@ -7,8 +7,9 @@
     The trail comes from PageController::breadcrumbs(); a content item passes the
     overview page it hangs under as $parent.
 
-    The very same trail feeds the BreadcrumbList JSON-LD, so what a search engine reads
-    and what a visitor sees cannot drift apart.
+    The BreadcrumbList JSON-LD is built from the very same trail, so what a search engine
+    reads and what a visitor sees cannot drift apart — but it is emitted in the <head>, by
+    App\Providers\HeadServiceProvider, not here.
 --}}
 @props(['page' => null, 'parent' => null])
 
@@ -21,28 +22,6 @@
         // "Back" is the crumb before the current one. It has no URL when that ancestor is
         // untranslated in this locale — nothing to link to, so no button either.
         $back = $crumbs->slice(-2, 1)->first()['url'];
-
-        // A ListItem needs an item on every step but the last, so an ancestor with no URL —
-        // untranslated in this locale — is left out of the structured data rather than
-        // written without one, and the positions close up behind it. The visible trail
-        // still names it: a visitor is helped by the name, a crawler only by a list it can
-        // follow.
-        $linkable = $crumbs->slice(0, -1)
-            ->filter(fn (array $crumb): bool => (bool) $crumb['url'])
-            ->push($crumbs->last())
-            ->values();
-
-        $schema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'BreadcrumbList',
-            'itemListElement' => $linkable->map(fn (array $crumb, int $i): array => [
-                '@type' => 'ListItem',
-                'position' => $i + 1,
-                'name' => $crumb['title'],
-                // The last crumb has no link of its own; it is the page being looked at.
-                'item' => $crumb['url'] ? url($crumb['url']) : url()->current(),
-            ])->all(),
-        ];
     @endphp
 
     <nav class="breadcrumbs" aria-label="{{ __('Breadcrumb') }}">
@@ -74,8 +53,4 @@
             </ol>
         </div>
     </nav>
-
-    {{-- JSON_HEX_TAG: a title holding </script> would otherwise close this block early.
-         Every parser reads < back as <. --}}
-    <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) !!}</script>
 @endif

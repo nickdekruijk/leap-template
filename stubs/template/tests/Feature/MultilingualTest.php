@@ -7,10 +7,13 @@ use App\Models\Page;
 use App\Models\Tag;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use NickDeKruijk\Leap\Leap;
+use Tests\Concerns\ReadsTheSiteLanguage;
 use Tests\TestCase;
 
 class MultilingualTest extends TestCase
 {
+    use ReadsTheSiteLanguage;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -62,12 +65,45 @@ class MultilingualTest extends TestCase
         $this->get('/')->assertOk();
     }
 
+    /**
+     * The other side of ReadsTheSiteLanguage: a first-time visitor whose browser asks for
+     * a language this site has, and which is not the one the bare root serves, is offered
+     * it. A 302 and never a 301 — a language preference is not a move, and the same URL
+     * answers differently for the next visitor, which is what the Vary header says.
+     */
+    public function test_the_root_offers_a_visitor_the_language_their_browser_asks_for(): void
+    {
+        $this->get('/', ['Accept-Language' => $this->secondaryLocale()])
+            ->assertRedirect('/'.$this->secondaryLocale())
+            ->assertHeader('Vary', 'Accept-Language');
+    }
+
+    /**
+     * And offers it once. Reading any page stores the language it was read in, so a
+     * visitor who picked one by hand keeps it, header or no header.
+     */
+    public function test_that_offer_is_not_repeated_once_a_language_has_been_read(): void
+    {
+        $this->withSession(['leap_locale' => Leap::localeDefault()])
+            ->get('/', ['Accept-Language' => $this->secondaryLocale()])
+            ->assertOk();
+    }
+
     public function test_a_secondary_locale_is_served_under_its_prefix(): void
+    {
+        $this->get('/'.$this->secondaryLocale())->assertOk();
+    }
+
+    /**
+     * The second configured locale: the one the site has that the bare root does not
+     * serve.
+     */
+    private function secondaryLocale(): string
     {
         $secondary = array_keys(config('leap.locales'))[1] ?? null;
         $this->assertNotNull($secondary, 'Expected at least two configured locales');
 
-        $this->get('/'.$secondary)->assertOk();
+        return $secondary;
     }
 
     public function test_the_homepage_lists_hreflang_alternates(): void

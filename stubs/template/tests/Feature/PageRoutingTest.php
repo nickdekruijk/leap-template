@@ -6,10 +6,12 @@ use App\Http\Controllers\PageController;
 use App\Models\Page;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\ReadsTheSiteLanguage;
 use Tests\TestCase;
 
 class PageRoutingTest extends TestCase
 {
+    use ReadsTheSiteLanguage;
     use RefreshDatabase;
 
     protected function setUp(): void

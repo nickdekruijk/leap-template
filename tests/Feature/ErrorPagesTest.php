@@ -38,14 +38,23 @@ class ErrorPagesTest extends TestCase
     }
 
     /**
-     * An error page answers on whatever URL was asked for, and the layout gives it a
-     * canonical pointing at itself — so without this a scanner can have one empty page
-     * indexed per URL it invents.
+     * An error page answers on whatever URL was asked for, and it gets a canonical
+     * pointing at itself — so without this a scanner can have one empty page indexed
+     * per URL it invents.
+     *
+     * The views used to say so themselves, by passing 'noindex' => true up to the
+     * layout. It is Head::errors() in HeadServiceProvider now, keyed on the response
+     * status, which also covers the statuses that have no view of their own.
      */
     #[DataProvider('errorPages')]
     public function test_an_error_page_is_not_offered_for_indexing(string $path): void
     {
-        $this->assertStringContainsString("'noindex' => true", (string) file_get_contents($path));
+        $this->assertStringNotContainsString("'noindex'", (string) file_get_contents($path));
+
+        $provider = (string) file_get_contents(__DIR__.'/../../stubs/template/app/Providers/HeadServiceProvider.php');
+
+        $this->assertStringContainsString('Head::errors(', $provider);
+        $this->assertStringContainsString("robots: 'noindex, follow'", $provider);
     }
 
     /**

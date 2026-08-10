@@ -5,6 +5,69 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] — 2026-08-10
+
+Major for one reason: Laravel 12 is out. Everything else is additive to a project that
+runs `leap:template` again, and invisible to one that does not — the stubs are copied
+once, so a generated site keeps the files it already has until it asks for new ones.
+
+### Changed
+
+- **The document `<head>` is `laravel/head` now.** Between `<head>` and `</head>` the
+  layout renders one `@head` directive; everything that used to be spelled out there —
+  the title, the description, `robots`, canonical, the hreflang alternates and the whole
+  Open Graph and X/Twitter set — is declared in a new
+  `App\Providers\HeadServiceProvider`, which `leap:template` copies and registers in
+  `bootstrap/providers.php`.
+
+  Three layers, and the split matters: `defaults()` is evaluated once while the app
+  boots, so nothing in it may read the locale, the database or the request; a view
+  composer on `layouts.app` carries everything per-request; `errors()` wins over both on
+  an error response. The composer fires for the error views too, which is why the 404 and
+  503 stubs no longer pass `'noindex' => true` up through `@extends` — the status decides
+  now, so a status without a view of its own is covered as well.
+
+  The JSON-LD moved with it. `partials/schema.blade.php` is gone and the `BreadcrumbList`
+  is no longer emitted by `components/breadcrumbs.blade.php`; both are built with
+  `Schema::` in the provider and land in the head. The trail still comes from
+  `PageController::breadcrumbs()`, so what a crawler reads and what a visitor sees still
+  cannot drift apart. Gone with them: the `JSON_HEX_TAG` escaping trick, since the
+  package escapes, and the hand-rolled `array_filter`.
+
+  Newly in the head, and previously nowhere at all: `viewport` (it moved out of the
+  layout), `color-scheme`, and a `<link rel="icon">`. The provider carries commented
+  lines for the rest of the icon set, a web app manifest and theme colors — a project
+  fills in the ones it has files for, since a `<link>` to an icon that is not there is a
+  404 on every page load.
+
+- **This package requires Laravel 13.** `laravel/head` depends on `illuminate/*
+  ^13.17`, with no path back to 12. It is a dev dependency that scaffolds new projects,
+  which start on the current Laravel; an existing site keeps the files it was already
+  given.
+
+  `laravel/head` itself is pinned to `^0.1.0` in the packages `leap:template` installs.
+  It is a pre-1.0 package, so a 0.2 is free to rename the methods the copied provider
+  calls — the pin makes that a deliberate bump with a stub update, not a surprise on
+  `composer update`.
+
+### Fixed
+
+- **The shipped tests failed on every multilingual site that is not English-first.** Seven
+  of them request `/` and expect a 200. On an install with `--locales=nl,en` they got a 302
+  to `/en`, so a Dutch multilingual project failed its own suite the moment it was
+  generated — and an English-first one never showed it.
+
+  Nothing was wrong with the site. The bare root offers a first-time visitor the language
+  their browser asks for, and Symfony's `Request::create()` — which every test request goes
+  through — supplies `en-us,en;q=0.5` when nothing says otherwise. So in a test the browser
+  always claimed to want English.
+
+  A new `Tests\Concerns\ReadsTheSiteLanguage` says which language the test is reading in,
+  and `BreadcrumbTest`, `MultilingualTest`, `PageRoutingTest` and `SeoTest` use it. A test
+  that means something else still says so per request. `MultilingualTest` gained the other
+  half of the story, which nothing covered: that the root does make the offer, once, with a
+  302 and a `Vary` header.
+
 ## [1.1.2] — 2026-08-07
 
 ### Removed

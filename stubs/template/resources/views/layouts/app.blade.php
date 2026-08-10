@@ -3,56 +3,13 @@
 
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="csrf-token" content="{{ csrf_token() }}">
-        <title>{{ ($page ?? null)?->documentTitle() ?? config('app.name') }}</title>
-        {{-- The item's own description, else its intro; see HasDocumentMeta. Spelled as
-             a @php block, not @php(...): Blade pairs an inline @php with the next
-             @endphp in the file, which here is the og:image block's, swallowing
-             everything between the two. --}}
-        @php
-            $metaDescription = ($page ?? null)?->metaDescription();
-        @endphp
-        @if ($metaDescription)
-            <meta name="description" content="{{ $metaDescription }}">
-        @endif
-        {{-- An error page answers on whatever URL was asked for, so its canonical points
-             at itself and invites indexing of a page that says nothing — once per URL a
-             scanner invents. The pages that set this pass it through @extends. --}}
-        @if (! empty($noindex))
-            <meta name="robots" content="noindex, follow">
-        @endif
-        <link rel="canonical" href="{{ url()->current() }}">
-        @foreach (App\Http\Controllers\PageController::localeUrls($page ?? null) as $hrefLocale => $alt)
-            <link rel="alternate" hreflang="{{ $hrefLocale }}" href="{{ url($alt['url']) }}">
-        @endforeach
-        @php
-            // og:image priority: the page's own image/section image, then the og_image site setting
-            $ogImage = ($page ?? null)?->ogImageUrl();
-            if (! $ogImage && function_exists('setting') && setting('og_image')) {
-                $ogImage = str_starts_with(setting('og_image'), 'http') ? setting('og_image') : url(setting('og_image'));
-            }
-        @endphp
-        <meta property="og:type" content="website">
-        <meta property="og:site_name" content="{{ config('app.name') }}">
-        <meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
-        <meta property="og:title" content="{{ ($page ?? null)?->documentTitle() ?? config('app.name') }}">
-        <meta property="og:url" content="{{ url()->current() }}">
-        @if ($metaDescription)
-            <meta property="og:description" content="{{ $metaDescription }}">
-        @endif
-        @if ($ogImage)
-            <meta property="og:image" content="{{ $ogImage }}">
-        @endif
-        <meta name="twitter:card" content="{{ $ogImage ? 'summary_large_image' : 'summary' }}">
-        <meta name="twitter:title" content="{{ ($page ?? null)?->documentTitle() ?? config('app.name') }}">
-        @if ($metaDescription)
-            <meta name="twitter:description" content="{{ $metaDescription }}">
-        @endif
-        @if ($ogImage)
-            <meta name="twitter:image" content="{{ $ogImage }}">
-        @endif
+        {{-- Title, description, canonical, robots, hreflang, Open Graph, X/Twitter and
+             the JSON-LD. All of it is declared in App\Providers\HeadServiceProvider —
+             site-wide in defaults(), per page in the view composer that fires just
+             before this layout renders. --}}
+        @head
         <style>
             [x-cloak] { display: none !important; }
         </style>

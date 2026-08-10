@@ -12,8 +12,10 @@ jobs:
       fail-fast: false
       matrix:
         php: ['8.3', '8.4', '8.5']
-        laravel: ['^12.0', '^13.0']
-        # Mirrors leap's matrix: prefer-lowest pins the floor of every constraint
+        # Laravel 13 only, unlike leap's own matrix: the scaffolded head is laravel/head,
+        # which requires illuminate/* ^13.17 and has no path back to 12.
+        laravel: ['^13.0']
+        # prefer-lowest pins the floor of every constraint
         # (including the leap release this package requires), prefer-stable takes
         # the newest. The installer writes into a real project, so the pair is what
         # catches a stub that only parses on one of them.
@@ -39,6 +41,49 @@ jobs:
 
       - name: Run tests
         run: vendor/bin/phpunit
+
+  # The suite above never renders a stub — it reads them as files. This one installs into a
+  # real Laravel app and runs the tests leap:template just wrote there, which is the only
+  # thing that proves the scaffolded site boots: that @head resolves, that the copied
+  # HeadServiceProvider was registered, and that the blades compile at all.
+  #
+  # Deliberately --locales=nl,en. A site whose default locale is not English is the case
+  # the shipped tests used to fail on, and an English-first install would not show it.
+  scaffold:
+    runs-on: ubuntu-latest
+    name: scaffolded site
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: package
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, gd
+          coverage: none
+
+      - name: Build a Laravel app to install into
+        run: composer create-project laravel/laravel site --no-interaction --prefer-dist
+
+      - name: Install this package, and the ones the template calls
+        working-directory: site
+        run: |
+          composer config repositories.leap-template path ../package
+          composer require --dev "nickdekruijk/leap-template:@dev" --no-interaction
+          composer require laravel/head:^0.1.0 nickdekruijk/minify:^4.0 nickdekruijk/settings \
+            nickdekruijk/vanilla-slider nickdekruijk/horizontal-scroller --no-interaction
+
+      - name: Scaffold the site
+        working-directory: site
+        run: php artisan leap:template --fresh --no-install --models=News,Event --locales=nl,en --email=ci@example.com
+
+      - name: Run the suite it generated
+        working-directory: site
+        run: php artisan test
 
   pint:
     runs-on: ubuntu-latest

@@ -1,4 +1,4 @@
-@extends('layouts.app', ['hideNavigation' => true, 'noindex' => true])
+@extends('layouts.app', ['hideNavigation' => true])
 
 @section('content')
     <main id="main">

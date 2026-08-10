@@ -7,11 +7,14 @@ use App\Models\Page;
 use Database\Seeders\NewsSeeder;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use NickDeKruijk\Settings\Setting;
+use Tests\Concerns\ReadsTheSiteLanguage;
 use Tests\Concerns\ResolvesContentPaths;
 use Tests\TestCase;
 
 class SeoTest extends TestCase
 {
+    use ReadsTheSiteLanguage;
     use RefreshDatabase;
     use ResolvesContentPaths;
 
@@ -110,6 +113,51 @@ class SeoTest extends TestCase
         $this->get('/')
             ->assertOk()
             ->assertSee('<meta name="description" content="Beschrijving van de homepage">', false);
+    }
+
+    /**
+     * The site-wide og_image setting is the picture for anything that has none of its
+     * own, and a page with a picture is worth a wide card rather than a thumbnail.
+     */
+    public function test_the_site_wide_og_image_is_used_when_a_page_has_none(): void
+    {
+        if (! function_exists('setting')) {
+            $this->markTestSkipped('Installed without nickdekruijk/settings.');
+        }
+
+        $this->seed(PageSeeder::class);
+        Setting::set(['og_image' => 'storage/social.jpg']);
+
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertStringContainsString('<meta property="og:image" content="'.url('storage/social.jpg').'">', $html);
+        $this->assertStringContainsString('<meta name="twitter:card" content="summary_large_image">', $html);
+    }
+
+    /**
+     * An error page answers on whatever URL was asked for, and its canonical points at
+     * itself — so a scanner inventing URLs could otherwise have one empty page indexed
+     * per guess. Set by status in HeadServiceProvider, not by the view.
+     */
+    public function test_a_missing_page_is_not_offered_for_indexing(): void
+    {
+        $this->get('/a-url-nothing-answers')
+            ->assertNotFound()
+            ->assertSee('<meta name="robots" content="noindex, follow">', false);
+    }
+
+    /**
+     * The tags a browser needs rather than a crawler. They come from the defaults in
+     * HeadServiceProvider, so they are on every page including the error ones.
+     */
+    public function test_every_page_carries_the_browser_metadata(): void
+    {
+        $this->seed(PageSeeder::class);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<meta name="viewport" content="width=device-width, initial-scale=1">', false)
+            ->assertSee('<link rel="icon" href="/favicon.ico">', false);
     }
 
     /**

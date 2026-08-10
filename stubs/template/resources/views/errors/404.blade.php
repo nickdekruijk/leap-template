@@ -1,4 +1,4 @@
-@extends('layouts.app', ['noindex' => true])
+@extends('layouts.app')
 
 @section('content')
     {{-- id="main", so the skip link at the top of the layout lands here as it does on

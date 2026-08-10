@@ -5,15 +5,18 @@ namespace Tests\Feature;
 use App\Http\Controllers\PageController;
 use App\Models\News;
 use App\Models\Page;
+use App\Providers\HeadServiceProvider;
 use Database\Seeders\NewsSeeder;
 use Database\Seeders\PageSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Blade;
+use Tests\Concerns\ReadsTheSiteLanguage;
 use Tests\Concerns\ResolvesContentPaths;
 use Tests\TestCase;
 
 class BreadcrumbTest extends TestCase
 {
+    use ReadsTheSiteLanguage;
     use RefreshDatabase;
     use ResolvesContentPaths;
 
@@ -135,8 +138,10 @@ class BreadcrumbTest extends TestCase
      * altogether though, since a ListItem without an item is one a crawler cannot
      * follow, and the steps behind it close up.
      *
-     * Rendered rather than requested: the router refuses the whole branch under a
-     * slugless page, while the trail is still built wherever such a page is shown.
+     * Neither half is requested: the router refuses the whole branch under a slugless
+     * page, while the trail is still built wherever such a page is shown. The markup
+     * comes from the component and the structured data from the provider that feeds
+     * the <head>, both off the same PageController::breadcrumbs().
      */
     public function test_an_ancestor_without_a_slug_is_named_but_left_out_of_the_structured_data(): void
     {
@@ -154,7 +159,8 @@ class BreadcrumbTest extends TestCase
         $this->assertStringContainsString('<span>'.$parent->title.'</span>', $html);
         $this->assertStringNotContainsString('>'.$parent->title.'</a>', $html);
 
-        $schema = collect($this->jsonLd($html))->firstWhere('@type', 'BreadcrumbList');
+        $schema = HeadServiceProvider::breadcrumbSchema($page->fresh())->toArray();
+
         $this->assertSame([$home->title, $page->title], array_column($schema['itemListElement'], 'name'));
         $this->assertSame([1, 2], array_column($schema['itemListElement'], 'position'));
     }

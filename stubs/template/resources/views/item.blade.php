@@ -10,7 +10,6 @@
 @extends('layouts.app')
 
 @section('content')
-    @include('partials.schema', ['item' => $page, 'type' => $type])
 
     <main id="main">
         <header class="item-header">
