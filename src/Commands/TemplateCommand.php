@@ -2016,10 +2016,13 @@ class TemplateCommand extends Command
      * They are kept out of leap's own "require" so existing projects are never forced
      * to pull them; the template opts in.
      *
-     * minify carries a version constraint: from 4.0 its default import paths are
+     * minify carries a version constraint. From 4.0 its default import paths are
      * absolute and it compiles during tests, which is what the template relies on
-     * instead of shipping a config of its own. On 3.x the suite would silently read
-     * whatever build an earlier browser request left behind.
+     * instead of shipping a config of its own; on 3.x the suite would silently read
+     * whatever build an earlier browser request left behind. 5.0 is where the Blade
+     * directives arrive, and the copied layout calls them: on 4.x Blade does not know
+     * `@minifyStylesheet` and leaves it in the page as text, so the site would render
+     * without a stylesheet rather than fail.
      *
      * laravel/head is pinned to ^0.1.0 rather than left open: it is a pre-1.0 package,
      * so a 0.2 is free to rename the fluent methods the copied HeadServiceProvider and
@@ -2033,7 +2036,7 @@ class TemplateCommand extends Command
     {
         return [
             'laravel/head:^0.1.0' => 'the document <head>, Open Graph and JSON-LD',
-            'nickdekruijk/minify:^4.0' => 'SCSS compilation and JS bundling',
+            'nickdekruijk/minify:^5.0' => 'SCSS compilation and JS bundling',
             'nickdekruijk/settings' => 'admin-editable settings + footer',
             'nickdekruijk/vanilla-slider' => 'carousel',
             'nickdekruijk/horizontal-scroller' => 'horizontal-scroll sections',

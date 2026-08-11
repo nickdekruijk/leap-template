@@ -5,6 +5,24 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] — 2026-08-11
+
+### Changed
+
+- **The layout calls minify's Blade directives, and the template requires minify 5.0.**
+  `{!! Minify::stylesheet(...) !!}` and `{!! Minify::javascript(...) !!}` are
+  `@minifyStylesheet(...)` and `@minifyJavascript(...)`. `{!! !!}` is the syntax for
+  unescaped output and is worth keeping rare, and an asset line never needed it.
+
+  The constraint `leap:template` writes moves from `^4.0` to `^5.0` along with them,
+  because the failure the other way round is a quiet one: Blade does not know a directive
+  that was never registered, so on minify 4.x it leaves `@minifyStylesheet([...])` in the
+  page as text and the site comes up without a stylesheet instead of failing.
+
+  A generated project keeps the files it already has, so nothing changes until it runs
+  `leap:template` again. One that does needs minify 5.0, which the command requires for
+  it.
+
 ## [2.0.0] — 2026-08-10
 
 Major for one reason: Laravel 12 is out. Everything else is additive to a project that
