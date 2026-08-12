@@ -5,6 +5,21 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`PageSeeder` seeds the shared tags on a site without content types.** `seedContent()`
+  returned early when `config('leap.content')` was empty, and the tag block sat below that
+  return, so a site with tags installed and no registered content types never got any. The
+  filter bar above every overview stayed empty. Tags are shared, not per type, so they are
+  now seeded before that check, which is the order the comment above them already
+  described.
+
+  This is a stub. A generated project keeps its own copy of
+  `database/seeders/PageSeeder.php` and is unaffected until it runs `leap:template` again;
+  `leap:template --diff` shows the drift.
+
 ## [2.1.0] — 2026-08-11
 
 ### Changed

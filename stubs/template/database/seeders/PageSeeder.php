@@ -300,15 +300,14 @@ class PageSeeder extends Seeder
      */
     protected function seedContent(): void
     {
-        $models = PageController::indexModels();
-        if (empty($models)) {
-            return;
-        }
-
         // Tags first, so a type's seeder can attach them to its items. Their name is
         // translatable, so it is seeded per locale — a plain string lands in whichever
         // locale happens to be active while seeding and leaves the filter chips above
         // every other overview reading that one language.
+        //
+        // They are also seeded before the early return below: tags are shared, so a site
+        // with no registered content types still wants them, and putting the return first
+        // left the filter bar above every overview empty.
         //
         // Every language leap:template can install is here. Storing a locale the site did
         // not pick costs a few bytes and shows nowhere, which is cheaper than a tag that
@@ -322,6 +321,11 @@ class PageSeeder extends Seeder
             ] as $sort => $name) {
                 Tag::create($this->forSite(['name' => $name]) + ['sort' => $sort + 1]);
             }
+        }
+
+        $models = PageController::indexModels();
+        if (empty($models)) {
+            return;
         }
 
         foreach ($models as $model) {
