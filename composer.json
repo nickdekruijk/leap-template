@@ -10,7 +10,7 @@
 	"require": {
 		"php": "^8.3",
 		"laravel/framework": "^13.0",
-		"nickdekruijk/leap": "^1.9"
+		"nickdekruijk/leap": "^1.10"
 	},
 	"suggest": {
 		"laravel/head": "^0.1.0 — the document <head>, Open Graph and JSON-LD of the frontend template (php artisan leap:template)",

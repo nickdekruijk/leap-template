@@ -2,16 +2,29 @@
 
 namespace App\Leap;
 
+use App\Http\Controllers\PageController;
 use App\Leap\Concerns\ContentSections;
 {{#tags}}use App\Models\Tag;
-{{/tags}}use NickDeKruijk\Leap\Classes\Attribute;
+{{/tags}}use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Model;
+use NickDeKruijk\Leap\Classes\Attribute;
+use NickDeKruijk\Leap\Contracts\Previewable;
 use NickDeKruijk\Leap\Resource;
 
-class {{ Model }} extends Resource
+class {{ Model }} extends Resource implements Previewable
 {
     use ContentSections;
 
     public $model = \App\Models\{{ Model }}::class;
+
+    /**
+     * Previewable: the editor's preview button, rendered through the same view the
+     * detail route uses, so a preview cannot drift from the page it previews.
+     */
+    public function previewResponse(Model $record): View
+    {
+        return PageController::previewItem($record);
+    }
 
     public function attributes(): array
     {

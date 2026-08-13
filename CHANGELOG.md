@@ -5,6 +5,30 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] — 2026-08-13
+
+### Added
+
+- **The frontend renders the editor's preview.** leap 1.10.0 adds a preview button that opens
+  the frontend of the record being edited, including one that is switched off or written in a
+  language `locales_published` leaves out. But only the frontend knows how one of its records
+  becomes a page, so it has to say. The `Page` module and every generated content module now
+  implement `NickDeKruijk\Leap\Contracts\Previewable`, each through the same view its live
+  route renders: `page` for a page, `item` for a content item, the latter via a new
+  `PageController::previewItem()` that recovers the type from the class the way `itemUrl()`
+  already does. On the module, in `app/Leap`, which is where a project already describes that
+  screen and already reaches for `PageController`; the models are untouched.
+
+  `HeadServiceProvider` adds `noindex, nofollow` to a preview, on top of the `X-Robots-Tag`
+  leap already puts on the response.
+
+  Nothing about it widens what the site serves: a switched-off page still answers 404 on its own
+  URL, stays out of the menu and stays out of the sitemap while its preview is open. There is a
+  `tests/Feature/PreviewTest.php` asserting exactly that.
+
+  Requires leap ^1.10. An existing site gets the button once it adds `Previewable` to its own
+  modules; `leap:template --diff` shows what changed.
+
 ## [2.2.0] — 2026-08-13
 
 ### Changed

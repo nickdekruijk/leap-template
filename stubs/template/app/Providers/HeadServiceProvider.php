@@ -13,6 +13,7 @@ use Laravel\Head\Facades\Schema;
 use Laravel\Head\HeadBuilder;
 use Laravel\Head\Schema\Breadcrumbs;
 use Laravel\Head\Schema\SchemaObject;
+use NickDeKruijk\Leap\Leap;
 
 /**
  * Everything between <head> and </head> that is not a stylesheet or a script:
@@ -111,6 +112,14 @@ class HeadServiceProvider extends ServiceProvider
                 url: url()->current(),
                 locale: str_replace('_', '-', app()->getLocale()),
             );
+
+            // The editor's preview: a page that is not live yet, on an address that only
+            // exists for the person editing it. The response already carries an
+            // X-Robots-Tag; this is the same thing said in the markup, for whatever reads
+            // that instead.
+            if (Leap::isPreview()) {
+                Head::robots('noindex, nofollow');
+            }
 
             if ($page) {
                 Head::title($page->documentTitle())

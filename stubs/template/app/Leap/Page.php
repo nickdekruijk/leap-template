@@ -5,13 +5,16 @@ namespace App\Leap;
 use App\Http\Controllers\PageController;
 use App\Leap\Concerns\ContentSections;
 use App\Models\Tag;
+use Illuminate\Contracts\View\View as ViewContract;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use NickDeKruijk\Leap\Classes\Attribute;
 use NickDeKruijk\Leap\Classes\Section;
+use NickDeKruijk\Leap\Contracts\Previewable;
 use NickDeKruijk\Leap\Resource;
 
-class Page extends Resource
+class Page extends Resource implements Previewable
 {
     use ContentSections;
 
@@ -122,6 +125,15 @@ class Page extends Resource
         }
 
         return $sections;
+    }
+
+    /**
+     * Previewable: the editor's preview button, rendered through the same view the
+     * catch-all route uses, so a preview cannot drift from the page it previews.
+     */
+    public function previewResponse(Model $record): ViewContract
+    {
+        return view('page', ['page' => $record]);
     }
 
     public $icon = 'fas-sitemap';

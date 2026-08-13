@@ -517,6 +517,26 @@ class PageController extends Controller
     }
 
     /**
+     * A content item's detail page for the editor's preview button.
+     *
+     * The item view wants the type and the overview page it hangs under; the type comes
+     * back out of the class the same way itemUrl() recovers it. A null parent is fine:
+     * the overview page may itself be inactive, and the view falls back to unlinked tags
+     * and an empty breadcrumb trail rather than refusing to render.
+     */
+    public static function previewItem(Model $item): View
+    {
+        $type = array_search($item::class, static::indexModels(), true);
+        abort_if($type === false, 404);
+
+        return view('item', [
+            'page' => $item,
+            'type' => $type,
+            'parent' => static::overviewPage($type),
+        ]);
+    }
+
+    /**
      * Detail page of a content item: the segments up to the last one must resolve to
      * that type's overview page (see overviewPage()), the last one is the item's slug
      * in the active locale.
