@@ -296,12 +296,30 @@ if (!CSS.supports('interpolate-size', 'allow-keywords')) {
 if (!reduceMotion) {
     let pending = false;
 
+    // The crop the image started with, read once and remembered before the first frame
+    // overwrites it.
+    //
+    // Without this the parallax wrote "center 50%" on every scroll and silently threw away
+    // the focus point set on the file. An editor could move it all they liked: the first
+    // scroll, or the first frame on a page that loads part-way down, put it back in the
+    // middle. Nothing reported it, and the inline object-position was there in the HTML the
+    // whole time, which is what made it hard to see.
+    const anchorOf = function (media) {
+        if (!media.dataset.parallaxAnchor) {
+            const own = getComputedStyle(media).objectPosition.split(' ');
+            media.dataset.parallaxAnchor = (own[0] || '50%') + ' ' + (own[1] || '50%');
+        }
+
+        return media.dataset.parallaxAnchor.split(' ');
+    };
+
     const update = function () {
         pending = false;
         document.querySelectorAll('.slider .slide img, .slider .slide video').forEach(function (media) {
             const rect = media.getBoundingClientRect();
             const offset = rect.top + rect.height / 2 - window.innerHeight / 2;
-            media.style.objectPosition = 'center calc(50% + ' + offset * -0.05 + 'px)';
+            const anchor = anchorOf(media);
+            media.style.objectPosition = anchor[0] + ' calc(' + anchor[1] + ' + ' + offset * -0.05 + 'px)';
         });
     };
 

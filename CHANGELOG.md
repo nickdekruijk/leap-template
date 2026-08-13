@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The slider parallax no longer discards an image's focus point.** It wrote
+  `object-position: center 50%` onto every slide image on each scroll, so the focus point
+  set in the file manager survived only until the first frame, and on a page that loads
+  part-way down not even that. Nothing reported it, and the component's own inline
+  `object-position` sat in the HTML the whole time, which is what made it hard to see: the
+  markup looked right and the picture did not move.
+
+  The effect now reads the crop the image starts with, once, and offsets from there, so an
+  editor's framing is what moves rather than what is replaced. An image without a focus
+  point still parallaxes from the centre, exactly as before.
+
+  This lives in a stub, so an existing project picks it up by running
+  `php artisan leap:template`. Preview with `leap:template --diff` first, since that
+  command overwrites local edits to the same file.
+
 - **`PageSeeder` seeds the shared tags on a site without content types.** `seedContent()`
   returned early when `config('leap.content')` was empty, and the tag block sat below that
   return, so a site with tags installed and no registered content types never got any. The
