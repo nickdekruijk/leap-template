@@ -5,7 +5,21 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.2.0] — 2026-08-13
+
+### Changed
+
+- **The frontend serves the published locales, not every configured one.** leap 1.9.0 tells the
+  two apart: `leap.locales` is what an editor can write and `leap.locales_published` is what a
+  visitor can read, so a translation can be typed over weeks without the finished half of it
+  turning up on the site. The template read the first list in three places that decide what a
+  visitor is given, and now reads the second: the Accept-Language redirect on the bare root,
+  the sitemap, and `localeUrls()`, which is both the language switcher and the hreflang
+  alternates. Leaving a language in either of those last two is what gets it indexed while it
+  is still being written.
+
+  Nothing changes for a site that does not set `locales_published`, where it means every
+  configured locale. Requires leap ^1.9.
 
 ### Fixed
 

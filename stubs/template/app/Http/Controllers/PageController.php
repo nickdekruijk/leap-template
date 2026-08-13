@@ -445,7 +445,9 @@ class PageController extends Controller
             return $redirect;
         }
 
-        // When multilingual, strip and apply a leading locale prefix (gated on leap.locales)
+        // When multilingual, strip and apply a leading locale prefix. Only a published one:
+        // an unpublished prefix is left in the segments and looked up as a page slug, which
+        // is a 404 unless a page happens to be called that.
         Leap::detectLocale($segments);
 
         // Remember what the visitor is actually reading, so the redirect above happens
@@ -492,7 +494,11 @@ class PageController extends Controller
      */
     protected static function preferredLocaleRedirect(): ?RedirectResponse
     {
-        $locales = config('leap.locales');
+        // Published rather than configured, here and in the sitemap and the switcher below.
+        // A language an editor is still writing has no address yet, so sending a visitor to
+        // it because their browser asked for it would land them on a 404 in their own
+        // language and leave them there.
+        $locales = Leap::localesPublished();
         $request = request();
 
         if (! $locales || session()->has('leap_locale') || ! $request->hasHeader('Accept-Language')) {
@@ -563,7 +569,7 @@ class PageController extends Controller
     {
         $pages = Page::active()->get(['id', 'slug', 'parent', 'updated_at']);
         $map = $pages->keyBy('id');
-        $locales = config('leap.locales');
+        $locales = Leap::localesPublished();
 
         $urls = collect();
 
@@ -630,14 +636,18 @@ class PageController extends Controller
     }
 
     /**
-     * URLs for the given page or content item in each configured locale, for a
+     * URLs for the given page or content item in each published locale, for a
      * language switcher. Empty unless multilingual.
+     *
+     * These are the hreflang alternates as well, which is why an unpublished language
+     * has to be absent rather than merely unlinked: an alternate is a promise that the
+     * URL answers in that language.
      *
      * @return array<string, array{name: string, url: string, active: bool}>
      */
     public static function localeUrls(Page|Model|null $page): array
     {
-        $locales = config('leap.locales');
+        $locales = Leap::localesPublished();
         if (! $locales || ! $page) {
             return [];
         }

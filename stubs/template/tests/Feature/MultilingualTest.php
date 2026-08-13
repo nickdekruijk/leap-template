@@ -95,6 +95,45 @@ class MultilingualTest extends TestCase
     }
 
     /**
+     * Unless it is not published yet.
+     *
+     * leap.locales is what an editor can write and leap.locales_published is what a visitor
+     * can read, so that a translation can be entered over weeks without the half of it that
+     * is done appearing on the site. Withdrawing a language has to take away the address as
+     * well as the link, or the work in progress stays one hand-typed URL away.
+     */
+    public function test_an_unpublished_locale_has_no_address(): void
+    {
+        $this->publishTheDefaultLocaleOnly();
+
+        $this->get('/'.$this->secondaryLocale())->assertNotFound();
+    }
+
+    /**
+     * And is not announced anywhere either. The sitemap and the hreflang alternates are the
+     * two places that hand a crawler a URL it was not linked to, so a language left in
+     * either is a language being indexed while it is being written.
+     */
+    public function test_an_unpublished_locale_is_absent_from_the_sitemap_and_the_alternates(): void
+    {
+        $secondary = $this->secondaryLocale();
+
+        $this->publishTheDefaultLocaleOnly();
+
+        $this->get('/sitemap.xml')->assertDontSee('hreflang="'.$secondary.'"', false);
+        $this->get('/')->assertDontSee('hreflang="'.$secondary.'"', false);
+    }
+
+    /**
+     * Read before publishing, because localeDefault() answers with the first *published*
+     * locale, and after this call that is the only one left.
+     */
+    private function publishTheDefaultLocaleOnly(): void
+    {
+        config(['leap.locales_published' => [Leap::localeDefault()]]);
+    }
+
+    /**
      * The second configured locale: the one the site has that the bare root does not
      * serve.
      */
