@@ -264,14 +264,16 @@ class TemplateCommand extends Command
      * delete is recoverable.
      *
      * @param  string  $file  The file including path relative to base path
+     * @param  string|null  $hint  Why this one has to go, when "the template does not use
+     *                             it" is not the whole story
      * @return void
      */
-    public function deleteFile(string $file)
+    public function deleteFile(string $file, ?string $hint = null)
     {
         if (file_exists(base_path($file)) && $this->auto(
             "Delete $file? (Laravel default, replaced by the template)",
             true,
-            'The template does not use it. It is in git in a fresh project, so you can get it back.',
+            $hint ?? 'The template does not use it. It is in git in a fresh project, so you can get it back.',
         )) {
             unlink(base_path($file));
             $this->info('Deleted '.$file);
@@ -803,6 +805,17 @@ class TemplateCommand extends Command
             ['public/storage', file_exists(public_path('storage')), 'php artisan storage:link — no uploaded image resolves'],
         ];
 
+        // Leap owns /robots.txt and knows what can be wrong with it, so ask it rather
+        // than keeping a second copy of that knowledge here. Guarded because a project
+        // can be on a leap that predates the command.
+        if ($this->getApplication()?->has('leap:robots')) {
+            $checks[] = [
+                'robots.txt',
+                $this->callSilently('leap:robots', ['--check' => true]) === self::SUCCESS,
+                'php artisan leap:robots says what is wrong with it',
+            ];
+        }
+
         if ($missing = $this->missingGitignoreRules()) {
             $checks[] = ['.gitignore', false, 'add '.implode(' and ', $missing).' — compiled on request, not source'];
         } else {
@@ -991,6 +1004,14 @@ class TemplateCommand extends Command
         $this->deleteFile('resources/js/app.js');
         $this->deleteFile('resources/js/bootstrap.js');
         $this->deleteFile('resources/css/app.css');
+        // Leap serves /robots.txt from a route, because the Sitemap line in it has to be
+        // an absolute URL and that address is different per environment. Laravel's
+        // skeleton file would win over that route without saying so: the web server
+        // answers a file that exists without asking PHP.
+        $this->deleteFile(
+            'public/robots.txt',
+            'Leap serves /robots.txt itself, with the sitemap in it. This file would win over that route without saying so: the web server answers it without asking PHP.',
+        );
         // Laravel's stock ExampleTest asserts GET / returns 200 for the static welcome
         // page; the homepage is now DB-driven (PageController), so it would fail. The
         // template's PageRoutingTest covers routing properly instead.

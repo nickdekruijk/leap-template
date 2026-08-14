@@ -2,6 +2,8 @@
 
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
+use Illuminate\Console\Command;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
@@ -181,6 +183,29 @@ class TemplateDiffTest extends TestCase
         $this->assertStringContainsString('✗ public/storage', $output);
         // Its .gitignore has one of the two build rules, so the other is named.
         $this->assertStringContainsString('/public/js/builds', $output);
+    }
+
+    /**
+     * robots.txt belongs to leap, which serves it and knows what can be wrong with it,
+     * so the doctor asks that command instead of keeping a second copy of the knowledge.
+     * The command is stubbed here because the leap in vendor/ may predate it, which is
+     * also the case this guards: no command, no line, rather than a false alarm.
+     */
+    public function test_the_robots_check_is_leaps_own_command(): void
+    {
+        $this->assertStringNotContainsString('robots.txt', $this->diff());
+
+        $this->app[Kernel::class]->registerCommand(new class extends Command
+        {
+            protected $signature = 'leap:robots {--check}';
+
+            public function handle(): int
+            {
+                return self::FAILURE;
+            }
+        });
+
+        $this->assertStringContainsString('✗ robots.txt', $this->diff());
     }
 
     public function test_a_step_that_is_in_place_costs_one_line_and_no_advice(): void

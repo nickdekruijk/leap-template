@@ -55,6 +55,24 @@ class TemplateInstallTest extends TestCase
     }
 
     /**
+     * Laravel's skeleton ships public/robots.txt, and leap serves /robots.txt from a
+     * route because the Sitemap line in it has to be an absolute URL. The file wins over
+     * that route without saying so: the web server answers a file that exists without
+     * asking PHP, so the route works in the project's own test suite and never on the
+     * site.
+     */
+    public function test_it_removes_the_robots_file_that_would_shadow_the_route(): void
+    {
+        file_put_contents($this->temp.'/public/robots.txt', "User-agent: *\nDisallow:\n");
+
+        $this->artisan('leap:template', [
+            '--fresh' => true, '--no-install' => true, '--models' => '', '--locales' => 'nl',
+        ])->assertExitCode(0);
+
+        $this->assertFileDoesNotExist($this->temp.'/public/robots.txt');
+    }
+
+    /**
      * The installer patches routes/web.php, DatabaseSeeder and config/leap.php for you, so
      * leaving four known lines on the User model as homework was out of step — and without
      * them /admin has no roles, no 2FA and no passkeys.
