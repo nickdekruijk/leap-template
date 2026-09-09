@@ -631,13 +631,25 @@ class PageController extends Controller
      *
      * @return Collection<int, array{loc: string, lastmod: ?string, alternates: array<string, string>}>
      */
+    /**
+     * A path as it may appear in XML: every segment percent-encoded.
+     *
+     * url() does not do this, and a slug is whatever an editor typed. A space makes the
+     * <loc> invalid outright, and an accent makes it wrong in a way that reads fine and
+     * is not: "cliëntroute" has to be sent as cli%C3%ABntroute.
+     */
+    protected static function encodePath(string $path): string
+    {
+        return implode('/', array_map('rawurlencode', explode('/', $path)));
+    }
+
     protected static function entriesFor(callable $path, $lastmod, ?array $locales): Collection
     {
         if (! $locales) {
             $p = $path(app()->getLocale());
 
             return $p === null ? collect() : collect([[
-                'loc' => url($p),
+                'loc' => url(static::encodePath($p)),
                 'lastmod' => $lastmod?->toAtomString(),
                 'alternates' => [],
             ]]);
@@ -646,7 +658,7 @@ class PageController extends Controller
         $hrefs = collect(array_keys($locales))
             ->mapWithKeys(fn (string $locale): array => [$locale => $path($locale)])
             ->filter(fn (?string $p): bool => $p !== null)
-            ->map(fn (string $p, string $locale): string => url(Leap::localePrefix($locale).$p));
+            ->map(fn (string $p, string $locale): string => url(Leap::localePrefix($locale).static::encodePath($p)));
 
         return $hrefs->map(fn (string $loc): array => [
             'loc' => $loc,

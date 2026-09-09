@@ -5,6 +5,16 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] — 2026-09-09
+
+### Fixed
+
+- **Sitemap addresses are percent-encoded.** `url()` does not do it and a slug is
+  whatever an editor typed, so a page called "flora en fauna" put spaces inside a `<loc>`
+  and the whole file stopped being valid XML — every URL in it, not only that one. An
+  accent was the quieter half of the same bug: "cliëntroute" has to be sent as
+  `cli%C3%ABntroute`, and written plainly it reads correct and is not.
+
 ## [2.4.0] — 2026-08-14
 
 ### Added
