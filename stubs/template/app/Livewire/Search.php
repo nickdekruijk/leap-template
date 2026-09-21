@@ -46,11 +46,23 @@ class Search extends Component
     private array $columnCache = [];
 
     /**
-     * How many candidate rows to pull per source before the per-locale PHP refinement.
+     * A ceiling on how many rows one source may hand to the PHP refinement, so a term
+     * that matches half the table does not load it. Not a result cap: the refinement
+     * drops false positives from the coarse SQL prefilter, so this has to sit well
+     * above RESULT_LIMIT or a better match further down the table is never seen.
      */
-    private const CANDIDATE_LIMIT = 30;
+    private const CANDIDATE_LIMIT = 200;
 
     private const RESULT_LIMIT = 10;
+
+    /**
+     * The fields in a section that hold text a visitor reads. Everything else in there
+     * is structure: image_position, all_link, tag, the media keys. Searching those as
+     * well makes "left" a hit on every page with an image beside its text.
+     *
+     * @var array<int, string>
+     */
+    private const SECTION_TEXT_FIELDS = ['intro', 'head', 'body', 'text', 'quote', 'name', 'description'];
 
     #[Computed]
     public function results(): Collection
@@ -122,7 +134,7 @@ class Search extends Component
                 continue;
             }
 
-            $value = mb_strtolower(strip_tags((string) $item->getTranslation($field, $locale, false)));
+            $value = mb_strtolower($this->plainText((string) $item->getTranslation($field, $locale, false)));
 
             if ($value !== '' && str_contains($value, $term)) {
                 return 40;
@@ -148,15 +160,27 @@ class Search extends Component
             ? $this->localeColumnExpr('intro', $locale)
             : null;
 
-        return $query
-            ->where(function ($q) use ($titleExpr, $descExpr, $introExpr, $term) {
-                $q->whereRaw("{$titleExpr} LIKE ?", ["%{$term}%"])
-                    ->orWhereRaw("{$descExpr} LIKE ?", ["%{$term}%"])
-                    // Coarse prefilter across every locale; refined per locale below.
-                    ->orWhereRaw('LOWER(sections) LIKE ?', ["%{$term}%"]);
+        // The editor writes entities, so the stored text may hold "spreker&nbsp;aanvragen"
+        // where the visitor typed "spreker aanvragen", and "caf&eacute;" where they
+        // typed "café". A space becomes % so the phrase survives whatever sits between
+        // the words, and the encoded spelling is tried alongside the plain one. Both are
+        // only the coarse prefilter: matchesLocale() decides.
+        $patterns = array_unique([
+            '%'.str_replace(' ', '%', $term).'%',
+            '%'.str_replace(' ', '%', htmlentities($term, ENT_QUOTES | ENT_HTML5, 'UTF-8')).'%',
+        ]);
 
-                if ($introExpr) {
-                    $q->orWhereRaw("{$introExpr} LIKE ?", ["%{$term}%"]);
+        return $query
+            ->where(function ($q) use ($titleExpr, $descExpr, $introExpr, $patterns) {
+                foreach ($patterns as $pattern) {
+                    $q->orWhereRaw("{$titleExpr} LIKE ?", [$pattern])
+                        ->orWhereRaw("{$descExpr} LIKE ?", [$pattern])
+                        // Coarse prefilter across every locale; refined per locale below.
+                        ->orWhereRaw('LOWER(sections) LIKE ?', [$pattern]);
+
+                    if ($introExpr) {
+                        $q->orWhereRaw("{$introExpr} LIKE ?", [$pattern]);
+                    }
                 }
             })
             ->limit(self::CANDIDATE_LIMIT)
@@ -210,27 +234,67 @@ class Search extends Component
         // throw. Null falls out at the is_string filter below.
         $haystack = [$item->title, $item->description, $item->intro ?? null];
 
-        foreach ((array) $item->sections as $section) {
-            if (! is_array($section)) {
+        $haystack[] = $this->sectionText($item->sections, $locale);
+
+        $text = mb_strtolower($this->plainText(implode(' ', array_filter($haystack, 'is_string'))));
+
+        return str_contains($text, $term);
+    }
+
+    /**
+     * The text of the sections a visitor in this locale is actually shown.
+     *
+     * Two things the raw column would get wrong. A section switched off in the editor
+     * is not on the page, so finding the page by what it says sends the visitor to
+     * something that is not there; HasSections::sections() drops those for the same
+     * reason. And only some of a section's keys hold text at all, so the rest is
+     * skipped rather than searched.
+     */
+    private function sectionText(mixed $sections, string $locale): string
+    {
+        $text = '';
+
+        foreach ((array) $sections as $section) {
+            if (! is_array($section) || ($section['active'] ?? true) === false) {
                 continue;
             }
-            foreach ($section as $key => $value) {
-                // Skip structural keys (_name, _view, _title, …)
-                if (is_string($key) && str_starts_with($key, '_')) {
-                    continue;
-                }
-                if (is_array($value)) {
-                    $value = $value[$locale] ?? '';
-                }
+
+            foreach (self::SECTION_TEXT_FIELDS as $field) {
+                // Leap::localize() is the rule HasSections uses to bring a field to the
+                // view, fall back to the first translation included, so a match follows
+                // what is on the screen.
+                $value = Leap::localize($section[$field] ?? null, $locale);
+
                 if (is_string($value) && $value !== '') {
-                    $haystack[] = $value;
+                    $text .= ' '.$value;
                 }
             }
         }
 
-        $text = mb_strtolower(strip_tags(implode(' ', array_filter($haystack, 'is_string'))));
+        return $text;
+    }
 
-        return str_contains($text, $term);
+    /**
+     * HTML reduced to the words inside it.
+     *
+     * Tags become a space rather than nothing, because strip_tags() alone glues the
+     * words on either side of a <br> into one: an address written as
+     * "Vrijheidscolleges<br>Vlampijpstraat 84" holds a word no visitor will ever type.
+     * Script and style blocks go first, contents and all, since strip_tags() keeps what
+     * is inside them.
+     *
+     * Then the entities, or nobody typing "café" finds "caf&eacute;" and a phrase
+     * broken by "&nbsp;" is never matched. The no-break space that decodes to is a
+     * space to a reader but not to \s, so it is turned into one.
+     */
+    private function plainText(string $html): string
+    {
+        $text = preg_replace('#<(script|style)\b[^>]*>.*?</\1\s*>#is', ' ', $html);
+
+        $text = html_entity_decode(strip_tags(str_replace('<', ' <', $text)), ENT_QUOTES | ENT_HTML5);
+        $text = strip_tags(str_replace('<', ' <', $text));
+
+        return trim(preg_replace('/\s+/u', ' ', str_replace("\u{a0}", ' ', $text)));
     }
 
     /**

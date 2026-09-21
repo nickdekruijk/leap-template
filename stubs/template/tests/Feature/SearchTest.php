@@ -216,6 +216,77 @@ class SearchTest extends TestCase
         $this->assertContains('Contactpagina', $this->search('contactpagina', $default));
     }
 
+    /**
+     * A section switched off in the editor is not on the page. Finding the page by what
+     * it says would send the visitor to something that is not there.
+     */
+    public function test_a_section_switched_off_is_not_searchable(): void
+    {
+        [$default] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Programma'],
+            [['_name' => 'default', 'active' => false, 'body' => [$default => '<p>Afgelast evenement</p>']]],
+        );
+
+        $this->assertNotContains('Programma', $this->search('afgelast', $default));
+    }
+
+    /**
+     * Only some of a section's keys hold text. Searching the rest makes "left" a hit on
+     * every page with an image beside its text.
+     */
+    public function test_section_structure_is_not_searchable(): void
+    {
+        [$default] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Sprekers'],
+            [['_name' => 'default', 'image_position' => 'left', 'body' => [$default => '<p>Onze sprekers</p>']]],
+        );
+
+        $this->assertNotContains('Sprekers', $this->search('left', $default));
+    }
+
+    /**
+     * The editor stores entities, so the words in the column are not the words a
+     * visitor types: "caf&eacute;" for café, and "&nbsp;" wherever a space is kept
+     * together. Both the SQL prefilter and the refinement have to survive that.
+     */
+    public function test_entities_in_the_content_do_not_hide_it(): void
+    {
+        [$default] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Beleid'],
+            [['_name' => 'default', 'body' => [$default => '<p>Comit&eacute; van aanbeveling</p>']]],
+        );
+
+        $this->makePage(
+            [$default => 'Aanvragen'],
+            [['_name' => 'default', 'body' => [$default => '<p>Een spreker&nbsp;aanvragen kan hier</p>']]],
+        );
+
+        $this->assertContains('Beleid', $this->search('comité', $default));
+        $this->assertContains('Aanvragen', $this->search('spreker aanvragen', $default));
+    }
+
+    /**
+     * strip_tags() puts nothing in the tag's place, so an address written with line
+     * breaks used to hold a word nobody types while hiding the street itself.
+     */
+    public function test_a_tag_between_two_words_keeps_them_apart(): void
+    {
+        [$default] = $this->locales();
+
+        $this->makePage(
+            [$default => 'Contact'],
+            [['_name' => 'default', 'body' => [$default => '<p>Stichting X<br />Vlampijpstraat 84</p>']]],
+        );
+
+        $this->assertContains('Contact', $this->search('vlampijpstraat', $default));
+    }
+
     public function test_legacy_plain_string_rows_do_not_crash_the_query(): void
     {
         [$default] = $this->locales();

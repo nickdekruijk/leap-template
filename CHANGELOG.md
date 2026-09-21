@@ -5,6 +5,30 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2026-09-21
+
+### Fixed
+
+- **The site search read the sections column rather than the page.** Three things came
+  with that. A section switched off in the editor stayed searchable, so a visitor could
+  be sent to a page for a paragraph that is no longer on it. Every key of a section was
+  searched, structure included, which made "left" a hit on each page with an image
+  beside its text and "/sprekers" a hit on each page linking there. And the editor
+  writes entities, so "caf&eacute;" was never found by anyone typing "café" and a phrase
+  broken by "&nbsp;" was never found at all, in the SQL prefilter as well as in the PHP
+  refinement.
+
+  Section text is now taken from the active sections only, from the fields that hold
+  text, with the entities decoded and tags turned into a space, so an address written as
+  `Vrijheidscolleges<br>Vlampijpstraat 84` no longer hides the street. Script and style
+  blocks are dropped contents and all. The prefilter tries the encoded spelling of the
+  term next to the plain one and lets anything sit between the words of a phrase.
+- **A better match further down the table is no longer dropped in silence.** Each source
+  handed at most 30 rows to the refinement that decides what actually matches, so on a
+  table of any size the result you wanted could be filtered out before it was ever
+  considered. That ceiling is now 200 and is a safety valve rather than a result cap:
+  the list itself is still the best 10.
+
 ## [2.4.1] — 2026-09-09
 
 ### Fixed
