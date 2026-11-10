@@ -5,6 +5,31 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-11-10
+
+Both changes are for a site that switched Leap's consent off (`LEAP_CONSENT=false`),
+because its banner comes from somewhere else or because it has nothing to ask. With
+consent on, the markup of the video section is the same to the byte. An existing site
+gets this by running `leap:template` again; `leap:template --diff` shows what differs.
+
+### Changed
+
+- **A video plays on one click when consent is off.** The notice with "Load video" and
+  "Always allow" showed there as well. With consent off nothing is stored, so "Always
+  allow" remembered nothing and the visitor was asked again at every video. The notice
+  is now only rendered while consent is on. Without it, the click on the play button
+  loads the player, and that click is the informed act.
+- **A line under the video names the provider when consent is off.** "Video from
+  YouTube" or "Video from Vimeo", translated in all seven languages, so it is clear
+  where the video comes from before the click. It stands where the notice is left out,
+  and stays visible while the video plays. Nothing reaches the provider before the
+  click, as before: the poster is the copy stored on the site.
+- **The cookie overview section is only offered while consent is on.** The table shows
+  the registry of Leap's own consent system, and on a site that arranges consent
+  elsewhere it describes a banner the visitor never sees. A page that already has the
+  section keeps rendering it. In the editor such a section shows as its stored values
+  rather than as fields, which is how Leap shows any section it has no definition for.
+
 ## [2.4.2] - 2026-09-21
 
 ### Fixed

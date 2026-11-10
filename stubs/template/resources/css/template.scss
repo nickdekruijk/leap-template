@@ -1275,6 +1275,23 @@ a[role="button"],
 
         p { max-width: 34rem; margin: 0; }
     }
+
+    // "Video from YouTube", rendered instead of the notice when consent is switched off.
+    // It hangs under the frame, in the section's own margin, because the frame itself is
+    // a fixed 16:9 box, and it stays there while the video plays. On a screen narrower
+    // than the content column the frame runs edge to edge, so the line takes the page's
+    // side padding there and none where the frame already stands in from the edge.
+    .video-provider {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        margin: 0;
+        padding-top: 0.5rem;
+        padding-inline: clamp(0px, calc((var(--content-width) + var(--space) * 2 - 100vw) * 9999), var(--space));
+        font-size: 0.875em;
+        line-height: 1.4;
+        color: var(--muted, #777);
+    }
 }
 
 // ── Footer ────────────────────────────────────────────────────────────────────

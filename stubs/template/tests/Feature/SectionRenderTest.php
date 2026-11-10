@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use NickDeKruijk\Leap\Classes\Attribute;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -218,6 +219,114 @@ class SectionRenderTest extends TestCase
 
         $this->assertSame(1, substr_count($html, '<h1'));
         $this->assertStringContainsString('<h1>After the carousel</h1>', $html);
+    }
+
+    private function video(string $id): array
+    {
+        return ['_name' => 'video', '_sort' => 1, 'active' => true, 'head' => 'Watch this', 'video_id' => $id];
+    }
+
+    /**
+     * With consent on, a visitor who has not allowed embeds is asked before the player
+     * loads. The notice names the provider, so no separate line does.
+     */
+    public function test_a_video_asks_first_while_consent_is_on(): void
+    {
+        config()->set('leap.consent.enabled', true);
+
+        $this->page([$this->video('dQw4w9WgXcQ')]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertStringContainsString('<div class="video-consent" hidden>', $html);
+        $this->assertStringContainsString('video-consent-once', $html);
+        $this->assertStringContainsString('video-consent-always', $html);
+        $this->assertStringNotContainsString('video-provider', $html);
+    }
+
+    /**
+     * With consent off nobody is asked, so "Always allow" has nothing to remember and the
+     * notice came back with every video. It is not rendered at all: the script then plays
+     * on the first click, and a line under the video says where it comes from.
+     */
+    public function test_a_video_plays_on_one_click_while_consent_is_off(): void
+    {
+        config()->set('leap.consent.enabled', false);
+
+        $this->page([$this->video('dQw4w9WgXcQ')]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertStringNotContainsString('video-consent', $html);
+        $this->assertStringContainsString(
+            '<p class="video-provider">'.__('Video from :provider', ['provider' => 'YouTube']).'</p>',
+            $html,
+        );
+        $this->assertStringContainsString('class="video-poster"', $html);
+    }
+
+    public function test_the_line_under_a_video_names_vimeo_for_a_vimeo_id(): void
+    {
+        config()->set('leap.consent.enabled', false);
+
+        $this->page([$this->video('1084537')]);
+
+        $this->assertStringContainsString(
+            '<p class="video-provider">'.__('Video from :provider', ['provider' => 'Vimeo']).'</p>',
+            $this->get('/slides')->assertOk()->getContent(),
+        );
+    }
+
+    /**
+     * Whichever way consent is set, the page asks the provider for nothing until the
+     * visitor clicks: no iframe, and the only address of theirs in the markup is the one
+     * the click handler reads from data-video. The poster is the local copy.
+     */
+    #[DataProvider('videosAndConsent')]
+    public function test_a_video_reaches_no_provider_before_the_click(bool $enabled, string $id): void
+    {
+        config()->set('leap.consent.enabled', $enabled);
+
+        $this->page([$this->video($id)]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertSame(1, preg_match('/<section class="video">.*?<\/section>/s', $html, $match));
+        $this->assertSame(1, substr_count($match[0], 'data-video="https://'));
+
+        $rest = preg_replace('/data-video="[^"]*"/', '', $match[0]);
+
+        $this->assertStringNotContainsString('<iframe', $rest);
+        $this->assertDoesNotMatchRegularExpression('/youtube(-nocookie)?\.com|ytimg\.com|vimeo\.com|vimeocdn\.com/', $rest);
+    }
+
+    /**
+     * @return array<string, array{bool, string}>
+     */
+    public static function videosAndConsent(): array
+    {
+        return [
+            'consent on, YouTube' => [true, 'dQw4w9WgXcQ'],
+            'consent on, Vimeo' => [true, '1084537'],
+            'consent off, YouTube' => [false, 'dQw4w9WgXcQ'],
+            'consent off, Vimeo' => [false, '1084537'],
+        ];
+    }
+
+    /**
+     * The cookie table is no longer offered in the editor while consent is off, but a
+     * page that already has it keeps showing it: the view comes from the stored section.
+     */
+    public function test_a_stored_cookie_table_still_renders_while_consent_is_off(): void
+    {
+        config()->set('leap.consent.enabled', false);
+
+        $this->page([['_name' => 'cookies', '_sort' => 1, 'active' => true, 'head' => 'Cookies']]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertStringContainsString('<section class="default none cookies">', $html);
+        $this->assertStringContainsString('class="cookie-table"', $html);
     }
 
     /**

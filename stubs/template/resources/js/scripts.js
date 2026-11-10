@@ -153,8 +153,9 @@ document.querySelectorAll('.video-poster').forEach(function (poster) {
 
     poster.addEventListener('click', function () {
         // Loading the player sends the visitor's data to Google or Vimeo, so it waits for
-        // permission. With consent switched off, has() answers with the configured
-        // default and this is simply never in the way.
+        // permission. With consent switched off the view renders no notice at all, and
+        // this click on the play button is the permission: the line under the video
+        // has already said where it comes from.
         if (!notice || window.consent.has('embeds')) {
             play();
 

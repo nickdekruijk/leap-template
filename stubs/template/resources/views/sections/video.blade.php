@@ -36,6 +36,7 @@
         @endif
         <span class="video-play" aria-hidden="true"></span>
     </button>
+@if (NickDeKruijk\Leap\Classes\Consent::enabled())
 
     {{--
         Shown instead of playing when the "embeds" category has not been granted. Loading
@@ -47,6 +48,10 @@
         a button that says what it does is consent for exactly that — while [Always allow]
         grants the category. Hidden by default and revealed by scripts.js, so the HTML
         stays the same for everyone and can be cached.
+
+        The @if, @else and @endif around this start at the margin on purpose: Blade
+        keeps whatever stands before a directive, so indenting them would add spaces to
+        the page.
     --}}
     <div class="video-consent" hidden>
         <p>{{ __('This video is loaded from :provider. That sends your data, including your IP address, to them.', ['provider' => $video->provider()]) }}</p>
@@ -56,4 +61,16 @@
             <button type="button" class="button outline video-consent-always">{{ __('Always allow') }}</button>
         </p>
     </div>
+@else
+
+    {{--
+        With consent switched off (leap.consent.enabled false) nobody is asked anything,
+        so there is no notice: "Always allow" would have nothing to remember and the
+        question would come back with every video. One click on the play button loads
+        the player, and that click is the informed act. This line says where the video
+        comes from before it is made. Nothing reaches the provider until then: the
+        poster above is a local file.
+    --}}
+    <p class="video-provider">{{ __('Video from :provider', ['provider' => $video->provider()]) }}</p>
+@endif
 </section>

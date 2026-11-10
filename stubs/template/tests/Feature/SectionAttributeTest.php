@@ -38,6 +38,25 @@ class SectionAttributeTest extends TestCase
     }
 
     /**
+     * The cookie table renders the registry of Leap's own consent system. A site that
+     * switched that off arranges consent somewhere else, and there the table would
+     * describe a banner the visitor never sees, so the editor does not offer it.
+     */
+    public function test_the_cookie_table_is_only_offered_while_consent_is_on(): void
+    {
+        config()->set('leap.consent.enabled', true);
+
+        $this->assertContains('cookies', array_map(fn (Section $section): string => $section->name, $this->sections()));
+
+        config()->set('leap.consent.enabled', false);
+
+        $names = array_map(fn (Section $section): string => $section->name, $this->sections());
+
+        $this->assertNotContains('cookies', $names);
+        $this->assertContains('video', $names, 'Only the cookie table depends on consent.');
+    }
+
+    /**
      * Every section the page resource offers, hand-typed and generated alike.
      *
      * Reached through the attribute tree rather than by calling indexSections(), which is

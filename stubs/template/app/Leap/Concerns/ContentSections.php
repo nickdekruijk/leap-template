@@ -3,6 +3,7 @@
 namespace App\Leap\Concerns;
 
 use NickDeKruijk\Leap\Classes\Attribute;
+use NickDeKruijk\Leap\Classes\Consent;
 use NickDeKruijk\Leap\Classes\Section;
 
 /**
@@ -20,7 +21,7 @@ trait ContentSections
      */
     protected function contentSections(): array
     {
-        return [
+        $sections = [
             Section::make('slide')->label(['nl' => 'Slide (carousel)', 'en' => 'Slide (carousel)'])->attributes(
                 Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
                 Attribute::make('white_text')->switch()->label(['nl' => 'Witte tekst', 'en' => 'White text'])->default(true)
@@ -89,13 +90,24 @@ trait ContentSections
                         'en' => 'Empty = the poster is fetched from YouTube/Vimeo and stored locally. Shown until play is clicked; the video itself only loads after that.',
                     ]),
             ),
-            // Renders the cookie registry from config('leap.consent') on the privacy
-            // page, so it cannot drift away from the cookies the site actually sets.
-            Section::make('cookies')->label(['nl' => 'Cookie-overzicht', 'en' => 'Cookie overview'])->attributes(
+        ];
+
+        // Renders the cookie registry from config('leap.consent') on the privacy
+        // page, so it cannot drift away from the cookies the site actually sets.
+        //
+        // Only offered while Leap's own consent is on. The registry describes that
+        // system, and on a site that arranges consent somewhere else (a banner from a
+        // tag manager) the table would describe something the visitor never sees. A
+        // page that already has the section keeps rendering it: the frontend picks its
+        // view from the stored section, not from this list.
+        if (Consent::enabled()) {
+            $sections[] = Section::make('cookies')->label(['nl' => 'Cookie-overzicht', 'en' => 'Cookie overview'])->attributes(
                 Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
                 Attribute::make('head')->label(['nl' => 'Kop', 'en' => 'Heading'])->sectionTitle()->translatable(),
                 Attribute::make('body')->richtext()->label(['nl' => 'Inleidende tekst', 'en' => 'Introduction'])->translatable(),
-            ),
-        ];
+            );
+        }
+
+        return $sections;
     }
 }
