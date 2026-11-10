@@ -5,6 +5,17 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-11-10
+
+### Changed
+
+- **Text is rendered with grayscale antialiasing on macOS.** `body` sets
+  `-webkit-font-smoothing: antialiased` and `-moz-osx-font-smoothing: grayscale`, so
+  Safari, Chrome and Firefox on a Mac draw text as thin as the design shows it, where
+  subpixel smoothing made it look a weight heavier, light text on a dark background
+  most of all. Other platforms ignore both properties. An existing site gets this by
+  running `leap:template` again.
+
 ## [2.5.0] - 2026-11-10
 
 Both changes are for a site that switched Leap's consent off (`LEAP_CONSENT=false`),

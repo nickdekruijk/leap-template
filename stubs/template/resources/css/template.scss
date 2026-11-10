@@ -22,6 +22,8 @@ body {
     line-height: 1.6;
     color: var(--text, #191919);
     background: var(--bg, #fff);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 
     > main {
         flex: 1;
