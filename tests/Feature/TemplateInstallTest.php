@@ -169,6 +169,7 @@ PHP);
             ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->expectsConfirmation('Create an admin user now?', 'no')
             ->expectsOutputToContain('php artisan leap:user you@example.com --role')
@@ -219,6 +220,7 @@ PHP);
             ->expectsConfirmation('Add the shared tag filter?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -277,6 +279,7 @@ PHP);
             ->expectsConfirmation('Remove WithoutModelEvents from DatabaseSeeder?', 'yes')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -307,6 +310,7 @@ PHP);
             ->expectsConfirmation('Register PageSeeder in DatabaseSeeder?', 'yes')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -416,6 +420,7 @@ PHP);
             ->expectsQuestion('Which language is the default?', 'nl')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -452,6 +457,7 @@ PHP);
             ->expectsConfirmation('Serve / from the page tree?', 'no')
             ->expectsConfirmation('Copy Nederlands translations?', 'no')
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -611,6 +617,7 @@ PHP);
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation("Install Laravel's own translations (validation, auth) for nl?", 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -683,6 +690,7 @@ PHP);
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation("Install Laravel's own translations (validation, auth) for nl?", 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 
@@ -720,6 +728,7 @@ PHP);
             ->expectsConfirmation('Add the Leap traits to your User model?', 'no')
             ->expectsConfirmation('Run "composer require" for the missing packages now?', 'no')
             ->expectsConfirmation("Install Laravel's own translations (validation, auth) for nl?", 'no')
+            ->expectsConfirmation('Add static analysis with Larastan?', 'no')
             ->expectsConfirmation('Run database migrations now?', 'no')
             ->assertExitCode(0);
 

@@ -85,6 +85,17 @@ jobs:
         working-directory: site
         run: php artisan test
 
+      # The template promises a site that passes Larastan level 5 without a baseline.
+      # --no-install above left the package out, so it is added here, and the
+      # phpstan.neon and composer types:check the install wrote are what runs.
+      - name: Install Larastan
+        working-directory: site
+        run: composer require --dev larastan/larastan --no-interaction
+
+      - name: Run the static analysis it set up
+        working-directory: site
+        run: composer types:check
+
   pint:
     runs-on: ubuntu-latest
     name: pint

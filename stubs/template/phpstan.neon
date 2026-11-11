@@ -1,0 +1,10 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+    # The models declare their casts in $casts and casts(); read both, so a date or
+    # boolean cast is not taken for a plain string.
+    parseModelCastsMethod: true

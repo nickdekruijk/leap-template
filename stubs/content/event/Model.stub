@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Contracts\Content;
 {{#tags}}use App\Traits\HasTags;
 {{/tags}}use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,7 @@ use Spatie\Translatable\HasTranslations;
  * acts as a scheduled-visibility gate: empty shows now, a future value goes live by
  * itself.
  */
-class {{ Model }} extends Model
+class {{ Model }} extends Model implements Content
 {
     use HasDocumentMeta;
     use HasFactory;
@@ -75,6 +76,9 @@ class {{ Model }} extends Model
 
     /**
      * Visible unless it is scheduled for later — empty published_at shows now.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopePublished(Builder $query): Builder
     {
@@ -83,6 +87,9 @@ class {{ Model }} extends Model
 
     /**
      * The frontend set: active, published, soonest first.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeActive(Builder $query): Builder
     {
@@ -91,6 +98,9 @@ class {{ Model }} extends Model
 
     /**
      * Not yet over (a running event still counts as upcoming).
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeFuture(Builder $query): Builder
     {
@@ -99,6 +109,9 @@ class {{ Model }} extends Model
 
     /**
      * Already finished.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopePast(Builder $query): Builder
     {

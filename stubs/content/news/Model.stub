@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Contracts\Content;
 {{#tags}}use App\Traits\HasTags;
-{{/tags}}use Illuminate\Database\Eloquent\Builder;
+{{/tags}}use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Carbon;
 use NickDeKruijk\Leap\Traits\HasDocumentMeta;
 use NickDeKruijk\Leap\Traits\HasMedia;
 use NickDeKruijk\Leap\Traits\HasSections;
@@ -20,7 +21,7 @@ use Spatie\Translatable\HasTranslations;
  * publication date has passed. A card in a row, a filterable overview of its own, and
  * a section-based detail page each.
  */
-class {{ Model }} extends Model
+class {{ Model }} extends Model implements Content
 {
     use HasDocumentMeta;
     use HasFactory;
@@ -52,16 +53,26 @@ class {{ Model }} extends Model
      * Read-only, and not a column: {{ Model }}::where('date', …) and orderBy('date') do
      * not work. Query published_at for those.
      *
-     * @return Attribute<?Carbon, never>
+     * CarbonInterface, because that is all the views rely on and it holds whichever Carbon
+     * the date cast hands out. Never null: published_at is a required column, which the
+     * editor fills in with now() for a new item.
+     *
+     * @return Attribute<CarbonInterface, never>
      */
     protected function date(): Attribute
     {
-        return Attribute::get(fn (): ?Carbon => $this->published_at);
+        // make(get:) rather than get(): Larastan reads the declared CarbonInterface from
+        // it, where get() hands back the narrower Carbon the cast produces, and Attribute
+        // is invariant in that type.
+        return Attribute::make(get: fn (): CarbonInterface => $this->published_at);
     }
 
     /**
      * Only items whose publication moment has passed — the frontend never shows a
      * future-dated item, so an editor can stage one and it appears on its own.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopePublished(Builder $query): Builder
     {
@@ -70,6 +81,9 @@ class {{ Model }} extends Model
 
     /**
      * The frontend set: active, published, newest first.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeActive(Builder $query): Builder
     {

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\Content;
 use App\Models\Page;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Http\RedirectResponse;
@@ -11,6 +14,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use NickDeKruijk\Leap\Classes\Sitemap;
 use NickDeKruijk\Leap\Leap;
 
 class PageController extends Controller
@@ -21,7 +25,7 @@ class PageController extends Controller
      * class harmless. This is the single map the whole engine (routing, overviews,
      * Page sections, search, sitemap) is built on.
      *
-     * @return array<string, class-string<Model>>
+     * @return array<string, class-string<Model&Content>>
      */
     public static function indexModels(): array
     {
@@ -31,7 +35,7 @@ class PageController extends Controller
     /**
      * The model for a content-type key, or null.
      *
-     * @return class-string<Model>|null
+     * @return class-string<Model&Content>|null
      */
     public static function indexModel(?string $type): ?string
     {
@@ -78,7 +82,7 @@ class PageController extends Controller
     /**
      * The items an index section lists, each carrying the URL of its detail page.
      *
-     * @return Collection<int, Model>
+     * @return Collection<int, Model&Content>
      */
     public static function sectionItems(mixed $section): Collection
     {
@@ -96,7 +100,7 @@ class PageController extends Controller
      * and (for events) filtered by period. Each item carries the URL of its detail
      * page — or null when the type has no overview page.
      *
-     * @return Collection<int, Model>
+     * @return Collection<int, Model&Content>
      */
     public static function items(?string $type, int|string|null $tag = null, int|string|null $limit = null, bool $withTags = false, ?string $period = null): Collection
     {
@@ -111,19 +115,20 @@ class PageController extends Controller
         $base = static::itemsQuery($model, $columns, $tag, $withTags);
 
         // Events: upcoming (default), past, or both. "both" = upcoming ascending, then
-        // past descending, so the newest-finished sits right under the soonest.
+        // past descending, so the newest-finished sits right under the soonest. Through
+        // scopes() because only some types have these scopes, which method_exists() checks.
         if (method_exists($model, 'scopeFuture')) {
             if ($period === 'past') {
-                $items = static::itemsQuery($model, $columns, $tag, $withTags)->past()->reorder()->orderByDesc('ends_at')->limit($limit ?: null)->get();
+                $items = static::itemsQuery($model, $columns, $tag, $withTags)->scopes('past')->reorder()->orderByDesc('ends_at')->limit($limit ?: null)->get();
             } elseif ($period === 'both') {
-                $items = $base->future()->get()->concat(
-                    static::itemsQuery($model, $columns, $tag, $withTags)->past()->reorder()->orderByDesc('ends_at')->get()
+                $items = $base->scopes('future')->get()->concat(
+                    static::itemsQuery($model, $columns, $tag, $withTags)->scopes('past')->reorder()->orderByDesc('ends_at')->get()
                 );
                 if ($limit) {
                     $items = $items->take((int) $limit);
                 }
             } else {
-                $items = $base->future()->limit($limit ?: null)->get();
+                $items = $base->scopes('future')->limit($limit ?: null)->get();
             }
         } else {
             $items = $base->limit($limit ?: null)->get();
@@ -131,7 +136,8 @@ class PageController extends Controller
 
         $prefix = static::overviewUrl($type);
 
-        return $items->each(function (Model $item) use ($prefix): void {
+        // $url is not a column: see App\Contracts\Content.
+        return $items->each(function ($item) use ($prefix): void {
             $item->url = $prefix ? rtrim($prefix, '/').'/'.$item->slug : null;
         });
     }
@@ -158,8 +164,9 @@ class PageController extends Controller
      * The base query for a content type's cards: active, light columns, first image,
      * optional tag narrowing and eager-loaded tags for the filter chips.
      *
-     * @param  class-string<Model>  $model
+     * @param  class-string<Model&Content>  $model
      * @param  array<int, string>  $columns
+     * @return Builder<Model&Content>
      */
     protected static function itemsQuery(string $model, array $columns, int|string|null $tag, bool $withTags)
     {
@@ -171,8 +178,9 @@ class PageController extends Controller
             $query->with('tags');
         }
 
+        // scopes() rather than ->tagged(): only a type with HasTags has it.
         if (! empty($tag) && method_exists($model, 'scopeTagged')) {
-            $query->tagged((int) $tag);
+            $query->scopes(['tagged' => [(int) $tag]]);
         }
 
         return $query;
@@ -192,7 +200,7 @@ class PageController extends Controller
             ->filter()
             ->flatten()
             ->unique('id')
-            ->reject(fn (Model $tag): bool => $exclude !== null && (int) $tag->id === (int) $exclude)
+            ->reject(fn (Model $tag): bool => $exclude !== null && (int) $tag->getKey() === (int) $exclude)
             ->sortBy('sort')
             ->values();
     }
@@ -380,6 +388,7 @@ class PageController extends Controller
      * breadcrumb switched off. The homepage yields a single crumb; dropping that is left
      * to the view, since a one-step trail is a correct answer, just not one worth showing.
      *
+     * @param  Page|(Model&Content)|null  $page
      * @return Collection<int, array{title: string, url: ?string, home: bool}>
      */
     public static function breadcrumbs(Page|Model|null $page = null, ?Page $parent = null): Collection
@@ -414,7 +423,7 @@ class PageController extends Controller
         // The home flag rather than "the first crumb": a site without a homepage starts
         // its trail on an ordinary page, and that one gets a name, not a house icon.
         $crumbs = $chain->map(fn (Page $crumb): array => [
-            'title' => $crumb->title,
+            'title' => (string) $crumb->title,
             'url' => $crumb->getTranslation('slug', $locale, false) === ''
                 ? null
                 : (rtrim($prefix.static::localePath($crumb, $locale), '/') ?: '/'),
@@ -422,12 +431,17 @@ class PageController extends Controller
         ])->values()->all();
 
         if ($page instanceof Model && ! $page instanceof Page) {
-            $crumbs[] = ['title' => $page->title, 'url' => null, 'home' => false];
+            $crumbs[] = ['title' => (string) $page->title, 'url' => null, 'home' => false];
         }
 
-        $crumbs[array_key_last($crumbs)]['url'] = null;
+        // The last crumb carries no URL: it is where the visitor already is.
+        $last = count($crumbs) - 1;
 
-        return collect($crumbs);
+        return collect($crumbs)->map(fn (array $crumb, int $i) => [
+            'title' => $crumb['title'],
+            'url' => $i === $last ? null : $crumb['url'],
+            'home' => $crumb['home'],
+        ]);
     }
 
     /**
@@ -626,12 +640,6 @@ class PageController extends Controller
     }
 
     /**
-     * One sitemap entry per locale a path resolves in, with hreflang alternates.
-     * Monolingual sites get a single alternate-less entry.
-     *
-     * @return Collection<int, array{loc: string, lastmod: ?string, alternates: array<string, string>}>
-     */
-    /**
      * A path as it may appear in XML: every segment percent-encoded.
      *
      * url() does not do this, and a slug is whatever an editor typed. A space makes the
@@ -643,16 +651,22 @@ class PageController extends Controller
         return implode('/', array_map('rawurlencode', explode('/', $path)));
     }
 
-    protected static function entriesFor(callable $path, $lastmod, ?array $locales): Collection
+    /**
+     * One sitemap entry per locale a path resolves in, with hreflang alternates.
+     * Monolingual sites get a single alternate-less entry.
+     *
+     * @param  callable(string): ?string  $path  The path in a locale, or null where it has none
+     * @param  array<string, string>|null  $locales
+     * @return Collection<int, array{loc: string, lastmod: ?string, alternates: array<string, string>}>
+     */
+    protected static function entriesFor(callable $path, ?CarbonInterface $lastmod, ?array $locales): Collection
     {
         if (! $locales) {
             $p = $path(app()->getLocale());
 
-            return $p === null ? collect() : collect([[
-                'loc' => url(static::encodePath($p)),
-                'lastmod' => $lastmod?->toAtomString(),
-                'alternates' => [],
-            ]]);
+            return $p === null ? collect() : collect([
+                Sitemap::entry(url(static::encodePath($p)), $lastmod?->toAtomString()),
+            ]);
         }
 
         $hrefs = collect(array_keys($locales))
@@ -660,11 +674,7 @@ class PageController extends Controller
             ->filter(fn (?string $p): bool => $p !== null)
             ->map(fn (string $p, string $locale): string => url(Leap::localePrefix($locale).static::encodePath($p)));
 
-        return $hrefs->map(fn (string $loc): array => [
-            'loc' => $loc,
-            'lastmod' => $lastmod?->toAtomString(),
-            'alternates' => $hrefs->all(),
-        ])->values();
+        return $hrefs->map(fn (string $loc) => Sitemap::entry($loc, $lastmod?->toAtomString(), $hrefs->all()))->values();
     }
 
     /**
@@ -675,6 +685,7 @@ class PageController extends Controller
      * has to be absent rather than merely unlinked: an alternate is a promise that the
      * URL answers in that language.
      *
+     * @param  Page|(Model&Content)|null  $page
      * @return array<string, array{name: string, url: string, active: bool}>
      */
     public static function localeUrls(Page|Model|null $page): array
@@ -703,6 +714,8 @@ class PageController extends Controller
     /**
      * A content item's full URL in the active locale, or null when its type has no
      * overview page (so no detail route). Used by search and any linking code.
+     *
+     * @param  Model&Content  $item
      */
     public static function itemUrl(Model $item): ?string
     {
@@ -717,6 +730,8 @@ class PageController extends Controller
     /**
      * A content item's path in a specific locale: its overview page's path in that
      * locale, plus the item's own slug translation.
+     *
+     * @param  Model&Content  $item
      */
     protected static function itemLocalePath(Model $item, string $locale): string
     {

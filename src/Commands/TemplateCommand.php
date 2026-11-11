@@ -519,6 +519,7 @@ class TemplateCommand extends Command
     {
         $files = [
             'app/Http/Controllers/PageController.php',
+            'app/Contracts/Content.php',
             'app/Providers/HeadServiceProvider.php',
             'database/migrations/2025_01_03_094203_create_pages_table.php',
             'database/seeders/PageSeeder.php',
@@ -527,6 +528,7 @@ class TemplateCommand extends Command
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
             'public/css/tinymce.css',
+            'phpstan.neon',
             'tests/Concerns/ReadsTheSiteLanguage.php',
             'tests/Concerns/ResolvesContentPaths.php',
             'tests/Feature/BreadcrumbTest.php',
@@ -873,6 +875,24 @@ class TemplateCommand extends Command
             $checks[] = ["Laravel's own strings in {$code}", false, 'php artisan lang:add '.$code.' — validation errors and password mails stay English'];
         }
 
+        $checks[] = ['Larastan', is_dir(base_path('vendor/larastan/larastan')), 'composer require --dev larastan/larastan'];
+
+        if (file_exists(base_path('composer.json'))) {
+            $checks[] = [
+                'composer types:check',
+                $this->composerScript('types:check') !== null,
+                'php artisan leap:template adds it, or add "types:check": "'.self::TYPES_CHECK.'" to the scripts in composer.json',
+            ];
+        }
+
+        foreach ($this->modelsWithoutContentContract() as $class) {
+            $checks[] = [
+                $class.' implements Content',
+                false,
+                'add `implements Content` (App\Contracts\Content), or static analysis does not know what the page engine reads from it',
+            ];
+        }
+
         $this->newLine();
         $this->line('<fg=yellow>install:</>');
 
@@ -934,6 +954,7 @@ class TemplateCommand extends Command
             'Routing, the Page model and its table, the /admin editor, the live search and the document head. They only work together.',
             [
                 'app/Http/Controllers/PageController.php' => 'PageController',
+                'app/Contracts/Content.php' => 'Content contract',
                 'app/Models/Page.php' => 'Page model',
                 'database/migrations/2025_01_03_094203_create_pages_table.php' => 'pages table migration',
                 'app/Leap/Page.php' => 'Page model Leap module',
@@ -1049,6 +1070,10 @@ class TemplateCommand extends Command
         // is the same kind of step (Packagist, then a subprocess), and after configureLocales()
         // because it only installs the languages that were picked.
         $this->installFrameworkTranslations();
+
+        // Larastan, phpstan.neon and composer types:check. With the other dev dependencies,
+        // for the same reason: Packagist, then nothing at runtime.
+        $this->installStaticAnalysis();
 
         // Offer to run migrations and seed the sample pages
         $this->runMigrationsAndSeed();
@@ -2123,6 +2148,197 @@ class TemplateCommand extends Command
         } else {
             $this->line('Install later with: composer require '.implode(' ', $missing));
         }
+    }
+
+    /**
+     * The page and the registered content types that do not implement App\Contracts\Content.
+     *
+     * A site installed before 2.6.0 has models generated without it. Nothing breaks at
+     * runtime, but static analysis then reports every property the page engine reads from
+     * them. Only asked once the contract itself is in the project; before that, --diff lists
+     * the file as new.
+     *
+     * @return array<int, string>
+     */
+    protected function modelsWithoutContentContract(): array
+    {
+        $contract = 'App\\Contracts\\Content';
+
+        if (! file_exists(base_path('app/Contracts/Content.php')) || ! interface_exists($contract)) {
+            return [];
+        }
+
+        // From the file on disk, like configuredLocales(): the run may have just rewritten it.
+        $config = base_path('config/leap.php');
+        $content = file_exists($config) ? (include $config)['content'] ?? [] : config('leap.content', []);
+
+        return array_values(array_filter(
+            array_unique(['App\\Models\\Page', ...array_values(is_array($content) ? $content : [])]),
+            fn ($class): bool => is_string($class) && class_exists($class) && ! is_subclass_of($class, $contract),
+        ));
+    }
+
+    /**
+     * What `composer types:check` runs. The memory limit is there because Larastan boots the
+     * application and reads every model, which outgrows PHP's default 128M on a real site.
+     */
+    protected const TYPES_CHECK = 'phpstan analyse --memory-limit=2G';
+
+    /**
+     * Static analysis for the project: phpstan.neon at level 5 over app/, the
+     * `composer types:check` script, and larastan/larastan as a dev dependency.
+     *
+     * The template's own code passes it without a baseline, so on a fresh install whatever
+     * it reports is about code the project wrote. One question for the three, because none
+     * of them does anything without the other two.
+     *
+     * An existing phpstan.neon is never replaced, not even under --fresh: it is where a
+     * project keeps its baseline and its own paths, and losing those turns a green check
+     * red. `--diff` shows how it differs from the stub.
+     */
+    protected function installStaticAnalysis(): void
+    {
+        $config = file_exists(base_path('phpstan.neon'));
+        $script = $this->composerScript('types:check') !== null;
+        $installed = is_dir(base_path('vendor/larastan/larastan'));
+
+        if ($config && $script && $installed) {
+            return;
+        }
+
+        if (! $config && ! $this->auto(
+            'Add static analysis with Larastan?',
+            true,
+            'phpstan.neon at level 5 and composer types:check. The template passes it as installed, so a report is about your own code.',
+        )) {
+            $this->line('Add it later by running php artisan leap:template again.');
+
+            return;
+        }
+
+        if (! $config) {
+            $this->copyFile('phpstan.neon');
+        }
+
+        if (! $script) {
+            $this->addComposerScript('types:check', self::TYPES_CHECK);
+        }
+
+        if ($installed) {
+            return;
+        }
+
+        $require = 'composer require --dev larastan/larastan';
+
+        // See suggestFrontendPackages(): --no-install is the files without the network.
+        if ($this->option('no-install')) {
+            $this->line('Install Larastan with: '.$require);
+
+            return;
+        }
+
+        $this->info('Running: '.$require);
+        passthru($require, $status);
+
+        if ($status !== 0) {
+            $this->warn('composer require failed, so composer types:check has nothing to run. Retry with: '.$require);
+        }
+    }
+
+    /**
+     * A script from the project's composer.json, or null when it has none (or there is no
+     * composer.json at all).
+     */
+    protected function composerScript(string $name): ?string
+    {
+        $file = base_path('composer.json');
+        $json = file_exists($file) ? json_decode((string) file_get_contents($file), true) : null;
+        $script = is_array($json) ? ($json['scripts'][$name] ?? null) : null;
+
+        return $script === null ? null : (is_array($script) ? implode(' && ', $script) : (string) $script);
+    }
+
+    /**
+     * Add a script to the end of the "scripts" object in composer.json.
+     *
+     * Written into the text rather than decoded and encoded again: json_encode() would
+     * reformat the whole file (every inline array spread over lines), and the diff of a
+     * one line addition would be the entire file. When the file has no "scripts" object,
+     * or the result would not be valid JSON, nothing is written and the line to add is
+     * printed instead.
+     */
+    protected function addComposerScript(string $name, string $command): void
+    {
+        $file = base_path('composer.json');
+        $entry = json_encode($name).': '.json_encode($command, JSON_UNESCAPED_SLASHES);
+
+        if (! file_exists($file)) {
+            return;
+        }
+
+        $contents = (string) file_get_contents($file);
+        $updated = $this->withScript($contents, $entry);
+
+        if ($updated === null || ($json = json_decode($updated, true)) === null || ($json['scripts'][$name] ?? null) !== $command) {
+            $this->warn('Could not add the '.$name.' script to composer.json. Add it to "scripts" yourself: '.$entry);
+
+            return;
+        }
+
+        file_put_contents($file, $updated);
+        $this->info('Added composer '.$name.' to composer.json');
+    }
+
+    /**
+     * The composer.json text with one more entry at the end of its "scripts" object, in the
+     * indentation the file already uses, or null when there is no such object.
+     */
+    protected function withScript(string $contents, string $entry): ?string
+    {
+        if (! preg_match('/^([ \t]*)"scripts"\s*:\s*\{/m', $contents, $match, PREG_OFFSET_CAPTURE)) {
+            return null;
+        }
+
+        $keyIndent = $match[1][0];
+        $open = $match[0][1] + strlen($match[0][0]) - 1;
+
+        // Walk to the brace that closes the object, skipping whatever is inside strings
+        $depth = 0;
+        $inString = false;
+        $close = null;
+        for ($i = $open, $length = strlen($contents); $i < $length; $i++) {
+            $char = $contents[$i];
+
+            if ($inString) {
+                if ($char === '\\') {
+                    $i++;
+                } elseif ($char === '"') {
+                    $inString = false;
+                }
+
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = true;
+            } elseif ($char === '{' || $char === '[') {
+                $depth++;
+            } elseif (($char === '}' || $char === ']') && --$depth === 0) {
+                $close = $i;
+                break;
+            }
+        }
+
+        if ($close === null) {
+            return null;
+        }
+
+        $body = substr($contents, $open + 1, $close - $open - 1);
+        $indent = preg_match('/\n([ \t]+)\S/', $body, $inner) ? $inner[1] : $keyIndent.'    ';
+        $before = rtrim(substr($contents, 0, $close));
+        $separator = str_ends_with($before, '{') ? '' : ',';
+
+        return $before.$separator."\n".$indent.$entry."\n".$keyIndent.substr($contents, $close);
     }
 
     /**

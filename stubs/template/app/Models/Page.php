@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Contracts\Content;
 use App\Http\Controllers\PageController;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use NickDeKruijk\Leap\Traits\HasSections;
 use NickDeKruijk\Leap\Traits\HasSlug;
 use Spatie\Translatable\HasTranslations;
 
-class Page extends Model implements Sitemapable
+class Page extends Model implements Content, Sitemapable
 {
     use HasDocumentMeta;
     use HasFactory;

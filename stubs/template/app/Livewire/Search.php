@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Contracts\Content;
 use App\Http\Controllers\PageController;
 use App\Models\Page;
 use Illuminate\Contracts\View\View;
@@ -76,7 +77,7 @@ class Search extends Component
 
         // Pages
         $results = $this->matches(Page::active(), $term, $locale)
-            ->map(fn (Page $page): array => [
+            ->map(fn ($page): array => [
                 'title' => $page->getTranslation('title', $locale, false),
                 'url' => $this->pageUrl($page->id),
                 'excerpt' => Str::limit($page->metaDescription(), 120),
@@ -90,7 +91,7 @@ class Search extends Component
 
             $results = $results->concat(
                 $this->matches($model::active(), $term, $locale)
-                    ->map(fn (Model $item): array => [
+                    ->map(fn ($item): array => [
                         'title' => $item->getTranslation('title', $locale, false),
                         'url' => PageController::itemUrl($item),
                         'excerpt' => Str::limit($item->metaDescription(), 120),
@@ -112,6 +113,8 @@ class Search extends Component
      * How well a record answers the term. A title beats prose, and an exact title beats
      * a title that merely contains it; matching only somewhere in a section body is the
      * weakest claim a result can make.
+     *
+     * @param  Model&Content  $item
      */
     private function relevance(Model $item, string $term, string $locale): int
     {
@@ -147,8 +150,13 @@ class Search extends Component
     /**
      * Candidate rows from a query whose active-locale content contains the term.
      *
-     * @param  Builder<Model>  $query
-     * @return Collection<int, Model>
+     * A template rather than Builder<Model&Content>, because a Builder<Page> is not one:
+     * Builder is invariant in its model.
+     *
+     * @template TModel of Model&Content
+     *
+     * @param  Builder<TModel>  $query
+     * @return Collection<int, Model&Content>
      */
     private function matches($query, string $term, string $locale): Collection
     {
@@ -185,7 +193,7 @@ class Search extends Component
             })
             ->limit(self::CANDIDATE_LIMIT)
             ->get()
-            ->filter(fn (Model $item): bool => $this->matchesLocale($item, $term, $locale))
+            ->filter(fn ($item): bool => $this->matchesLocale($item, $term, $locale))
             ->values();
     }
 
@@ -227,6 +235,8 @@ class Search extends Component
      * Confirm the term appears in the record's active-locale content (title,
      * description or section fields), dropping cross-locale false positives from the
      * coarse SQL prefilter on the whole sections blob.
+     *
+     * @param  Model&Content  $item
      */
     private function matchesLocale(Model $item, string $term, string $locale): bool
     {

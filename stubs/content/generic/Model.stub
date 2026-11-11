@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Contracts\Content;
 {{#tags}}use App\Traits\HasTags;
 {{/tags}}use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,7 +18,7 @@ use Spatie\Translatable\HasTranslations;
  * {{ Model }}: a hand-ordered content item — a card in a row, a filterable overview of
  * its own, and a section-based detail page each. Drag to reorder in the admin.
  */
-class {{ Model }} extends Model
+class {{ Model }} extends Model implements Content
 {
     use HasDocumentMeta;
     use HasFactory;
@@ -40,6 +41,9 @@ class {{ Model }} extends Model
 
     /**
      * The frontend set: active, in the hand-picked order.
+     *
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeActive(Builder $query): Builder
     {

@@ -58,6 +58,29 @@ class ContentCommand extends Command
      */
     protected static int $migrationOffset = 0;
 
+    /**
+     * Put app/Contracts/Content.php in place when the project does not have it yet.
+     *
+     * The generated model implements it, and a site installed before leap-template 2.6.0
+     * has the page tree but not this file, so the new model would not even load. It holds
+     * no code, only what static analysis reads, so it is copied rather than asked about.
+     */
+    protected function ensureContentContract(): void
+    {
+        $target = base_path('app/Contracts/Content.php');
+
+        if (file_exists($target)) {
+            return;
+        }
+
+        if (! is_dir(dirname($target))) {
+            mkdir(dirname($target), 0755, true);
+        }
+
+        copy(__DIR__.'/../../stubs/template/app/Contracts/Content.php', $target);
+        $this->components->info('Copied app/Contracts/Content.php, which the generated model implements.');
+    }
+
     public function handle(): int
     {
         // A scaffolding command — never on production without --force.
@@ -71,6 +94,8 @@ class ContentCommand extends Command
 
             return 1;
         }
+
+        $this->ensureContentContract();
 
         $name = Str::studly($this->argument('name'));
 

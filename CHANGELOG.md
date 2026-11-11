@@ -5,6 +5,64 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-11-11
+
+A site installed from this release passes Larastan at level 5 without a baseline, and is
+set up to keep checking it. Needs leap 1.19.7, whose docblocks the template's code relies
+on. An existing site gets it by running `leap:template` again; `leap:template --diff`
+shows which files differ and which models still need a line.
+
+### Added
+
+- **Static analysis comes with the install.** `leap:template` copies `phpstan.neon`
+  (Larastan, level 5, `app/`, `parseModelCastsMethod`), adds `composer types:check`
+  (`phpstan analyse --memory-limit=2G`) to `composer.json`, and runs
+  `composer require --dev larastan/larastan`, all on one question. With `--no-install` it
+  prints that command, as it does for laravel-lang. The script is written into the text
+  of `composer.json`, so the rest of the file keeps its formatting. A `phpstan.neon` that
+  is already there is never replaced, not even under `--fresh`: it is where a project
+  includes its baseline.
+- **`App\Contracts\Content`.** PageController, the live search and the item views handle
+  the page and every content type without knowing the class, and static analysis then saw
+  only `Model`: every `active()`, `getTranslation()`, `$title` and `$url` was an error.
+  The interface describes what they read, and `Page` and every generated model implement
+  it. It holds no code and the engine never checks it, so a model generated before it
+  existed keeps working. `leap:content` copies it into a project that does not have it
+  yet, since the model it generates implements it.
+- **`--diff` checks static analysis too:** whether Larastan is installed, whether
+  `composer types:check` is in `composer.json`, `phpstan.neon` as a file like the others,
+  and which of the page and the registered content types do not implement `Content` yet.
+
+### Changed
+
+- **PageController and Search are typed against `Content`.** `indexModels()` returns
+  `class-string<Model&Content>`, the items are `Model&Content`, and `Search::matches()`
+  takes a template, because a `Builder<Page>` is not a `Builder<Model&Content>`. The
+  optional `future()`, `past()` and `tagged()` scopes, which only some types have, are
+  called through `scopes()`, after the same `method_exists()` checks as before. What the
+  pages show is unchanged.
+- **The breadcrumb trail is built without changing an element in place**, so its type
+  matches what `breadcrumbs()` declares, and `HeadServiceProvider::breadcrumbSchema()` adds
+  the ancestors and the current page one by one instead of filtering and pushing onto one
+  collection. That push was why the check on the last crumb's URL read as always true. The
+  JSON-LD is the same.
+- **The sitemap entries are built with leap's `Sitemap::entry()`**, and the docblock of
+  `entriesFor()`, which had drifted onto the method above it, is back where it belongs.
+- **News: `date` is a `CarbonInterface`, built with `Attribute::make(get:)`.** The
+  accessor said `?Illuminate\Support\Carbon` while the cast hands out `Carbon\Carbon`.
+  `published_at` is a required column, so the date is never null. The scopes of all three
+  archetypes now declare `Builder<self>`, which is what makes `published()` inside
+  `scopeActive()` known.
+
+### Upgrading an existing site
+
+Run `leap:template` and take the new `PageController`, `Search`, `HeadServiceProvider`,
+`Page` model and `app/Contracts/Content.php`. The content models were generated into the
+project, so they are not overwritten: add `use App\Contracts\Content;` and
+`implements Content` to each (the `--diff` names them), copy the `@param Builder<self>`
+lines onto their scopes from the archetype's `stubs/content/*/Model.stub`, and in a news
+type the new `date()` accessor as well.
+
 ## [2.5.1] - 2026-11-10
 
 ### Changed

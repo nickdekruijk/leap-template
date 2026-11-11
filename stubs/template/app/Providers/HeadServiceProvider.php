@@ -242,11 +242,14 @@ class HeadServiceProvider extends ServiceProvider
 
         $schema = Schema::breadcrumbs();
 
-        $crumbs->slice(0, -1)
-            ->filter(fn (array $crumb): bool => (bool) $crumb['url'])
-            ->push($crumbs->last())
-            // The last crumb has no link of its own; it is the page being looked at.
-            ->each(fn (array $crumb) => $schema->item($crumb['title'], $crumb['url'] ? url($crumb['url']) : url()->current()));
+        foreach ($crumbs->slice(0, -1) as $crumb) {
+            if ($crumb['url']) {
+                $schema->item($crumb['title'], url($crumb['url']));
+            }
+        }
+
+        // The last crumb has no link of its own; it is the page being looked at.
+        $schema->item($crumbs->last()['title'], url()->current());
 
         return $schema;
     }

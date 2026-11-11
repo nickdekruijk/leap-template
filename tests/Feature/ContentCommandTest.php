@@ -55,6 +55,29 @@ class ContentCommandTest extends TestCase
         return file_get_contents($this->temp.'/'.$relative);
     }
 
+    /**
+     * The generated model implements App\Contracts\Content, which a site installed before
+     * 2.6.0 does not have. Without the file the new model would not load at all.
+     */
+    public function test_the_content_contract_is_put_in_place_for_the_model_that_implements_it(): void
+    {
+        $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+
+        $this->assertFileEquals(dirname(__DIR__, 2).'/stubs/template/app/Contracts/Content.php', $this->temp.'/app/Contracts/Content.php');
+        $this->assertStringContainsString('class Product extends Model implements Content', $this->read('app/Models/Product.php'));
+        $this->assertStringContainsString('use App\Contracts\Content;', $this->read('app/Models/Product.php'));
+    }
+
+    public function test_an_existing_content_contract_is_left_alone(): void
+    {
+        mkdir($this->temp.'/app/Contracts', 0777, true);
+        file_put_contents($this->temp.'/app/Contracts/Content.php', '<?php // my own');
+
+        $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
+
+        $this->assertSame('<?php // my own', $this->read('app/Contracts/Content.php'));
+    }
+
     public function test_generic_archetype_is_sortable_and_dateless(): void
     {
         $this->artisan('leap:content', ['name' => 'Product', '--no-tags' => true, '--no-interaction' => true])->assertExitCode(0);
