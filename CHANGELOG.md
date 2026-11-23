@@ -5,11 +5,12 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.8.0] - 2026-11-23
+## [2.7.0] - 2026-11-23
 
-An optional search results page, off by default. An existing site gets it by running
-`leap:template` again, which also brings the new `App\Support\SiteSearch`; nothing changes
-until `leap.search.page` switches the page on.
+The search gets an optional results page, and Matomo now hears of what loads no page: a
+filtered overview and a search. An existing site gets all of it by running `leap:template`
+again, which also brings the new `App\Support\SiteSearch`; `leap:template --diff` shows
+what differs. The results page stays off until `leap.search.page` switches it on.
 
 ### Added
 
@@ -20,28 +21,6 @@ until `leap.search.page` switches the page on.
   with "Show all 23 results" under them when there are more, and Enter goes to the page.
   On a multilingual site each language has its own slug, and the language switcher keeps
   the term. The page answers before the page tree, so it hides a page with the same slug.
-- **Matomo counts a search on the results page once.** The term is in `?term=`, which
-  Matomo does not read as a search by itself, and the first page of results is reported
-  as the site search instead of a page view. The pages after it are page views, and the
-  popup drops the term it was still waiting to report when it hands the visitor over.
-- **`components/pagination`**, previous, page numbers and next as plain links, for any
-  list that needs it. Laravel's own pagination views assume Tailwind or Bootstrap.
-
-### Changed
-
-- **What a term finds lives in `App\Support\SiteSearch`.** The ranking, the locale
-  handling and the text extraction moved out of the Livewire component, which now only
-  asks for results and shows them, so the popup and the results page always agree.
-- **The result list is styled outside the popup too**, so the results page can use the
-  same `search-results` markup.
-
-## [2.7.0] - 2026-11-23
-
-Matomo now hears of what loads no page: a filtered overview and a search. An existing site
-gets this by running `leap:template` again; `leap:template --diff` shows what differs.
-
-### Added
-
 - **A change of address without a page load counts as a page view in Matomo.** The tag
   filter changes the address with `pushState`, so Matomo only ever saw the overview it
   started on. It now sends a `page:view` browser event for each filter picked, cleared or
@@ -50,16 +29,28 @@ gets this by running `leap:template` again; `leap:template --diff` shows what di
   is not counted. A project that adds a panel or modal with `pushState` sends the same
   event. GA4 counts history changes by itself, so it is left alone and nothing is counted
   twice.
-- **The search is reported to Matomo as a site search.** The live search sends a
-  `site-search` browser event with the term and the number of results, and the snippet
-  turns the term someone stops at into a `trackSiteSearch`: once the field has been
-  still for 1.5 seconds, or when the visitor leaves for a result. The letters typed on the
-  way do not count. Site Search has to be on for the website in Matomo.
+- **The search is reported to Matomo as a site search.** The popup sends a `site-search`
+  browser event with the term and the number of results, and the snippet turns the term
+  someone stops at into a `trackSiteSearch`: once the field has been still for 1.5
+  seconds, or when the visitor leaves for a result. The letters typed on the way do not
+  count. On the results page the term is in `?term=`, which Matomo does not read as a
+  search by itself: its first page is reported as the site search instead of a page view,
+  the pages after it are page views, and the popup drops the term it was still waiting to
+  report when it hands the visitor over, so a search counts once. Site Search has to be
+  on for the website in Matomo.
+- **`components/pagination`**, previous, page numbers and next as plain links, for any
+  list that needs it. Laravel's own pagination views assume Tailwind or Bootstrap.
 
 ### Changed
 
-- **The search lists up to 30 results instead of 10.** The list scrolls, so a large site
-  shows its best matches first, and a small one no longer hides a match it has.
+- **What a term finds lives in `App\Support\SiteSearch`.** The ranking, the locale
+  handling and the text extraction moved out of the Livewire component, which now only
+  asks for results and shows them, so the popup and the results page always agree.
+- **The popup lists up to 30 results instead of 10**, or its best 8 when the site has a
+  results page. The list scrolls, so a large site shows its best matches first, and a
+  small one no longer hides a match it has.
+- **The result list is styled outside the popup too**, so the results page can use the
+  same `search-results` markup.
 
 ### Fixed
 
