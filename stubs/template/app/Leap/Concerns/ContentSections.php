@@ -78,10 +78,11 @@ trait ContentSections
                 Attribute::make('active')->switch()->label(['nl' => 'Actief', 'en' => 'Active'])->default(true),
                 Attribute::make('head')->label(['nl' => 'Kop (voor schermlezers)', 'en' => 'Heading (for screen readers)'])->sectionTitle()->translatable(),
                 Attribute::make('video_id')->required()
-                    ->label(['nl' => 'Video-ID (YouTube of Vimeo)', 'en' => 'Video ID (YouTube or Vimeo)'])
+                    ->label(['nl' => 'Video (YouTube of Vimeo)', 'en' => 'Video (YouTube or Vimeo)'])
+                    ->placeholder('https://www.youtube.com/watch?v=dQw4w9WgXcQ')
                     ->hint([
-                        'nl' => 'YouTube: het deel na "?v=" in de URL, bijv. dQw4w9WgXcQ. Vimeo: het nummer in de URL, bijv. 1084537.',
-                        'en' => 'YouTube: the part after "?v=" in the URL, e.g. dQw4w9WgXcQ. Vimeo: the number in the URL, e.g. 1084537.',
+                        'nl' => 'De link naar het filmpje, of alleen de ID (bij YouTube het deel na "?v=", bij Vimeo het nummer).',
+                        'en' => 'The link to the video, or just its ID (for YouTube the part after "?v=", for Vimeo the number).',
                     ]),
                 Attribute::make('image')->media(multiple: false)
                     ->label(['nl' => 'Poster-afbeelding (optioneel)', 'en' => 'Poster image (optional)'])

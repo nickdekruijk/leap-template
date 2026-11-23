@@ -5,6 +5,18 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-11-23
+
+Needs leap 1.21, which reads the id out of a whole YouTube or Vimeo link. An existing site
+gets the new hint by running `leap:template` again.
+
+### Changed
+
+- **The video section asks for the link or the id.** Its `video_id` field said to copy
+  only the part after `?v=` or the number. Leap 1.21 takes the whole link as well, so the
+  field now asks for the link, with a YouTube link as its placeholder, and mentions the id
+  as the alternative.
+
 ## [2.7.0] - 2026-11-23
 
 The search gets an optional results page, and Matomo now hears of what loads no page: a
