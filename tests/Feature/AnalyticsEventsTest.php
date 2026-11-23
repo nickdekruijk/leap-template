@@ -25,7 +25,7 @@ class AnalyticsEventsTest extends TestCase
     {
         $layout = $this->stub('resources/views/layouts/app.blade.php');
 
-        $this->assertSame(1, preg_match("/@if \\(config\\('leap\\.consent\\.matomo\\.url'\\).*?@endif/s", $layout, $matches));
+        $this->assertSame(1, preg_match("/@if \\(config\\('leap\\.consent\\.matomo\\.url'\\).*?<\\/script>\\s*@endif/s", $layout, $matches));
 
         return $matches[0];
     }
@@ -49,5 +49,22 @@ class AnalyticsEventsTest extends TestCase
 
         $this->assertStringContainsString("addEventListener('site-search'", $snippet);
         $this->assertStringContainsString("'trackSiteSearch', pending.term, false, pending.results", $snippet);
+    }
+
+    /**
+     * The first page of the results page is a site search to Matomo, said by the
+     * controller through siteSearch, instead of the page view the snippet sends
+     * everywhere else. The term is in ?term=, which Matomo does not read as a search on
+     * its own, so the pages after it do not count the same search again.
+     */
+    public function test_the_results_page_is_counted_as_one_site_search(): void
+    {
+        $this->assertStringContainsString("'siteSearch' => \$current === 1", $this->stub('app/Http/Controllers/PageController.php'));
+        $this->assertStringContainsString("request()->query('term')", $this->stub('app/Http/Controllers/PageController.php'));
+
+        $snippet = $this->matomoSnippet();
+
+        $this->assertStringContainsString('@if ($siteSearch ?? null)', $snippet);
+        $this->assertStringContainsString("_paq.push(['trackSiteSearch', @json(\$siteSearch['term']), false, @json(\$siteSearch['count'])]);", $snippet);
     }
 }

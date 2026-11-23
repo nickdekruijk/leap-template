@@ -36,7 +36,13 @@
                 var _paq = window._paq = window._paq || [];
                 _paq.push(['requireCookieConsent']);
                 _paq.push(['enableHeartBeatTimer']);
-                _paq.push(['trackPageView']);
+                @if ($siteSearch ?? null)
+                    {{-- The first page of search results: a site search rather than a page
+                         view, the way Matomo counts one --}}
+                    _paq.push(['trackSiteSearch', @json($siteSearch['term']), false, @json($siteSearch['count'])]);
+                @else
+                    _paq.push(['trackPageView']);
+                @endif
                 _paq.push(['enableLinkTracking']);
                 (function () {
                     var u = @json(rtrim(config('leap.consent.matomo.url'), '/') . '/');
@@ -134,7 +140,7 @@
                                     @endif
                                 </li>
                             @endforeach
-                            @php $localeUrls = App\Http\Controllers\PageController::localeUrls($page ?? null); @endphp
+                            @php $localeUrls ??= App\Http\Controllers\PageController::localeUrls($page ?? null); @endphp
                             @if (count($localeUrls) > 1)
                                 <li class="nav-locale-switch">
                                     @foreach ($localeUrls as $code => $l)

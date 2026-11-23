@@ -31,7 +31,7 @@ class TranslationsTest extends TestCase
     private const CONTENT_TYPE_NAMES = ['News', 'Events', 'Projects'];
 
     /**
-     * Every string the templates hand to __() or @lang(), including the parameterised ones.
+     * Every string the templates hand to __(), @lang() or trans_choice(), including the parameterised ones.
      *
      * @return array<int, string>
      */
@@ -42,7 +42,7 @@ class TranslationsTest extends TestCase
         foreach (Finder::create()->files()->in(self::STUBS)->notPath('template/lang') as $file) {
             /** @var SplFileInfo $file */
             preg_match_all(
-                '/(?:__|@lang)\(\s*\'((?:[^\'\\\\]|\\\\.)*)\'/',
+                '/(?:__|@lang|trans_choice)\(\s*\'((?:[^\'\\\\]|\\\\.)*)\'/',
                 (string) file_get_contents($file->getPathname()),
                 $matches,
             );
@@ -105,6 +105,25 @@ class TranslationsTest extends TestCase
             array_values($stale),
             basename($file).' translates strings no template uses: '.implode(' | ', $stale),
         );
+    }
+
+    /**
+     * A key without a dot is also read as the name of a translation file. When the
+     * JSON file does not have it, __('Pagination') loads lang/{locale}/pagination.php,
+     * which every site with Laravel's or laravel-lang's translations has, and hands back
+     * that whole array; on a case-insensitive disk the capital does not help. Rendered,
+     * that is "Array to string conversion" and a 500.
+     */
+    public function test_no_source_string_is_also_the_name_of_a_framework_translation_file(): void
+    {
+        $files = ['auth', 'pagination', 'passwords', 'validation', 'http-statuses', 'actions'];
+
+        $clashes = array_filter(
+            self::sourceStrings(),
+            fn (string $string): bool => in_array(mb_strtolower($string), $files, true),
+        );
+
+        $this->assertSame([], array_values($clashes), 'These strings would load a whole translation file: '.implode(' | ', $clashes));
     }
 
     /**

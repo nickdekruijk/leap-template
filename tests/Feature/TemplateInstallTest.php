@@ -649,6 +649,8 @@ PHP);
             'app/Leap/Page.php',
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
+            // The popup is nothing without what it asks
+            'app/Support/SiteSearch.php',
             'database/migrations/2025_01_03_094203_create_pages_table.php',
             'database/seeders/PageSeeder.php',
             'lang/nl.json',

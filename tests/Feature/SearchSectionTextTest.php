@@ -2,7 +2,7 @@
 
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
-use App\Livewire\Search;
+use App\Support\SiteSearch;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -24,8 +24,8 @@ class SearchSectionTextTest extends TestCase
         parent::setUp();
 
         // The stub is a template file, not autoloaded code.
-        if (! class_exists(Search::class, false)) {
-            require_once dirname(__DIR__, 2).'/stubs/template/app/Livewire/Search.php';
+        if (! class_exists(SiteSearch::class, false)) {
+            require_once dirname(__DIR__, 2).'/stubs/template/app/Support/SiteSearch.php';
         }
 
         config()->set('leap.locales', ['nl' => 'Nederlands', 'en' => 'English']);
@@ -49,9 +49,9 @@ class SearchSectionTextTest extends TestCase
 
     private function finds(Model $record, string $term, string $locale = 'nl'): bool
     {
-        $search = (new \ReflectionClass(Search::class))->newInstanceWithoutConstructor();
+        $search = (new \ReflectionClass(SiteSearch::class))->newInstanceWithoutConstructor();
 
-        $method = new ReflectionMethod(Search::class, 'matchesLocale');
+        $method = new ReflectionMethod(SiteSearch::class, 'matchesLocale');
 
         return $method->invoke($search, $record, $term, $locale);
     }
@@ -224,9 +224,9 @@ class SearchSectionTextTest extends TestCase
      */
     private function titles(Model $model, string $term, string $locale = 'nl'): array
     {
-        $search = (new \ReflectionClass(Search::class))->newInstanceWithoutConstructor();
+        $search = (new \ReflectionClass(SiteSearch::class))->newInstanceWithoutConstructor();
 
-        $method = new ReflectionMethod(Search::class, 'matches');
+        $method = new ReflectionMethod(SiteSearch::class, 'matches');
 
         return $method->invoke($search, $model::query(), $term, $locale)
             ->map(fn (Model $row): string => json_decode($row->getRawOriginal('title'), true)['nl'])

@@ -527,6 +527,7 @@ class TemplateCommand extends Command
             'app/Leap/Page.php',
             'app/Leap/Concerns/ContentSections.php',
             'app/Livewire/Search.php',
+            'app/Support/SiteSearch.php',
             'public/css/tinymce.css',
             'phpstan.neon',
             'tests/Concerns/ReadsTheSiteLanguage.php',
@@ -539,6 +540,7 @@ class TemplateCommand extends Command
             'tests/Feature/MultilingualTest.php',
             'tests/Feature/PreviewTest.php',
             'tests/Feature/SearchTest.php',
+            'tests/Feature/SearchPageTest.php',
             'tests/Feature/SeoTest.php',
             'tests/Feature/SectionRenderTest.php',
         ];
@@ -960,6 +962,7 @@ class TemplateCommand extends Command
                 'app/Leap/Page.php' => 'Page model Leap module',
                 'app/Leap/Concerns/ContentSections.php' => 'ContentSections concern',
                 'app/Livewire/Search.php' => 'Search Livewire component',
+                'app/Support/SiteSearch.php' => 'SiteSearch, what a search term finds',
                 'app/Providers/HeadServiceProvider.php' => 'HeadServiceProvider',
             ],
         );
@@ -1001,6 +1004,7 @@ class TemplateCommand extends Command
                 'tests/Feature/MultilingualTest.php' => 'Multilingual test',
                 'tests/Feature/PreviewTest.php' => 'Preview test',
                 'tests/Feature/SearchTest.php' => 'Search test',
+                'tests/Feature/SearchPageTest.php' => 'Search results page test',
                 'tests/Feature/SeoTest.php' => 'SEO test',
                 'tests/Feature/SectionRenderTest.php' => 'Section render test',
             ],

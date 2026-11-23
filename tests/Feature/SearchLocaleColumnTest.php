@@ -2,7 +2,7 @@
 
 namespace NickDeKruijk\LeapTemplate\Tests\Feature;
 
-use App\Livewire\Search;
+use App\Support\SiteSearch;
 use NickDeKruijk\LeapTemplate\Tests\TestCase;
 use ReflectionMethod;
 
@@ -21,8 +21,8 @@ class SearchLocaleColumnTest extends TestCase
 
         // The stub is a template file, not autoloaded code; load it once so its
         // private query builder can be exercised directly.
-        if (! class_exists(Search::class, false)) {
-            require_once dirname(__DIR__, 2).'/stubs/template/app/Livewire/Search.php';
+        if (! class_exists(SiteSearch::class, false)) {
+            require_once dirname(__DIR__, 2).'/stubs/template/app/Support/SiteSearch.php';
         }
     }
 
@@ -34,9 +34,9 @@ class SearchLocaleColumnTest extends TestCase
             default => ['driver' => 'mysql', 'host' => '127.0.0.1', 'database' => 'test', 'username' => 'root', 'password' => '', 'prefix' => ''],
         });
 
-        $search = (new \ReflectionClass(Search::class))->newInstanceWithoutConstructor();
+        $search = (new \ReflectionClass(SiteSearch::class))->newInstanceWithoutConstructor();
 
-        $method = new ReflectionMethod(Search::class, 'localeColumnExpr');
+        $method = new ReflectionMethod(SiteSearch::class, 'localeColumnExpr');
 
         return $method->invoke($search, $column, $locale);
     }

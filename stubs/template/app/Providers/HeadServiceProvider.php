@@ -130,6 +130,16 @@ class HeadServiceProvider extends ServiceProvider
                 }
             }
 
+            // The results page: a crawler may follow it to what it lists, but the list
+            // itself is no page anyone should land on from a search engine
+            if (array_key_exists('searchTerm', $data)) {
+                $title = $data['searchTerm'] !== ''
+                    ? __('Search results for “:term”', ['term' => $data['searchTerm']])
+                    : __('Search');
+
+                Head::title($title.' — '.config('app.name'))->robots('noindex, follow');
+            }
+
             if ($image = static::socialImage($page)) {
                 Head::ogImage($image)->twitter(card: TwitterCard::SummaryWithLargeImage);
             }

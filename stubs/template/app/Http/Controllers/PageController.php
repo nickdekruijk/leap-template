@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Contracts\Content;
 use App\Models\Page;
+use App\Support\SiteSearch;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -468,6 +470,12 @@ class PageController extends Controller
         // once and a language picked by hand afterwards is the one that sticks
         session(['leap_locale' => app()->getLocale()]);
 
+        // The results page, when the site has one. Before the page tree, so it answers
+        // even where a page happens to have the same slug.
+        if (count($segments) === 1 && $segments[0] !== '' && $segments[0] === static::searchSlug()) {
+            return $this->search();
+        }
+
         // A bare locale prefix ("/en") leaves no segments; the homepage matches an empty one
         if (empty($segments)) {
             $segments = [''];
@@ -490,6 +498,108 @@ class PageController extends Controller
         // What the root answers depends on a request header, so a shared cache has to
         // key on it as well — without this one proxy serves one language to everyone
         return $root ? response($view)->header('Vary', 'Accept-Language') : $view;
+    }
+
+    /**
+     * How many results the search page shows at a time.
+     */
+    protected const SEARCH_PER_PAGE = 20;
+
+    /**
+     * The slug of the results page in a locale, or null when the site has none. Off
+     * unless config('leap.search.page') says otherwise: true is "search", a string is
+     * the slug in every language, and an array gives one per locale, where a locale left
+     * out has no results page.
+     */
+    public static function searchSlug(?string $locale = null): ?string
+    {
+        $config = config('leap.search.page', false);
+        $slug = match (true) {
+            $config === true => 'search',
+            is_array($config) => $config[$locale ?? app()->getLocale()] ?? null,
+            default => $config,
+        };
+
+        return is_string($slug) && trim($slug, '/') !== '' ? trim($slug, '/') : null;
+    }
+
+    /**
+     * The address of the results page, for a term when there is one, or null when the
+     * site has none.
+     */
+    public static function searchUrl(?string $locale = null, ?string $term = null): ?string
+    {
+        $slug = static::searchSlug($locale);
+
+        if (! $slug) {
+            return null;
+        }
+
+        $url = Leap::localePrefix($locale).'/'.$slug;
+        $term = trim((string) $term);
+
+        return $term === '' ? $url : $url.'?'.http_build_query(['term' => $term]);
+    }
+
+    /**
+     * The results page: every match, a page of them at a time, in a plain list a
+     * crawler may follow but not index.
+     *
+     * The term is in ?term= rather than ?q=. Matomo reads q, query, s, search and a few
+     * more as a site search on every page view, so the second page of the same results
+     * would count as a search again. With term it counts the first page once, because
+     * the view tells it to (siteSearch), and the pages after it as page views.
+     */
+    protected function search(): View
+    {
+        $term = request()->query('term');
+        $term = is_string($term) ? trim($term) : '';
+
+        $all = app(SiteSearch::class)->results($term);
+        $current = max(1, (int) request()->query('page', '1'));
+
+        $results = new LengthAwarePaginator(
+            $all->forPage($current, static::SEARCH_PER_PAGE)->values(),
+            $all->count(),
+            static::SEARCH_PER_PAGE,
+            $current,
+            ['path' => static::searchUrl(), 'query' => $term === '' ? [] : ['term' => $term]],
+        );
+
+        // A page past the last one is not there, rather than an empty list
+        abort_if($current > $results->lastPage(), 404);
+
+        return view('search', [
+            'searchTerm' => $term,
+            'results' => $results,
+            'localeUrls' => static::searchLocaleUrls($term),
+            'siteSearch' => $current === 1 && strlen(SiteSearch::term($term)) >= 2
+                ? ['term' => $term, 'count' => $all->count()]
+                : null,
+        ]);
+    }
+
+    /**
+     * The language switcher on the results page: the same search in every published
+     * locale that has a results page.
+     *
+     * @return array<string, array{name: string, url: string, active: bool}>
+     */
+    protected static function searchLocaleUrls(string $term): array
+    {
+        $urls = [];
+
+        foreach (Leap::localesPublished() ?: [] as $locale => $name) {
+            if ($url = static::searchUrl($locale, $term)) {
+                $urls[$locale] = [
+                    'name' => $name,
+                    'url' => $url,
+                    'active' => $locale === app()->getLocale(),
+                ];
+            }
+        }
+
+        return $urls;
     }
 
     /**

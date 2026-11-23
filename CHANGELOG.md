@@ -5,6 +5,36 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-11-23
+
+An optional search results page, off by default. An existing site gets it by running
+`leap:template` again, which also brings the new `App\Support\SiteSearch`; nothing changes
+until `leap.search.page` switches the page on.
+
+### Added
+
+- **A results page for the site search.** Set `leap.search.page` to `true` (`/search`), a
+  slug, or a slug per locale (`['nl' => 'zoeken', 'en' => 'search']`), and the page lists
+  every match, 20 at a time, with pagination. It is a plain GET form and list, so it works
+  without JavaScript, and it carries `noindex, follow`. The popup then shows its best 8,
+  with "Show all 23 results" under them when there are more, and Enter goes to the page.
+  On a multilingual site each language has its own slug, and the language switcher keeps
+  the term. The page answers before the page tree, so it hides a page with the same slug.
+- **Matomo counts a search on the results page once.** The term is in `?term=`, which
+  Matomo does not read as a search by itself, and the first page of results is reported
+  as the site search instead of a page view. The pages after it are page views, and the
+  popup drops the term it was still waiting to report when it hands the visitor over.
+- **`components/pagination`**, previous, page numbers and next as plain links, for any
+  list that needs it. Laravel's own pagination views assume Tailwind or Bootstrap.
+
+### Changed
+
+- **What a term finds lives in `App\Support\SiteSearch`.** The ranking, the locale
+  handling and the text extraction moved out of the Livewire component, which now only
+  asks for results and shows them, so the popup and the results page always agree.
+- **The result list is styled outside the popup too**, so the results page can use the
+  same `search-results` markup.
+
 ## [2.7.0] - 2026-11-23
 
 Matomo now hears of what loads no page: a filtered overview and a search. An existing site
