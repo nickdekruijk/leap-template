@@ -5,6 +5,38 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-11-23
+
+Matomo now hears of what loads no page: a filtered overview and a search. An existing site
+gets this by running `leap:template` again; `leap:template --diff` shows what differs.
+
+### Added
+
+- **A change of address without a page load counts as a page view in Matomo.** The tag
+  filter changes the address with `pushState`, so Matomo only ever saw the overview it
+  started on. It now sends a `page:view` browser event for each filter picked, cleared or
+  stepped back to with the back button, and the Matomo snippet in the layout tracks it
+  with the new address and title. Going back past an anchor link shows the same view and
+  is not counted. A project that adds a panel or modal with `pushState` sends the same
+  event. GA4 counts history changes by itself, so it is left alone and nothing is counted
+  twice.
+- **The search is reported to Matomo as a site search.** The live search sends a
+  `site-search` browser event with the term and the number of results, and the snippet
+  turns the term someone stops at into a `trackSiteSearch`: once the field has been
+  still for 1.5 seconds, or when the visitor leaves for a result. The letters typed on the
+  way do not count. Site Search has to be on for the website in Matomo.
+
+### Changed
+
+- **The search lists up to 30 results instead of 10.** The list scrolls, so a large site
+  shows its best matches first, and a small one no longer hides a match it has.
+
+### Fixed
+
+- **A space before or after the term no longer finds nothing.** It was part of the term,
+  and no title starts with one, so every such search said "No results found". The term
+  is trimmed, also where the view decides whether to show results at all.
+
 ## [2.6.0] - 2026-11-11
 
 A site installed from this release passes Larastan at level 5 without a baseline, and is

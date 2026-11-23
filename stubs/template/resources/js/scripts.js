@@ -61,20 +61,38 @@ document.addEventListener('alpine:init', function () {
     // instant, and x-transition fades the cards that come and go. The chosen tag lives
     // in the URL (?tag=slug) via pushState, so a filtered view is shareable and the
     // back button steps back through the filters; popstate keeps the chips in sync.
+    // Each change goes out as a "page:view" event, since no page loads for it: the
+    // layout's Matomo snippet counts it (GA4 sees history changes by itself).
     Alpine.data('tagFilter', function () {
         const tagFromUrl = () => new URLSearchParams(location.search).get('tag') || '';
 
+        const pageView = (referrer) => document.dispatchEvent(new CustomEvent('page:view', {
+            detail: { url: location.href, title: document.title, referrer: referrer },
+        }));
+
         return {
             selected: tagFromUrl(),
+            address: location.href,
 
             init() {
-                window.addEventListener('popstate', () => (this.selected = tagFromUrl()));
+                window.addEventListener('popstate', () => {
+                    // Going back past an anchor link pops the history too, but shows
+                    // the same filtered view: only a change of tag is a new view
+                    if (tagFromUrl() === this.selected) {
+                        return;
+                    }
+                    this.selected = tagFromUrl();
+                    pageView(this.address);
+                    this.address = location.href;
+                });
             },
 
             pick(tag) {
                 // Clicking the active tag again clears the filter.
                 this.selected = this.selected === tag ? '' : tag;
                 history.pushState({}, '', this.selected ? '?tag=' + this.selected : location.pathname);
+                pageView(this.address);
+                this.address = location.href;
             },
 
             visible(el) {

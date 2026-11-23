@@ -27,6 +27,12 @@ use NickDeKruijk\Leap\Leap;
  * active locale so a match in another language does not leak into the current one. Each
  * content result carries a type label (the overview page's title, e.g. "Nieuws") so the
  * mixed list reads.
+ *
+ * Each change of the term is also sent to the page as a "site-search" browser event,
+ * with the number of results, which the layout's Matomo snippet reports as a site
+ * search.
+ *
+ * @property-read Collection<int, array<string, mixed>> $results
  */
 class Search extends Component
 {
@@ -54,7 +60,11 @@ class Search extends Component
      */
     private const CANDIDATE_LIMIT = 200;
 
-    private const RESULT_LIMIT = 10;
+    /**
+     * Enough for everything a small site has to match, and the list scrolls, so a
+     * larger one only shows its best matches first rather than its first ten.
+     */
+    private const RESULT_LIMIT = 30;
 
     /**
      * The fields in a section that hold text a visitor reads. Everything else in there
@@ -68,12 +78,13 @@ class Search extends Component
     #[Computed]
     public function results(): Collection
     {
-        if (strlen($this->query) < 2) {
+        $term = $this->term();
+
+        if (strlen($term) < 2) {
             return collect();
         }
 
         $locale = app()->getLocale();
-        $term = mb_strtolower($this->query);
 
         // Pages
         $results = $this->matches(Page::active(), $term, $locale)
@@ -343,6 +354,26 @@ class Search extends Component
             : ($page->parent && ! isset($seen[$page->parent]) ? rtrim($this->resolvePageUrl($page->parent, $seen), '/').'/'.$slug : '/'.$slug);
 
         return $this->urlCache[$locale][$pageId] = $url;
+    }
+
+    /**
+     * What is looked for: the query as typed, lowercased, without the space a visitor
+     * leaves before or after the words. That space would otherwise make every search
+     * come back empty, since no title starts with one.
+     */
+    private function term(): string
+    {
+        return mb_strtolower(trim($this->query));
+    }
+
+    /**
+     * Tell the page what was searched and how many results it found. Every change is
+     * sent, an emptied field too, so the listener can drop a term that was only typed
+     * on the way to another one.
+     */
+    public function updatedQuery(): void
+    {
+        $this->dispatch('site-search', term: trim($this->query), results: $this->results->count());
     }
 
     public function render(): View

@@ -53,6 +53,43 @@
                     _paq.push([e.detail.analytics ? 'rememberCookieConsentGiven' : 'forgetCookieConsentGiven']);
                 });
 
+                // A page that changes its address without loading (the tag filter in
+                // scripts.js, a panel or modal with pushState) sends a "page:view"
+                // event, which counts as the page view it is to the visitor. GA4 sees
+                // these history changes by itself, so this is for Matomo only.
+                document.addEventListener('page:view', function (e) {
+                    _paq.push(['setReferrerUrl', e.detail.referrer]);
+                    _paq.push(['setCustomUrl', e.detail.url]);
+                    _paq.push(['setDocumentTitle', e.detail.title]);
+                    _paq.push(['trackPageView']);
+                    _paq.push(['enableLinkTracking']);
+                });
+
+                // The live search (app/Livewire/Search.php) reports each term as it is
+                // typed. Only the one someone stops at counts, not every prefix on the
+                // way to it: a term is sent once the field has been still for a moment,
+                // or when the visitor leaves the page for one of the results.
+                (function () {
+                    var pending = null, last = null, timer = null;
+
+                    function flush() {
+                        clearTimeout(timer);
+                        if (pending && pending.term.length >= 2 && pending.term !== last) {
+                            _paq.push(['trackSiteSearch', pending.term, false, pending.results]);
+                            last = pending.term;
+                        }
+                        pending = null;
+                    }
+
+                    window.addEventListener('site-search', function (e) {
+                        clearTimeout(timer);
+                        pending = e.detail;
+                        timer = setTimeout(flush, 1500);
+                    });
+
+                    window.addEventListener('pagehide', flush);
+                })();
+
                 document.addEventListener('DOMContentLoaded', function () {
                     if (window.consent && window.consent.has('analytics')) {
                         _paq.push(['rememberCookieConsentGiven']);

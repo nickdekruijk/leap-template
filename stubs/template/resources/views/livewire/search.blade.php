@@ -20,7 +20,7 @@
         </button>
     </div>
 
-    @if (strlen($query) >= 2)
+    @if (strlen(trim($query)) >= 2)
         @if ($this->results->count())
             <ul class="search-results">
                 @foreach ($this->results as $result)
