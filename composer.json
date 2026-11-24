@@ -13,7 +13,7 @@
 		"nickdekruijk/leap": "^1.21"
 	},
 	"suggest": {
-		"laravel/head": "^0.1.0 — the document <head>, Open Graph and JSON-LD of the frontend template (php artisan leap:template)",
+		"laravel/head": "^0.3.0 for the document <head>, Open Graph and JSON-LD of the frontend template (php artisan leap:template)",
 		"nickdekruijk/minify": "^5.0 for SCSS/JS compilation and bundling used by the frontend template (php artisan leap:template)",
 		"nickdekruijk/settings": "Admin-editable settings and footer used by the frontend template (php artisan leap:template)",
 		"nickdekruijk/vanilla-slider": "Carousel/slider used by the frontend template",

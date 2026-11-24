@@ -2076,18 +2076,18 @@ class TemplateCommand extends Command
      * `@minifyStylesheet` and leaves it in the page as text, so the site would render
      * without a stylesheet rather than fail.
      *
-     * laravel/head is pinned to ^0.1.0 rather than left open: it is a pre-1.0 package,
-     * so a 0.2 is free to rename the fluent methods the copied HeadServiceProvider and
+     * laravel/head is pinned to ^0.3.0 rather than left open: it is a pre-1.0 package,
+     * so a 0.4 is free to rename the fluent methods the copied HeadServiceProvider and
      * PageController call. A generated project keeps the files it was given, so the bump
-     * is a deliberate one that comes with a stub update, never a surprise on composer
-     * update.
+     * is a deliberate one, with a stub update where it needs one, never a surprise on
+     * composer update.
      *
      * @return array<string, string>
      */
     protected function frontendPackages(): array
     {
         return [
-            'laravel/head:^0.1.0' => 'the document <head>, Open Graph and JSON-LD',
+            'laravel/head:^0.3.0' => 'the document <head>, Open Graph and JSON-LD',
             'nickdekruijk/minify:^5.0' => 'SCSS compilation and JS bundling',
             'nickdekruijk/settings' => 'admin-editable settings + footer',
             'nickdekruijk/vanilla-slider' => 'carousel',

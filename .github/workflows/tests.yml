@@ -74,7 +74,7 @@ jobs:
         run: |
           composer config repositories.leap-template path ../package
           composer require --dev "nickdekruijk/leap-template:@dev" --no-interaction
-          composer require laravel/head:^0.1.0 nickdekruijk/minify:^4.0 nickdekruijk/settings \
+          composer require laravel/head:^0.3.0 nickdekruijk/minify:^5.0 nickdekruijk/settings \
             nickdekruijk/vanilla-slider nickdekruijk/horizontal-scroller --no-interaction
 
       - name: Scaffold the site

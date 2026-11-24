@@ -5,6 +5,17 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.2] - 2026-11-24
+
+`leap:template` leaves an installed `laravel/head` alone, so an existing site moves over
+with `composer require laravel/head:^0.3`. No stub changed.
+
+### Changed
+
+- **New installs get `laravel/head` 0.3.** It was pinned to `^0.1.0`. 0.2 closes an
+  injection through link attributes, 0.3 resolves the per-request head from the current
+  container. The scaffolded pages render the same `<head>` on 0.1 and on 0.3.
+
 ## [2.7.1] - 2026-11-23
 
 Needs leap 1.21, which reads the id out of a whole YouTube or Vimeo link. An existing site
