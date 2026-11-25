@@ -45,6 +45,20 @@ class PageRoutingTest extends TestCase
         $this->get('/this-page-does-not-exist')->assertNotFound();
     }
 
+    /**
+     * The homepage's slug is "/", and "//#heading" is a link to another host.
+     */
+    public function test_a_heading_of_the_homepage_in_the_navigation_links_to_the_root(): void
+    {
+        config(['leap.locales' => null]);
+
+        $home = Page::active()->get()->first(fn (Page $page): bool => $page->slug === '/');
+        $home->sections = [['_name' => 'default', '_sort' => 0, 'active' => true, 'menuitem' => 1, 'head' => 'Onze werkwijze']];
+        $home->save();
+
+        $this->assertSame(['/#onze-werkwijze'], array_column(PageController::getMenu($home->id), 'url'));
+    }
+
     public function test_the_sitemap_has_a_single_plain_entry_per_page_when_monolingual(): void
     {
         config(['leap.locales' => null]);

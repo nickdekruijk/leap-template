@@ -20,10 +20,12 @@
                      the only place that can see whether an earlier section already held a
                      heading. An empty head renders no tag at all: a bare <h1></h1> is worse
                      for search engines and screen readers than no heading. A missing
-                     translation is an empty string rather than null, hence filled(). --}}
+                     translation is an empty string rather than null, hence filled().
+                     A heading shown in the navigation carries the id its link there points
+                     at, made from the same text as PageController::getPages() makes it. --}}
                 @php($headLevel = $headLevel ?? 'h2')
                 @if (filled($section['head'] ?? null))
-                    <{{ $headLevel }}>{!! $section['head'] !!}</{{ $headLevel }}>
+                    <{{ $headLevel }}@if ($section['menuitem'] ?? false) id="{{ Str::slug($section['head']) }}"@endif>{!! $section['head'] !!}</{{ $headLevel }}>
                 @endif
                 {!! $section['body'] ?? '' !!}
             @endif

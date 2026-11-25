@@ -5,6 +5,25 @@ All notable changes to `nickdekruijk/leap-template` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.3] - 2026-11-25
+
+"Show heading in navigation" on a text section gives a link that works. An existing site
+gets this by running `leap:template` again; `leap:template --diff` shows what differs. It is
+`PageController::getPages()`, `sections/default.blade.php` and `template.scss`.
+
+### Fixed
+
+- **A heading of the homepage in the navigation linked to another host.** Its link came out
+  as `//#heading` (`/en//#heading` in another locale), because the homepage's slug is `/`.
+  A browser reads `//` as the start of a host name. The link now starts from the same
+  address as the page's own menu item: `/#heading` and `/en/#heading`.
+- **A heading in the navigation had no anchor to jump to.** The text section never printed
+  the id its link points at, so the link opened the page and stayed at the top. A heading
+  that is switched on for the navigation carries it now; every other heading is unchanged.
+- **A heading that was jumped to from the top of the page ended up behind the bar.** The bar
+  is in the flow and shrinks during the jump, which moves the page up after the browser has
+  decided where to stop. Headings with an id keep the full height of the bar free.
+
 ## [2.7.2] - 2026-11-24
 
 `leap:template` leaves an installed `laravel/head` alone, so an existing site moves over

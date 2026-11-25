@@ -232,14 +232,25 @@ class MultilingualTest extends TestCase
     }
 
     /**
+     * The homepage in another locale: its slug is "/" there too, behind the locale prefix.
+     */
+    public function test_a_heading_of_the_homepage_links_to_the_root_of_its_locale(): void
+    {
+        $this->promoteHeadingToMenuItem(1);
+        app()->setLocale('en');
+
+        $this->assertSame(['/en/#how-we-work'], array_column(PageController::getMenu(1), 'url'));
+    }
+
+    /**
      * Tick "show heading in navigation" on a section whose heading is translatable — which every
      * heading in ContentSections is.
      */
-    private function promoteHeadingToMenuItem(): void
+    private function promoteHeadingToMenuItem(int $id = 2): void
     {
         config(['leap.locales' => ['nl' => 'Nederlands', 'en' => 'English']]);
 
-        $page = Page::find(2); // 'over-ons'/'about-us', a menu item with a default section
+        $page = Page::find($id); // 2 is 'over-ons'/'about-us', a menu item with a default section
         $sections = $page->sections;
         $sections[0]['menuitem'] = 1;
         $sections[0]['head'] = ['nl' => 'Onze werkwijze', 'en' => 'How we work'];

@@ -29,6 +29,14 @@ body {
         flex: 1;
         // Jumping to an anchor always happens with the bar already compact
         scroll-margin-top: var(--nav-height-compact, var(--nav-height, 4.5rem));
+
+        // Except from the top of the page: the bar is in the flow, so shrinking on the way
+        // moves the page up after the browser has decided where to stop, and a heading would
+        // end up behind it. The full height is always enough.
+        h1[id],
+        h2[id] {
+            scroll-margin-top: var(--nav-height, 4.5rem);
+        }
     }
 }
 

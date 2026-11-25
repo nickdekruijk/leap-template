@@ -307,15 +307,19 @@ class PageController extends Controller
             // Traverse the pages to find the active page and build the menu
             $traverse = function (array &$pages, array $segments = [], int $parent = 0, int $depth = 0, bool $activeParent = true, string $path = '') use (&$traverse, $prefix) {
                 foreach ($pages[$parent] ?? [] as $page) {
+                    // The homepage has the slug "/", so a plain concatenation would give "//",
+                    // which a browser reads as the start of another host
+                    $url = $prefix.(rtrim($path.'/'.$page['slug'], '/') ?: '/');
+
                     // If the page is a menu item, add it to the menu array
                     if ($page['menuitem']) {
                         $pages['menu'][$parent][$page['id']] = $page;
-                        $pages['menu'][$parent][$page['id']]['url'] = $prefix.(rtrim($path.'/'.$page['slug'], '/') ?: '/');
+                        $pages['menu'][$parent][$page['id']]['url'] = $url;
                     }
                     // Add in-page anchor links for sections flagged as menu items
                     foreach ($page['sections'] ?: [] as $i => $section) {
                         $pages['menu'][$page['id']][$i] = ['title' => $section];
-                        $pages['menu'][$page['id']][$i]['url'] = $prefix.$path.'/'.$page['slug'].'#'.Str::slug($section);
+                        $pages['menu'][$page['id']][$i]['url'] = $url.'#'.Str::slug($section);
                     }
 
                     // The homepage is the page whose slug is "/", not simply the first page (order-independent).

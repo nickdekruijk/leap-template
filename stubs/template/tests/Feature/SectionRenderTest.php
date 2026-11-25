@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\PageController;
 use App\Leap\Page as PageResource;
 use App\Models\Page;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -327,6 +328,26 @@ class SectionRenderTest extends TestCase
 
         $this->assertStringContainsString('<section class="default none cookies">', $html);
         $this->assertStringContainsString('class="cookie-table"', $html);
+    }
+
+    /**
+     * The link in the navigation is only any use when something on the page carries that id.
+     */
+    public function test_a_heading_in_the_navigation_carries_the_id_its_link_points_at(): void
+    {
+        $page = $this->page([
+            [...$this->text(1), 'head' => 'Onze werkwijze', 'menuitem' => true],
+            $this->text(2),
+        ]);
+
+        $html = $this->get('/slides')->assertOk()->getContent();
+
+        $this->assertSame(['/slides#onze-werkwijze'], array_column(PageController::getMenu($page->id), 'url'));
+        $this->assertStringContainsString('<h1 id="onze-werkwijze">Onze werkwijze</h1>', $html);
+        $this->assertStringContainsString('href="/slides#onze-werkwijze"', $html);
+
+        // Only the one that is linked to
+        $this->assertStringContainsString('<h2>After the carousel</h2>', $html);
     }
 
     /**
